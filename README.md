@@ -45,6 +45,10 @@ tests/
 | `scripts/analyze_market.py` | Análisis 01: margen y calibración del mercado de cierre |
 | `scripts/evaluate_models.py` | Análisis 02: Elo y Dixon-Coles vs mercado (walk-forward) en ARG/BRA |
 | `scripts/screen_leagues.py` | Análisis 03: el mismo pipeline en todas las ligas, con criterio pre-registrado |
+| `scripts/evaluate_shots.py` | Análisis 04: Dixon-Coles entrenado con tiros además de goles |
+| `scripts/build_league_models.py` | Consolida los parámetros validados por liga en `config/league_models.json` |
+| `scripts/predict.py --league E0 --home X --away Y [--odds L E V]` | Predicción de un partido: 1X2, goles esperados, marcadores, O/U, BTTS, EV y recomendación |
+| `scripts/daily.py` | Tarea diaria: recolección, resultados/cuotas de cierre, predicciones de seguimiento e informe [docs/seguimiento.md](docs/seguimiento.md) |
 
 Los análisis generados están en [docs/analisis/](docs/analisis/) y las decisiones en [docs/decisiones.md](docs/decisiones.md).
 
