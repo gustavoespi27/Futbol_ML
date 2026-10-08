@@ -40,3 +40,28 @@ Restricciones del plan Free (100 peticiones/día):
 ## 2026-10-07 — Regla de apuesta por EV relativo
 
 Se apuesta solo si `p_modelo × cuota − 1 > min_ev`, con la probabilidad del mercado sin margen como referencia. Un umbral en puntos porcentuales de edge no es comparable entre cuotas distintas.
+
+## 2026-10-08 — Conclusiones del análisis 01 (mercado de cierre ARG/BRA)
+
+Detalle en [analisis/01_mercado_cierre.md](analisis/01_mercado_cierre.md). Exploratorio, sobre todo el histórico.
+
+1. **Margen:** Pinnacle ~3,1%, promedio del mercado ~7% (y subiendo en 2025-26). Apostar en casas
+   "blandas" exige superar ~7% de margen; el modelo debe compararse siempre contra el mejor precio
+   realista, no contra el promedio.
+2. **La vara a superar:** log loss del cierre de Pinnacle = 1,034 (ARG) y 0,998 (BRA), apenas
+   3,8% / 5,0% mejor que las frecuencias históricas. Argentina es la liga menos predecible
+   (más empates, ~30%). Un modelo útil debe acercarse a estos valores fuera de muestra.
+3. **Calibración:** el mercado está bien calibrado en general (ECE 0,5-1,8%), pero
+   **subestima al local ~1-1,6 pp y sobrestima a la visita ~1,1-1,4 pp** en ambas ligas.
+   Apostar a la visita rinde -7,2% a cuota Pinnacle (IC95% [-10,5%; -3,8%]), con signo
+   negativo en los 8 bloques liga × período. Apostar ciegamente al local rinde -0,5%:
+   **el sesgo existe pero no alcanza para ganar sin modelo.**
+4. **Favorito-longshot:** el tramo de cuota 4-6 (mayoría visitas y empates en partidos
+   desiguales) rinde -14%. Las cuotas largas (>6) no son concluyentes (IC enormes).
+5. **Comparación entre métodos de quitar el margen:** proporcional, power y Shin dan log loss
+   prácticamente idéntico (diferencias < 0,0004). Se mantiene el proporcional por simplicidad.
+
+**Hipótesis para la fase de modelado (a validar walk-forward, no asumir):** un modelo que estime
+mejor la ventaja local en estas ligas podría encontrar valor en apuestas al local y evitar
+visitas sobrevaloradas. Cuidado: este patrón se encontró mirando muchos cortes del mismo
+histórico (comparaciones múltiples).
