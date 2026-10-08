@@ -34,7 +34,14 @@ def from_iso(s: str) -> datetime:
 # --- Competiciones ---------------------------------------------------------
 
 def sync_competitions(conn: sqlite3.Connection) -> None:
-    for code, c in config.settings()["competitions"].items():
+    """Competiciones de settings.yaml + ligas de config/football_data.yaml."""
+    comps = dict(config.settings()["competitions"])
+    with open(config.PROJECT_ROOT / "config" / "football_data.yaml", encoding="utf-8") as f:
+        fd = yaml.safe_load(f)
+    for group in ("extra", "main"):
+        for code, c in fd[group].items():
+            comps.setdefault(code, {**c, "type": "league"})
+    for code, c in comps.items():
         conn.execute(
             """INSERT INTO competitions (code, name, country, type) VALUES (?, ?, ?, ?)
                ON CONFLICT (code) DO UPDATE SET name = excluded.name,

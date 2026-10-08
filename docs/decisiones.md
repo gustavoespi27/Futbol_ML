@@ -65,3 +65,26 @@ Detalle en [analisis/01_mercado_cierre.md](analisis/01_mercado_cierre.md). Explo
 mejor la ventaja local en estas ligas podría encontrar valor en apuestas al local y evitar
 visitas sobrevaloradas. Cuidado: este patrón se encontró mirando muchos cortes del mismo
 histórico (comparaciones múltiples).
+
+## 2026-10-08 — Análisis 02: Elo y Dixon-Coles no superan al mercado en ARG/BRA
+
+Walk-forward semanal; hiperparámetros, pesos y umbral elegidos en validación 2016-21, test 2022-25.
+Los modelos quedan 0,010-0,025 de log loss por detrás del cierre de Pinnacle. El ensamble con el
+mercado asigna peso ~0 a los modelos (no aportan información nueva). Apostar con el modelo solo
+pierde (BRA -13% a cuota Pinnacle, IC95% excluye 0); con ¼ Kelly el bankroll cae >75%.
+Detalle: [analisis/02_modelos.md](analisis/02_modelos.md).
+
+## 2026-10-08 — Pre-registro: criterio para elegir ligas (antes de ver resultados)
+
+Se evalúan ~37 ligas de football-data.co.uk con el mismo pipeline. Con tantas ligas, alguna
+"ganará" por azar, así que el criterio se fija ANTES de mirar resultados:
+
+1. **Candidata (solo con datos de VALIDACIÓN 2016-21):** el ensamble Elo+DC+Mercado mejora el
+   log loss del mercado en validación (Δ < -0,001) **y** la estrategia de ese ensamble tiene yield > 0
+   a cuota Pinnacle en validación.
+2. **Confirmada (TEST 2022-25, mirado una sola vez):** en test se mantiene Δ log loss < 0 **y**
+   yield > 0 a cuota Pinnacle. Un IC95% individual no basta con ~37 comparaciones: se reporta
+   también el IC con corrección de Bonferroni (99,9%).
+3. Si ninguna liga cumple 1 y 2, la conclusión es que **con estos modelos y datos no hay ventaja
+   demostrable** en ninguna liga, y el siguiente paso es mejorar el modelo (xG, tiros, alineaciones),
+   no buscar más ligas.

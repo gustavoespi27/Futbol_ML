@@ -59,18 +59,29 @@ def _ll(df, pred, eval_mask):
     return metrics.log_loss(sub.y.to_numpy()[ok], P)
 
 
-def tune(df: pd.DataFrame, eval_comp: str) -> tuple[dict, dict]:
+def _dc(df: pd.DataFrame, mask: np.ndarray, dc_comps: list[str] | None, **params) -> pd.DataFrame:
+    """Dixon-Coles entrenado solo con `dc_comps` (más rápido que todo el país).
+    El orden de salida coincide con df[mask] porque ambos van por kickoff."""
+    if dc_comps is None:
+        return walk_forward_dc(df, mask, **params)
+    keep = df.comp.isin(dc_comps).to_numpy()
+    return walk_forward_dc(df[keep].reset_index(drop=True), mask[keep], **params)
+
+
+def tune(df: pd.DataFrame, eval_comp: str, dc_grid: dict = DC_GRID, elo_grid: dict = ELO_GRID,
+         dc_comps: list[str] | None = None) -> tuple[dict, dict]:
     val = _period_mask(df, "val") & (df.comp == eval_comp).to_numpy()
-    best_dc = min((dict(zip(DC_GRID, v)) for v in itertools.product(*DC_GRID.values())),
-                  key=lambda p: _ll(df, walk_forward_dc(df, val, **p), val))
-    best_elo = min((dict(zip(ELO_GRID, v)) for v in itertools.product(*ELO_GRID.values())),
+    best_dc = min((dict(zip(dc_grid, v)) for v in itertools.product(*dc_grid.values())),
+                  key=lambda p: _ll(df, _dc(df, val, dc_comps, **p), val))
+    best_elo = min((dict(zip(elo_grid, v)) for v in itertools.product(*elo_grid.values())),
                    key=lambda p: _ll(df, walk_forward_elo(df, val, **p), val))
     return best_dc, best_elo
 
 
-def evaluate(df: pd.DataFrame, eval_comp: str, dc_params: dict, elo_params: dict) -> LeagueResult:
+def evaluate(df: pd.DataFrame, eval_comp: str, dc_params: dict, elo_params: dict,
+             dc_comps: list[str] | None = None) -> LeagueResult:
     mask = (df.kickoff >= PERIODS["val"][0]).to_numpy() & (df.comp == eval_comp).to_numpy()
-    dc = walk_forward_dc(df, mask, **dc_params)
+    dc = _dc(df, mask, dc_comps, **dc_params)
     elo = walk_forward_elo(df, mask, **elo_params)
     f = df[mask].reset_index(drop=True)
     naive = naive_frequencies(df)[mask]

@@ -20,7 +20,6 @@ competitions:
     country: Argentina
     type: league
     api_football_id: 128
-    football_data_url: https://www.football-data.co.uk/new/ARG.csv
     collect_odds: true
   ARGC:
     name: Copa de la Liga Profesional (Argentina)
@@ -32,7 +31,6 @@ competitions:
     country: Brazil
     type: league
     api_football_id: 71
-    football_data_url: https://www.football-data.co.uk/new/BRA.csv
     collect_odds: true
   LIB:
     name: Copa Libertadores
