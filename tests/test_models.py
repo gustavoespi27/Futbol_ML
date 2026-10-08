@@ -96,3 +96,21 @@ def test_backtest_flat_and_no_bet_rule():
     assert r["profit"] == pytest.approx(1.0) and r["yield"] == pytest.approx(1.0)
     k = simulate(bets, np.array([1, 2]), staking="kelly", kelly_fraction=0.25, max_stake=0.05)
     assert k["profit"] == pytest.approx(-100 * 0.05)   # kelly*0.25 = 0.05 -> tope 5%
+
+
+def test_dixon_coles_shot_mix_uses_shots_without_leakage():
+    df = synthetic_league(seasons=3, seed=2)
+    rng = np.random.default_rng(3)
+    # Tiros correlacionados con goles: ~0.3 goles por tiro al arco
+    df["h_sot"] = df.home_goals * 2 + rng.poisson(2, len(df))
+    df["a_sot"] = df.away_goals * 2 + rng.poisson(2, len(df))
+    df["h_shots"] = df.h_sot + rng.poisson(5, len(df))
+    df["a_shots"] = df.a_sot + rng.poisson(5, len(df))
+    now = df.kickoff.max() + pd.Timedelta(days=1)
+    m = DixonColes(xi=0.0, alpha=1e-4, mix=0.5).fit(df, now)
+    assert m.shot_coefs is not None and m.shot_coefs[0] > m.shot_coefs[1] >= 0
+    P = m.predict(df.head(5))["P"]
+    assert np.allclose(P.sum(axis=1), 1)
+    # Sin estadísticas cae a solo goles
+    m2 = DixonColes(xi=0.0, alpha=1e-4, mix=0.5).fit(df.assign(h_sot=np.nan, a_sot=np.nan), now)
+    assert m2.shot_coefs is None

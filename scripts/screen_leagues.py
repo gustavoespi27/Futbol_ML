@@ -26,6 +26,7 @@ from footy.db.connection import connect
 from footy.evaluation.metrics import bootstrap_mean_ci
 from footy.evaluation.pipeline import evaluate, tune
 from footy.ingest.football_data import leagues
+from footy.leagues import family
 
 # Grillas reducidas (37 ligas); los bordes elegidos se reportan para detectar grillas cortas.
 DC_GRID = {"xi": [0.001, 0.002, 0.004], "alpha": [3e-3, 1e-2, 3e-2]}
@@ -39,29 +40,27 @@ SURFACE, INK, INK_2, GRID_C = "#fcfcfb", "#0b0b0b", "#52514e", "#e4e3df"
 C1, C2 = "#2a78d6", "#eb6834"
 
 
-def family(code: str) -> tuple[list[str], list[str]]:
-    """(competiciones para Elo, competiciones para Dixon-Coles)."""
-    cfg = leagues()
-    if code == "ARG":
-        return ["ARG", "ARGC"], ["ARG", "ARGC"]
-    if code in cfg["main"]:
-        country = cfg["main"][code]["country"]
-        return [c for c, v in cfg["main"].items() if v["country"] == country], [code]
-    return [code], [code]
-
-
-def run_league(code: str) -> dict:
+def run_league(code: str, mix_grid: list[float] | None = None, cache=CACHE) -> dict:
+    """mix_grid: si se da, reutiliza los hiperparámetros del screening base y elige en
+    VALIDACIÓN la proporción goles/tiros de Dixon-Coles (análisis 04)."""
     elo_comps, dc_comps = family(code)
-    df = load_matches(connect(), elo_comps)
-    dc_p, elo_p = tune(df, code, DC_GRID, ELO_GRID, dc_comps)
+    df = load_matches(connect(), elo_comps, with_stats=mix_grid is not None)
+    if mix_grid is None:
+        dc_p, elo_p = tune(df, code, DC_GRID, ELO_GRID, dc_comps)
+    else:
+        base = json.loads((CACHE / f"{code}.json").read_text(encoding="utf-8"))
+        elo_p = base["elo_params"]
+        dc_p, _ = tune(df, code, {**{k: [v] for k, v in base["dc_params"].items()}, "mix": mix_grid},
+                       {k: [v] for k, v in elo_p.items()}, dc_comps)
     res = evaluate(df, code, dc_p, elo_p, dc_comps)
     f = res.frame
-    res.frame.drop(columns=["kickoff"]).to_csv(CACHE / f"wf_{code}.csv", index=False)
+    res.frame.drop(columns=["kickoff"]).to_csv(cache / f"wf_{code}.csv", index=False)
 
     met = res.metrics.set_index(["periodo", "modelo"]).log_loss
     out = {"code": code, "name": (leagues()["extra"].get(code) or leagues()["main"][code])["name"],
            "dc_params": dc_p, "elo_params": elo_p,
-           "w_blend": res.weights_market.tolist(), "min_ev": res.chosen}
+           "w_blend": res.weights_market.tolist(), "w_models": res.weights_models.tolist(),
+           "min_ev": res.chosen}
     for period in ("val", "test"):
         m = (f.period == period).to_numpy() & has_odds(f, "pin")
         out[f"n_{period}"] = int(m.sum())
@@ -86,7 +85,7 @@ def run_league(code: str) -> dict:
             out[f"test_bets_{key}_{book}"] = int(t["apuestas"].iloc[0]) if len(t) else 0
             out[f"test_ci_{key}_{book}"] = t["yield_ic95"].iloc[0] if len(t) else ""
     out["test_ci_bonf_blend_pin"] = _bonferroni_ci(f, res, "Elo+DC+Mercado")
-    (CACHE / f"{code}.json").write_text(json.dumps(out, indent=2), encoding="utf-8")
+    (cache / f"{code}.json").write_text(json.dumps(out, indent=2), encoding="utf-8")
     return out
 
 

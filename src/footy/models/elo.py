@@ -24,8 +24,10 @@ def goal_multiplier(gd: np.ndarray) -> np.ndarray:
 
 
 def pre_match_ratings(df: pd.DataFrame, k: float = 20, home_adv: float = 60,
-                      new_team_offset: float = 100, season_regress: float = 0.2) -> np.ndarray:
-    """Devuelve elo_diff = (R_local + ventaja local) - R_visita antes de cada partido."""
+                      new_team_offset: float = 100, season_regress: float = 0.2,
+                      return_ratings: bool = False):
+    """Devuelve elo_diff = (R_local + ventaja local) - R_visita antes de cada partido.
+    Con return_ratings=True devuelve además los ratings tras el último partido."""
     ratings: dict[int, float] = {}
     last_played: dict[int, object] = {}
     diff = np.empty(len(df))
@@ -65,7 +67,7 @@ def pre_match_ratings(df: pd.DataFrame, k: float = 20, home_adv: float = 60,
         for team, delta in updates:      # se aplican al terminar el día
             ratings[team] += delta
         i = j
-    return diff
+    return (diff, ratings) if return_ratings else diff
 
 
 class OrderedLogit:

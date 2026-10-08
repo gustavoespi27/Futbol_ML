@@ -9,6 +9,13 @@ Ajuste en dos pasos, rápido y estable:
 2. rho de Dixon-Coles por máxima verosimilitud en 1-D con las lambdas ya ajustadas.
 
 Ponderación: peso = exp(-xi * días de antigüedad); xi = 0.002 -> vida media ~1 año.
+
+Variante con tiros (mix < 1): el objetivo del GLM deja de ser solo goles y pasa a ser
+    mix * goles + (1 - mix) * goles_esperados_por_tiros
+donde goles_esperados_por_tiros = b_arco * tiros_al_arco + b_fuera * tiros_fuera, con b
+estimados por mínimos cuadrados ponderados en la MISMA ventana de entrenamiento (sin leakage).
+Los goles tienen mucho ruido; los tiros miden mejor la producción ofensiva subyacente.
+Partidos sin estadísticas usan solo goles. rho siempre se ajusta con goles reales.
 """
 
 import numpy as np
@@ -20,10 +27,11 @@ from footy.markets.scoreline import outcome_probs, tau
 
 
 class DixonColes:
-    def __init__(self, xi: float = 0.002, alpha: float = 1e-3, window_days: int = 1095):
+    def __init__(self, xi: float = 0.002, alpha: float = 1e-3, window_days: int = 1095, mix: float = 1.0):
         self.xi = xi
         self.alpha = alpha
         self.window_days = window_days
+        self.mix = mix
 
     def fit(self, df: pd.DataFrame, now: pd.Timestamp) -> "DixonColes":
         """df: partidos terminados ANTES de `now` (columnas home_id, away_id, home_goals, away_goals, kickoff)."""
@@ -35,8 +43,9 @@ class DixonColes:
         teams = pd.Index(sorted(set(d.home_id) | set(d.away_id)))
         self.teams = {t: k for k, t in enumerate(teams)}
         X = self._design(d.home_id.to_numpy(), d.away_id.to_numpy())
-        goals = np.concatenate([d.home_goals.to_numpy(), d.away_goals.to_numpy()])
-        self.glm = PoissonRegressor(alpha=self.alpha, max_iter=1000).fit(X, goals, sample_weight=np.tile(w, 2))
+        goals = np.concatenate([d.home_goals.to_numpy(), d.away_goals.to_numpy()]).astype(float)
+        target = self._target(d, goals, np.tile(w, 2)) if self.mix < 1 else goals
+        self.glm = PoissonRegressor(alpha=self.alpha, max_iter=1000).fit(X, target, sample_weight=np.tile(w, 2))
 
         lam, mu = self.expected_goals(d.home_id.to_numpy(), d.away_id.to_numpy())
         hg, ag = d.home_goals.to_numpy(), d.away_goals.to_numpy()
@@ -48,6 +57,19 @@ class DixonColes:
 
         self.rho = minimize_scalar(nll, bounds=(-0.25, 0.25), method="bounded").x
         return self
+
+    def _target(self, d: pd.DataFrame, goals: np.ndarray, w: np.ndarray) -> np.ndarray:
+        sot = np.concatenate([d.h_sot.to_numpy(), d.a_sot.to_numpy()]).astype(float)
+        off = np.concatenate([d.h_shots.to_numpy(), d.a_shots.to_numpy()]).astype(float) - sot
+        ok = ~(np.isnan(sot) | np.isnan(off)) & (off >= 0)
+        if ok.sum() < 200:
+            self.shot_coefs = None
+            return goals
+        A = np.stack([sot[ok], off[ok]], axis=1) * np.sqrt(w[ok])[:, None]
+        self.shot_coefs = np.clip(np.linalg.lstsq(A, goals[ok] * np.sqrt(w[ok]), rcond=None)[0], 0, None)
+        out = goals.copy()
+        out[ok] = self.mix * goals[ok] + (1 - self.mix) * np.stack([sot[ok], off[ok]], axis=1) @ self.shot_coefs
+        return out
 
     def _design(self, home: np.ndarray, away: np.ndarray) -> np.ndarray:
         """Dos filas por partido (goles local, goles visita). Columnas: [ataque | defensa | localía].

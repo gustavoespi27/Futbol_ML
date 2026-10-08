@@ -5,7 +5,7 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $python = Join-Path $root ".venv\Scripts\python.exe"
-$script = Join-Path $root "scripts\collect_daily.py"
+$script = Join-Path $root "scripts\daily.py"
 $taskName = "Footbol_ML - recoleccion diaria"
 
 $action = New-ScheduledTaskAction -Execute $python -Argument "`"$script`"" -WorkingDirectory $root
@@ -17,5 +17,5 @@ $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit
     -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $triggers -Settings $settings `
-    -Description "Descarga calendario, cuotas y detalles desde API-Football (Footbol_ML)" -Force | Out-Null
+    -Description "Recolección (API-Football, football-data.co.uk), predicciones de seguimiento e informe (Footbol_ML)" -Force | Out-Null
 Get-ScheduledTask -TaskName $taskName | Select-Object TaskName, State

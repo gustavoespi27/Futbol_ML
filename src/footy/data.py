@@ -14,7 +14,10 @@ SEL = ("H", "D", "A")
 BOOKS = {"Pinnacle": "pin", "Market Avg": "avg", "Market Max": "max", "Betfair Exchange": "bfe", "Bet365": "b365"}
 
 
-def load_matches(conn: sqlite3.Connection, comps: list[str]) -> pd.DataFrame:
+STAT_COLS = {"total_shots": "shots", "shots_on_goal": "sot"}
+
+
+def load_matches(conn: sqlite3.Connection, comps: list[str], with_stats: bool = False) -> pd.DataFrame:
     q = ",".join("?" * len(comps))
     matches = pd.read_sql_query(
         f"""SELECT m.id AS match_id, c.code AS comp, m.season, m.kickoff_utc,
@@ -44,6 +47,8 @@ def load_matches(conn: sqlite3.Connection, comps: list[str]) -> pd.DataFrame:
         for s in SEL:
             if f"{b}_{s}" not in df:
                 df[f"{b}_{s}"] = np.nan
+    if with_stats:
+        df = _add_stats(conn, df, comps)
     df["kickoff"] = pd.to_datetime(df.kickoff_utc, utc=True)
     df["y"] = np.select([df.home_goals > df.away_goals, df.home_goals == df.away_goals], [0, 1], 2)
     return df.reset_index(drop=True)
@@ -55,3 +60,23 @@ def odds_matrix(df: pd.DataFrame, book: str) -> np.ndarray:
 
 def has_odds(df: pd.DataFrame, book: str) -> np.ndarray:
     return ~np.isnan(odds_matrix(df, book)).any(axis=1)
+
+
+def _add_stats(conn, df: pd.DataFrame, comps: list[str]) -> pd.DataFrame:
+    """Agrega h_shots, a_shots, h_sot, a_sot (NaN si el partido no tiene estadísticas)."""
+    q = ",".join("?" * len(comps))
+    st = pd.read_sql_query(
+        f"""SELECT s.match_id, s.team_id, s.stat, s.value FROM team_match_stats s
+            JOIN matches m ON m.id = s.match_id JOIN competitions c ON c.id = m.competition_id
+            WHERE s.stat IN ('total_shots', 'shots_on_goal') AND c.code IN ({q})""",
+        conn, params=comps,
+    )
+    st = st.drop_duplicates(["match_id", "team_id", "stat"])
+    wide = st.pivot_table(index=["match_id", "team_id"], columns="stat", values="value").rename(columns=STAT_COLS)
+    for side, col in (("h", "home_id"), ("a", "away_id")):
+        part = wide.add_prefix(f"{side}_")
+        df = df.merge(part, left_on=["match_id", col], right_index=True, how="left")
+    for c in ("h_shots", "a_shots", "h_sot", "a_sot"):
+        if c not in df:
+            df[c] = np.nan
+    return df
