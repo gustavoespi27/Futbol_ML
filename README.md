@@ -1,4 +1,4 @@
-# Footbol_ML
+# Futbol_ML
 
 Sistema probabilístico de predicción de partidos de fútbol. Estima probabilidades (1X2, goles esperados, Over/Under, BTTS, marcadores) y las compara con las cuotas del mercado para detectar —o descartar— valor esperado positivo.
 

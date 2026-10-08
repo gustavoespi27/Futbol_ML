@@ -1,4 +1,4 @@
-# Registra (o actualiza) la tarea programada de recolección diaria.
+﻿# Registra (o actualiza) la tarea programada de recolección diaria.
 # Corre 2 veces al día; si el PC estaba apagado, se ejecuta al encenderlo (StartWhenAvailable).
 # Uso: powershell -ExecutionPolicy Bypass -File scripts\register_task.ps1
 
@@ -6,7 +6,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $python = Join-Path $root ".venv\Scripts\python.exe"
 $script = Join-Path $root "scripts\daily.py"
-$taskName = "Footbol_ML - recoleccion diaria"
+$taskName = "Futbol_ML - recoleccion diaria"
 
 $action = New-ScheduledTaskAction -Execute $python -Argument "`"$script`"" -WorkingDirectory $root
 $triggers = @(
@@ -17,5 +17,5 @@ $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit
     -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $triggers -Settings $settings `
-    -Description "Recolección (API-Football, football-data.co.uk), predicciones de seguimiento e informe (Footbol_ML)" -Force | Out-Null
+    -Description "Recolección (API-Football, football-data.co.uk), predicciones de seguimiento e informe (Futbol_ML)" -Force | Out-Null
 Get-ScheduledTask -TaskName $taskName | Select-Object TaskName, State

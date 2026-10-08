@@ -1,4 +1,4 @@
--- Esquema SQLite de Footbol_ML.
+-- Esquema SQLite de Futbol_ML.
 -- Convención: todas las fechas/horas en ISO-8601 UTC ('YYYY-MM-DDTHH:MM:SSZ').
 -- Anti-leakage: cada dato observacional guarda cuándo lo conocimos
 -- (captured_at / reported_at). Las features solo pueden usar filas con
