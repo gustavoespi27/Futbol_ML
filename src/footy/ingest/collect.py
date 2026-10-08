@@ -1,0 +1,117 @@
+"""Tareas de recolección con API-Football, ordenadas por urgencia.
+
+1. Cuotas pre-partido: irrecuperables si no se capturan a tiempo.
+2. Calendario/resultados por fecha: la ventana gratuita es ayer..mañana.
+3. Detalles por partido (estadísticas, alineaciones, jugadores): recuperables
+   en cualquier momento con /fixtures?id=, así que usan el presupuesto sobrante.
+"""
+
+import logging
+import sqlite3
+from datetime import datetime, timedelta, timezone
+
+from footy import config
+from footy.db import repository as repo
+from footy.ingest.api_football import (
+    SOURCE, ApiError, ApiFootball, BudgetExhausted,
+    competitions_by_api_id, odds_rows, store_fixture, store_fixture_details,
+)
+
+log = logging.getLogger(__name__)
+
+
+def collect_fixtures_by_date(client: ApiFootball, conn: sqlite3.Connection, dates: list[str]) -> int:
+    tracked = competitions_by_api_id()
+    n = 0
+    for d in dates:
+        try:
+            items = client.get("fixtures", date=d)["response"]
+        except ApiError as e:
+            log.warning("fixtures %s: %s", d, e)
+            continue
+        for item in items:
+            if item["league"]["id"] in tracked and store_fixture(conn, item):
+                n += 1
+        conn.commit()
+    return n
+
+
+def collect_odds(client: ApiFootball, conn: sqlite3.Connection, horizon_hours: float) -> tuple[int, int]:
+    """Un snapshot de cuotas por partido próximo de las ligas con collect_odds. Devuelve (partidos, filas)."""
+    codes = [c for c, v in config.settings()["competitions"].items() if v.get("collect_odds")]
+    now = datetime.now(timezone.utc)
+    rows = conn.execute(
+        f"""SELECT m.id, ms.source_match_id FROM matches m
+            JOIN competitions c ON c.id = m.competition_id
+            JOIN match_sources ms ON ms.match_id = m.id AND ms.source = ?
+            WHERE c.code IN ({",".join("?" * len(codes))})
+              AND m.status = 'scheduled' AND m.kickoff_utc BETWEEN ? AND ?
+            ORDER BY m.kickoff_utc""",
+        (SOURCE, *codes, repo.to_iso(now), repo.to_iso(now + timedelta(hours=horizon_hours))),
+    ).fetchall()
+
+    n_matches = n_rows = 0
+    for r in rows:
+        try:
+            items = client.get("odds", fixture=r["source_match_id"])["response"]
+        except ApiError as e:
+            log.warning("odds %s: %s", r["source_match_id"], e)
+            continue
+        captured_at = repo.utc_now()
+        for item in items:
+            n_rows += repo.insert_odds(conn, odds_rows(r["id"], item, captured_at))
+        n_matches += bool(items)
+        conn.commit()
+    return n_matches, n_rows
+
+
+def collect_details(client: ApiFootball, conn: sqlite3.Connection, codes: list[str] | None = None,
+                    limit: int | None = None) -> int:
+    """Descarga detalles de partidos terminados que aún no los tienen (más recientes primero)."""
+    codes = codes or [c for c, v in config.settings()["competitions"].items() if v["type"] == "league"]
+    rows = conn.execute(
+        f"""SELECT ms.source_match_id FROM match_sources ms
+            JOIN matches m ON m.id = ms.match_id
+            JOIN competitions c ON c.id = m.competition_id
+            WHERE ms.source = ? AND ms.details_fetched_at IS NULL AND m.status = 'finished'
+              AND c.code IN ({",".join("?" * len(codes))})
+            ORDER BY m.kickoff_utc DESC""",
+        (SOURCE, *codes),
+    ).fetchall()
+    n = 0
+    for r in rows[:limit]:
+        try:
+            items = client.get("fixtures", id=r["source_match_id"])["response"]
+        except ApiError as e:
+            log.warning("fixture %s: %s", r["source_match_id"], e)
+            continue
+        for item in items:
+            store_fixture_details(conn, item)
+        conn.commit()
+        n += 1
+    return n
+
+
+def backfill_season(client: ApiFootball, conn: sqlite3.Connection, code: str, season: int) -> int:
+    """Calendario completo de una temporada (plan Free: 2022-2024)."""
+    league_id = config.settings()["competitions"][code]["api_football_id"]
+    items = client.get("fixtures", league=league_id, season=season)["response"]
+    n = sum(1 for item in items if store_fixture(conn, item))
+    conn.commit()
+    return n
+
+
+def run_daily(conn: sqlite3.Connection, client: ApiFootball) -> dict:
+    cfg = config.settings()["api_football"]
+    today = datetime.now(timezone.utc).date()
+    dates = [(today + timedelta(days=k)).isoformat() for k in (-1, 0, 1)]
+    summary = {"start_remaining": client.remaining}
+    try:
+        # El calendario va primero porque las cuotas se piden por partido ya conocido.
+        summary["fixtures"] = collect_fixtures_by_date(client, conn, dates)
+        summary["odds_matches"], summary["odds_rows"] = collect_odds(client, conn, cfg["odds_horizon_hours"])
+        summary["details"] = collect_details(client, conn)
+    except BudgetExhausted as e:
+        log.info("Presupuesto agotado: %s", e)
+    summary["end_remaining"] = client.remaining
+    return summary

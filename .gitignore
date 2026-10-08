@@ -25,3 +25,6 @@ reports/
 Thumbs.db
 desktop.ini
 .vscode/
+
+# Logs de recolección
+logs/

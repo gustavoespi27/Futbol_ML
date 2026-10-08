@@ -6,24 +6,48 @@ paths:
   processed: data/processed
   database: data/db/football.sqlite
 
-leagues:
-  ARG:
-    name: Liga Profesional Argentina
-    sources:
-      football_data: https://www.football-data.co.uk/new/ARG.csv   # resultados + cuotas de cierre desde 2012
-      api_football_league_id: 128
-    odds_history: true
-  BRA:
-    name: Brasileirão Serie A
-    sources:
-      football_data: https://www.football-data.co.uk/new/BRA.csv   # resultados + cuotas de cierre desde 2012
-      api_football_league_id: 71
-    odds_history: true
+# collect_odds: se guardan snapshots de cuotas (consume 1 petición por partido).
+# Las copas se recolectan solo como calendario (congestión, rotaciones).
+competitions:
   CHL:
     name: Primera División de Chile
-    sources:
-      api_football_league_id: 265   # verificar con /leagues?country=Chile al tener la key
-    odds_history: false             # sin histórico gratuito: cuotas se recolectan hacia adelante
+    country: Chile
+    type: league
+    api_football_id: 265
+    collect_odds: true
+  ARG:
+    name: Liga Profesional Argentina
+    country: Argentina
+    type: league
+    api_football_id: 128
+    football_data_url: https://www.football-data.co.uk/new/ARG.csv
+    collect_odds: true
+  BRA:
+    name: Brasileirão Serie A
+    country: Brazil
+    type: league
+    api_football_id: 71
+    football_data_url: https://www.football-data.co.uk/new/BRA.csv
+    collect_odds: true
+  LIB:
+    name: Copa Libertadores
+    country: South America
+    type: cup
+    api_football_id: 13
+    collect_odds: false
+  SUD:
+    name: Copa Sudamericana
+    country: South America
+    type: cup
+    api_football_id: 11
+    collect_odds: false
+
+api_football:
+  daily_limit: 100
+  reserve: 5                 # peticiones que nunca se gastan (margen de seguridad)
+  min_seconds_between: 6.5   # plan Free: 10 peticiones/minuto
+  odds_horizon_hours: 48     # snapshots de cuotas para partidos que empiezan dentro de este plazo
+  bookmakers_keep: []        # vacío = guardar todas las casas
 
 betting:
   min_ev: 0.05          # EV relativo mínimo (p * cuota - 1); a calibrar en validación
