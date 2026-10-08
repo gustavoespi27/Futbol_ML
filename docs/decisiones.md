@@ -108,3 +108,18 @@ Detalle: [analisis/03_ligas.md](analisis/03_ligas.md).
 prospectivo** (predicciones registradas antes de cada partido, sin dinero real) como prueba
 independiente. El trabajo principal vuelve a mejorar el modelo (tiros, xG, contexto), porque un
 modelo 0,01-0,05 de log loss peor que el mercado no puede encontrar valor de forma fiable.
+
+## 2026-10-08 — Análisis 04: Dixon-Coles con tiros
+
+Detalle: [analisis/04_tiros.md](analisis/04_tiros.md). 22 ligas europeas, 30.033 partidos de test.
+
+- Entrenar con una mezcla de goles y goles esperados por tiros (proporción elegida en validación)
+  **mejora el log loss de forma significativa**: −0,81 milésimas (IC95% [−1,37; −0,25]); mejora en 17/22 ligas.
+- La mejora es ~20-40 veces menor que la distancia al mercado (11-31 milésimas): el modelo sigue sin
+  superar al cierre en ninguna liga, y el ensamble con el mercado no cambia (+0,09, IC incluye 0).
+- Se adopta la variante con tiros en los parámetros por liga (`config/league_models.json`).
+
+**Implicancia:** con estadísticas agregadas por partido no alcanza. Para acercarse al mercado harían falta
+datos que el mercado usa y el modelo no: alineaciones y bajas (pre-partido), xG de calidad, y cuotas
+tempranas para medir CLV. Mientras tanto, el seguimiento prospectivo (`docs/seguimiento.md`) registra
+predicciones antes de cada partido en todas las ligas y mide CLV contra el cierre.

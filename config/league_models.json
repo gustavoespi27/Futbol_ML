@@ -1,0 +1,936 @@
+{
+  "ARG": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.01
+    },
+    "elo": {
+      "k": 10,
+      "home_adv": 30,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.5882,
+      0.4775
+    ],
+    "w_blend": [
+      0.1552,
+      -0.3343,
+      1.2139
+    ],
+    "min_ev": 0.04,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 03"
+  },
+  "BRA": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.01
+    },
+    "elo": {
+      "k": 10,
+      "home_adv": 30,
+      "new_team_offset": 50,
+      "season_regress": 0.3
+    },
+    "w_models": [
+      0.6266,
+      0.3588
+    ],
+    "w_blend": [
+      0.1805,
+      -0.1963,
+      1.0521
+    ],
+    "min_ev": 0.0,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 03"
+  },
+  "AUT": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.03
+    },
+    "elo": {
+      "k": 10,
+      "home_adv": 30,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.4753,
+      0.5215
+    ],
+    "w_blend": [
+      -0.0549,
+      -0.1378,
+      1.0774
+    ],
+    "min_ev": 0.04,
+    "status": "sin ventaja demostrada (candidata en validación, falló en test)",
+    "source": "análisis 03"
+  },
+  "CHN": {
+    "dixon_coles": {
+      "xi": 0.004,
+      "alpha": 0.01
+    },
+    "elo": {
+      "k": 30,
+      "home_adv": 110,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.2533,
+      0.8233
+    ],
+    "w_blend": [
+      -0.0612,
+      0.1389,
+      1.0373
+    ],
+    "min_ev": 0.02,
+    "status": "sin ventaja demostrada (candidata en validación, falló en test)",
+    "source": "análisis 03"
+  },
+  "DNK": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.01
+    },
+    "elo": {
+      "k": 10,
+      "home_adv": 30,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.6814,
+      0.3221
+    ],
+    "w_blend": [
+      0.2376,
+      -0.3478,
+      1.1939
+    ],
+    "min_ev": 0.0,
+    "status": "sin ventaja demostrada (candidata en validación, falló en test)",
+    "source": "análisis 03"
+  },
+  "FIN": {
+    "dixon_coles": {
+      "xi": 0.004,
+      "alpha": 0.01
+    },
+    "elo": {
+      "k": 30,
+      "home_adv": 30,
+      "new_team_offset": 150,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.737,
+      0.309
+    ],
+    "w_blend": [
+      0.224,
+      -0.2501,
+      1.0674
+    ],
+    "min_ev": 0.02,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 03"
+  },
+  "IRL": {
+    "dixon_coles": {
+      "xi": 0.004,
+      "alpha": 0.03
+    },
+    "elo": {
+      "k": 20,
+      "home_adv": 30,
+      "new_team_offset": 50,
+      "season_regress": 0.3
+    },
+    "w_models": [
+      0.592,
+      0.4852
+    ],
+    "w_blend": [
+      0.0238,
+      -0.0747,
+      1.1063
+    ],
+    "min_ev": 0.0,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 03"
+  },
+  "JPN": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.01
+    },
+    "elo": {
+      "k": 20,
+      "home_adv": 110,
+      "new_team_offset": 150,
+      "season_regress": 0.3
+    },
+    "w_models": [
+      0.2282,
+      0.8001
+    ],
+    "w_blend": [
+      -0.0568,
+      0.3107,
+      0.8357
+    ],
+    "min_ev": 0.02,
+    "status": "sin ventaja demostrada (candidata en validación, falló en test)",
+    "source": "análisis 03"
+  },
+  "MEX": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.01
+    },
+    "elo": {
+      "k": 10,
+      "home_adv": 110,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.0494,
+      0.9577
+    ],
+    "w_blend": [
+      -0.2904,
+      0.3201,
+      1.0127
+    ],
+    "min_ev": 0.02,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 03"
+  },
+  "NOR": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.03
+    },
+    "elo": {
+      "k": 20,
+      "home_adv": 30,
+      "new_team_offset": 150,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.2067,
+      0.8266
+    ],
+    "w_blend": [
+      -0.4034,
+      0.4844,
+      0.9919
+    ],
+    "min_ev": 0.06,
+    "status": "sin ventaja demostrada (candidata en validación, falló en test)",
+    "source": "análisis 03"
+  },
+  "POL": {
+    "dixon_coles": {
+      "xi": 0.001,
+      "alpha": 0.03
+    },
+    "elo": {
+      "k": 10,
+      "home_adv": 30,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.693,
+      0.392
+    ],
+    "w_blend": [
+      0.017,
+      0.0588,
+      0.978
+    ],
+    "min_ev": 0.15,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 03"
+  },
+  "ROU": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.01
+    },
+    "elo": {
+      "k": 20,
+      "home_adv": 30,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.546,
+      0.4964
+    ],
+    "w_blend": [
+      -0.139,
+      0.0844,
+      1.1089
+    ],
+    "min_ev": 0.0,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 03"
+  },
+  "RUS": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.003
+    },
+    "elo": {
+      "k": 10,
+      "home_adv": 70,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.443,
+      0.5225
+    ],
+    "w_blend": [
+      -0.2227,
+      0.1964,
+      1.0471
+    ],
+    "min_ev": 0.02,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 03"
+  },
+  "SWE": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.01
+    },
+    "elo": {
+      "k": 20,
+      "home_adv": 30,
+      "new_team_offset": 50,
+      "season_regress": 0.3
+    },
+    "w_models": [
+      0.781,
+      0.1742
+    ],
+    "w_blend": [
+      0.1783,
+      -0.4414,
+      1.2987
+    ],
+    "min_ev": 0.06,
+    "status": "pasó el criterio pre-registrado, pero sin significancia tras corregir por 38 ligas (seguimiento prospectivo)",
+    "source": "análisis 03"
+  },
+  "SWZ": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.03
+    },
+    "elo": {
+      "k": 10,
+      "home_adv": 30,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.8648,
+      0.0442
+    ],
+    "w_blend": [
+      0.3738,
+      -0.5477,
+      1.133
+    ],
+    "min_ev": 0.04,
+    "status": "sin ventaja demostrada (candidata en validación, falló en test)",
+    "source": "análisis 03"
+  },
+  "USA": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.03
+    },
+    "elo": {
+      "k": 20,
+      "home_adv": 110,
+      "new_team_offset": 50,
+      "season_regress": 0.3
+    },
+    "w_models": [
+      0.6367,
+      0.3789
+    ],
+    "w_blend": [
+      0.3924,
+      -0.3374,
+      0.9614
+    ],
+    "min_ev": 0.06,
+    "status": "sin ventaja demostrada (candidata en validación, falló en test)",
+    "source": "análisis 03"
+  },
+  "E0": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.003,
+      "mix": 0.75
+    },
+    "elo": {
+      "k": 20,
+      "home_adv": 30,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.0044,
+      1.1322
+    ],
+    "w_blend": [
+      -0.2283,
+      0.2508,
+      0.9818
+    ],
+    "min_ev": 0.04,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 04 (tiros)"
+  },
+  "E1": {
+    "dixon_coles": {
+      "xi": 0.004,
+      "alpha": 0.01,
+      "mix": 0.75
+    },
+    "elo": {
+      "k": 30,
+      "home_adv": 30,
+      "new_team_offset": 150,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.126,
+      0.9312
+    ],
+    "w_blend": [
+      0.0307,
+      -0.2095,
+      1.2212
+    ],
+    "min_ev": 0.02,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 04 (tiros)"
+  },
+  "E2": {
+    "dixon_coles": {
+      "xi": 0.004,
+      "alpha": 0.01,
+      "mix": 0.5
+    },
+    "elo": {
+      "k": 30,
+      "home_adv": 30,
+      "new_team_offset": 150,
+      "season_regress": 0.3
+    },
+    "w_models": [
+      0.1561,
+      0.9614
+    ],
+    "w_blend": [
+      -0.2229,
+      -0.1427,
+      1.4249
+    ],
+    "min_ev": 0.08,
+    "status": "sin ventaja demostrada (candidata en validación, falló en test)",
+    "source": "análisis 04 (tiros)"
+  },
+  "E3": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.01,
+      "mix": 0.5
+    },
+    "elo": {
+      "k": 20,
+      "home_adv": 70,
+      "new_team_offset": 150,
+      "season_regress": 0.3
+    },
+    "w_models": [
+      0.0998,
+      0.9768
+    ],
+    "w_blend": [
+      -0.3028,
+      0.0994,
+      1.2326
+    ],
+    "min_ev": 0.06,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 04 (tiros)"
+  },
+  "EC": {
+    "dixon_coles": {
+      "xi": 0.004,
+      "alpha": 0.01,
+      "mix": 0.25
+    },
+    "elo": {
+      "k": 30,
+      "home_adv": 30,
+      "new_team_offset": 150,
+      "season_regress": 0.3
+    },
+    "w_models": [
+      0.3936,
+      0.6001
+    ],
+    "w_blend": [
+      -0.0735,
+      0.0425,
+      1.0088
+    ],
+    "min_ev": 0.15,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 04 (tiros)"
+  },
+  "SC0": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.01,
+      "mix": 0.5
+    },
+    "elo": {
+      "k": 10,
+      "home_adv": 30,
+      "new_team_offset": 150,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.369,
+      0.7251
+    ],
+    "w_blend": [
+      0.0739,
+      -0.2934,
+      1.196
+    ],
+    "min_ev": 0.0,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 04 (tiros)"
+  },
+  "SC1": {
+    "dixon_coles": {
+      "xi": 0.004,
+      "alpha": 0.03,
+      "mix": 0.5
+    },
+    "elo": {
+      "k": 10,
+      "home_adv": 30,
+      "new_team_offset": 150,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.4555,
+      0.4766
+    ],
+    "w_blend": [
+      -0.0016,
+      -0.1603,
+      0.9581
+    ],
+    "min_ev": 0.08,
+    "status": "sin ventaja demostrada (candidata en validación, falló en test)",
+    "source": "análisis 04 (tiros)"
+  },
+  "SC2": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.03,
+      "mix": 0.5
+    },
+    "elo": {
+      "k": 20,
+      "home_adv": 30,
+      "new_team_offset": 150,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.2063,
+      0.8628
+    ],
+    "w_blend": [
+      -0.1145,
+      0.3628,
+      0.8162
+    ],
+    "min_ev": 0.0,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 04 (tiros)"
+  },
+  "SC3": {
+    "dixon_coles": {
+      "xi": 0.004,
+      "alpha": 0.03,
+      "mix": 0.75
+    },
+    "elo": {
+      "k": 30,
+      "home_adv": 30,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.4696,
+      0.6802
+    ],
+    "w_blend": [
+      0.1083,
+      -0.0636,
+      1.0883
+    ],
+    "min_ev": 0.0,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 04 (tiros)"
+  },
+  "D1": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.01,
+      "mix": 0.75
+    },
+    "elo": {
+      "k": 20,
+      "home_adv": 110,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.1301,
+      0.9465
+    ],
+    "w_blend": [
+      -0.1016,
+      -0.1244,
+      1.126
+    ],
+    "min_ev": 0.08,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 04 (tiros)"
+  },
+  "D2": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.03,
+      "mix": 0.75
+    },
+    "elo": {
+      "k": 30,
+      "home_adv": 30,
+      "new_team_offset": 150,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.4395,
+      0.5392
+    ],
+    "w_blend": [
+      0.2192,
+      -0.239,
+      0.9085
+    ],
+    "min_ev": 0.04,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 04 (tiros)"
+  },
+  "I1": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.003,
+      "mix": 0.75
+    },
+    "elo": {
+      "k": 20,
+      "home_adv": 110,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.2114,
+      0.9741
+    ],
+    "w_blend": [
+      -0.1085,
+      -0.2425,
+      1.4298
+    ],
+    "min_ev": 0.08,
+    "status": "pasó el criterio pre-registrado, pero sin significancia tras corregir por 38 ligas (seguimiento prospectivo)",
+    "source": "análisis 04 (tiros)"
+  },
+  "I2": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.01,
+      "mix": 0.75
+    },
+    "elo": {
+      "k": 20,
+      "home_adv": 30,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.1623,
+      0.8637
+    ],
+    "w_blend": [
+      -0.1538,
+      0.0397,
+      1.1605
+    ],
+    "min_ev": 0.0,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 04 (tiros)"
+  },
+  "SP1": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.01,
+      "mix": 1.0
+    },
+    "elo": {
+      "k": 10,
+      "home_adv": 30,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.7588,
+      0.282
+    ],
+    "w_blend": [
+      0.4072,
+      -0.4252,
+      1.0115
+    ],
+    "min_ev": 0.02,
+    "status": "sin ventaja demostrada (candidata en validación, falló en test)",
+    "source": "análisis 04 (tiros)"
+  },
+  "SP2": {
+    "dixon_coles": {
+      "xi": 0.001,
+      "alpha": 0.01,
+      "mix": 0.75
+    },
+    "elo": {
+      "k": 20,
+      "home_adv": 30,
+      "new_team_offset": 150,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.3941,
+      0.6547
+    ],
+    "w_blend": [
+      -0.249,
+      0.1561,
+      1.2239
+    ],
+    "min_ev": 0.0,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 04 (tiros)"
+  },
+  "F1": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.01,
+      "mix": 0.75
+    },
+    "elo": {
+      "k": 20,
+      "home_adv": 30,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.3232,
+      0.7862
+    ],
+    "w_blend": [
+      -0.0245,
+      -0.1719,
+      1.2042
+    ],
+    "min_ev": 0.0,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 04 (tiros)"
+  },
+  "F2": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.01,
+      "mix": 1.0
+    },
+    "elo": {
+      "k": 10,
+      "home_adv": 30,
+      "new_team_offset": 50,
+      "season_regress": 0.3
+    },
+    "w_models": [
+      0.2861,
+      0.7181
+    ],
+    "w_blend": [
+      -0.1117,
+      -0.0001,
+      1.1406
+    ],
+    "min_ev": 0.0,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 04 (tiros)"
+  },
+  "N1": {
+    "dixon_coles": {
+      "xi": 0.001,
+      "alpha": 0.003,
+      "mix": 0.5
+    },
+    "elo": {
+      "k": 10,
+      "home_adv": 110,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.1717,
+      0.8981
+    ],
+    "w_blend": [
+      -0.4075,
+      0.2661,
+      1.2088
+    ],
+    "min_ev": 0.08,
+    "status": "sin ventaja demostrada (candidata en validación, falló en test)",
+    "source": "análisis 04 (tiros)"
+  },
+  "B1": {
+    "dixon_coles": {
+      "xi": 0.001,
+      "alpha": 0.01,
+      "mix": 0.5
+    },
+    "elo": {
+      "k": 10,
+      "home_adv": 30,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.0677,
+      1.0294
+    ],
+    "w_blend": [
+      -0.457,
+      0.4398,
+      1.0549
+    ],
+    "min_ev": 0.0,
+    "status": "sin ventaja demostrada (candidata en validación, falló en test)",
+    "source": "análisis 04 (tiros)"
+  },
+  "P1": {
+    "dixon_coles": {
+      "xi": 0.001,
+      "alpha": 0.003,
+      "mix": 1.0
+    },
+    "elo": {
+      "k": 10,
+      "home_adv": 30,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.5233,
+      0.4911
+    ],
+    "w_blend": [
+      0.0515,
+      0.1039,
+      0.995
+    ],
+    "min_ev": 0.04,
+    "status": "pasó el criterio pre-registrado, pero sin significancia tras corregir por 38 ligas (seguimiento prospectivo)",
+    "source": "análisis 04 (tiros)"
+  },
+  "T1": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.01,
+      "mix": 0.75
+    },
+    "elo": {
+      "k": 20,
+      "home_adv": 110,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.5055,
+      0.5455
+    ],
+    "w_blend": [
+      0.1536,
+      -0.1256,
+      1.0727
+    ],
+    "min_ev": 0.0,
+    "status": "pasó el criterio pre-registrado, pero sin significancia tras corregir por 38 ligas (seguimiento prospectivo)",
+    "source": "análisis 04 (tiros)"
+  },
+  "G1": {
+    "dixon_coles": {
+      "xi": 0.002,
+      "alpha": 0.003,
+      "mix": 1.0
+    },
+    "elo": {
+      "k": 20,
+      "home_adv": 30,
+      "new_team_offset": 50,
+      "season_regress": 0.1
+    },
+    "w_models": [
+      0.4212,
+      0.595
+    ],
+    "w_blend": [
+      0.1694,
+      -0.1868,
+      1.1211
+    ],
+    "min_ev": 0.04,
+    "status": "sin ventaja demostrada",
+    "source": "análisis 04 (tiros)"
+  }
+}
