@@ -88,3 +88,23 @@ Se evalúan ~38 ligas de football-data.co.uk con el mismo pipeline. Con tantas l
 3. Si ninguna liga cumple 1 y 2, la conclusión es que **con estos modelos y datos no hay ventaja
    demostrable** en ninguna liga, y el siguiente paso es mejorar el modelo (xG, tiros, alineaciones),
    no buscar más ligas.
+
+## 2026-10-08 — Resultado del análisis 03 (38 ligas)
+
+Detalle: [analisis/03_ligas.md](analisis/03_ligas.md).
+
+- El modelo solo (Elo+DC) **no supera al mercado en ninguna de las 38 ligas** (Δ log loss test > 0 en todas).
+- Criterio pre-registrado: 15 candidatas en validación, 4 "confirmadas" en test (SWE, I1, P1, T1).
+- **Lectura honesta: 4 de 15 es lo que se espera por azar.** Bajo la hipótesis de que no hay ventaja,
+  cada candidata pasa el test con probabilidad ~25% (Δ<0 ≈ 50% × yield>0 ≈ 45-50%), es decir
+  ~3,7 esperadas. Ninguna es significativa con corrección de Bonferroni. El criterio pre-registrado
+  resultó demasiado laxo: debió exigir significancia, no solo signo.
+- La más interesante es **T1 (Süper Lig)**: 852 apuestas en test, yield +6,6% (IC95% [+0,4%; +12,8%]),
+  y el ensamble mejora el log loss del mercado en 0,005. Aun así no supera Bonferroni.
+- Las ligas "menores" (ascenso inglés, escocés, Segunda, Serie B) no muestran más ventaja que las grandes:
+  la hipótesis "ligas menos líquidas = mercado peor" no se sostiene con este modelo.
+
+**Decisión:** no hay ventaja demostrada en ninguna liga. T1, I1, P1 y SWE pasan a **seguimiento
+prospectivo** (predicciones registradas antes de cada partido, sin dinero real) como prueba
+independiente. El trabajo principal vuelve a mejorar el modelo (tiros, xG, contexto), porque un
+modelo 0,01-0,05 de log loss peor que el mercado no puede encontrar valor de forma fiable.
