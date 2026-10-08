@@ -1,0 +1,31 @@
+# Configuración central del proyecto.
+# Cualquier umbral aquí es un punto de partida: se valida con backtesting, no se asume óptimo.
+
+paths:
+  raw: data/raw
+  processed: data/processed
+  database: data/db/football.sqlite
+
+leagues:
+  ARG:
+    name: Liga Profesional Argentina
+    sources:
+      football_data: https://www.football-data.co.uk/new/ARG.csv   # resultados + cuotas de cierre desde 2012
+      api_football_league_id: 128
+    odds_history: true
+  BRA:
+    name: Brasileirão Serie A
+    sources:
+      football_data: https://www.football-data.co.uk/new/BRA.csv   # resultados + cuotas de cierre desde 2012
+      api_football_league_id: 71
+    odds_history: true
+  CHL:
+    name: Primera División de Chile
+    sources:
+      api_football_league_id: 265   # verificar con /leagues?country=Chile al tener la key
+    odds_history: false             # sin histórico gratuito: cuotas se recolectan hacia adelante
+
+betting:
+  min_ev: 0.05          # EV relativo mínimo (p * cuota - 1); a calibrar en validación
+  kelly_fraction: 0.25
+  devig_method: proportional

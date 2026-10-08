@@ -1,0 +1,27 @@
+# Secretos
+.env
+
+# Entornos y caches de Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Datos: se regeneran con los scripts de ingesta, no se versionan
+data/raw/*
+data/processed/*
+data/db/*
+!data/**/.gitkeep
+
+# Modelos y reportes generados
+artifacts/
+reports/
+
+# Sistema / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
