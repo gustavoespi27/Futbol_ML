@@ -6,7 +6,7 @@ Sistema probabilístico de predicción de partidos de fútbol. Estima probabilid
 
 ## Alcance actual
 
-Primera División de Chile, Liga Profesional Argentina y Brasileirão. Ver [docs/decisiones.md](docs/decisiones.md) para fuentes de datos y limitaciones.
+Foco en Argentina y Brasil (histórico desde 2012 con cuotas de cierre) y recolección diaria hacia adelante de Chile, Argentina y Brasil. Para buscar ligas donde el modelo pueda superar al mercado se evalúan además 36 ligas de football-data.co.uk. Ver [docs/decisiones.md](docs/decisiones.md) para fuentes de datos y limitaciones.
 
 ## Principios
 
@@ -33,6 +33,20 @@ src/footy/
 scripts/         puntos de entrada (update_data, train, backtest, predict)
 tests/
 ```
+
+## Scripts
+
+| Script | Qué hace |
+|---|---|
+| `scripts/update_football_data.py [CÓDIGOS]` | Descarga/actualiza resultados, estadísticas y cuotas de cierre de football-data.co.uk |
+| `scripts/collect_daily.py` | Recolección diaria desde API-Football: calendario, cuotas pre-partido, detalles (tarea programada) |
+| `scripts/backfill_api_football.py CHL 2022 2023 2024` | Calendario de temporadas pasadas desde API-Football |
+| `scripts/check_teams.py [--merge A B]` | Detecta y fusiona equipos duplicados entre fuentes |
+| `scripts/analyze_market.py` | Análisis 01: margen y calibración del mercado de cierre |
+| `scripts/evaluate_models.py` | Análisis 02: Elo y Dixon-Coles vs mercado (walk-forward) en ARG/BRA |
+| `scripts/screen_leagues.py` | Análisis 03: el mismo pipeline en todas las ligas, con criterio pre-registrado |
+
+Los análisis generados están en [docs/analisis/](docs/analisis/) y las decisiones en [docs/decisiones.md](docs/decisiones.md).
 
 ## Instalación
 

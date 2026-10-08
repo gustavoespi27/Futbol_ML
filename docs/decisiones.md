@@ -76,14 +76,14 @@ Detalle: [analisis/02_modelos.md](analisis/02_modelos.md).
 
 ## 2026-10-08 — Pre-registro: criterio para elegir ligas (antes de ver resultados)
 
-Se evalúan ~37 ligas de football-data.co.uk con el mismo pipeline. Con tantas ligas, alguna
+Se evalúan ~38 ligas de football-data.co.uk con el mismo pipeline. Con tantas ligas, alguna
 "ganará" por azar, así que el criterio se fija ANTES de mirar resultados:
 
 1. **Candidata (solo con datos de VALIDACIÓN 2016-21):** el ensamble Elo+DC+Mercado mejora el
    log loss del mercado en validación (Δ < -0,001) **y** la estrategia de ese ensamble tiene yield > 0
    a cuota Pinnacle en validación.
 2. **Confirmada (TEST 2022-25, mirado una sola vez):** en test se mantiene Δ log loss < 0 **y**
-   yield > 0 a cuota Pinnacle. Un IC95% individual no basta con ~37 comparaciones: se reporta
+   yield > 0 a cuota Pinnacle. Un IC95% individual no basta con ~38 comparaciones: se reporta
    también el IC con corrección de Bonferroni (99,9%).
 3. Si ninguna liga cumple 1 y 2, la conclusión es que **con estos modelos y datos no hay ventaja
    demostrable** en ninguna liga, y el siguiente paso es mejorar el modelo (xG, tiros, alineaciones),
