@@ -22,6 +22,11 @@ competitions:
     api_football_id: 128
     football_data_url: https://www.football-data.co.uk/new/ARG.csv
     collect_odds: true
+  ARGC:
+    name: Copa de la Liga Profesional (Argentina)
+    country: Argentina
+    type: cup
+    collect_odds: false
   BRA:
     name: Brasileirão Serie A
     country: Brazil

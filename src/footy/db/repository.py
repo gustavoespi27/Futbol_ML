@@ -99,6 +99,16 @@ def resolve_team(conn: sqlite3.Connection, source: str, alias: str, name: str, c
     return team_id
 
 
+def merge_teams(conn: sqlite3.Connection, from_id: int, into_id: int) -> None:
+    """Fusiona un equipo duplicado en otro, re-apuntando todas sus referencias."""
+    for table, col in (("team_aliases", "team_id"), ("matches", "home_team_id"),
+                       ("matches", "away_team_id"), ("team_match_stats", "team_id"),
+                       ("lineups", "team_id"), ("player_match_stats", "team_id"),
+                       ("injuries", "team_id")):
+        conn.execute(f"UPDATE {table} SET {col} = ? WHERE {col} = ?", (into_id, from_id))
+    conn.execute("DELETE FROM teams WHERE id = ?", (from_id,))
+
+
 # --- Partidos --------------------------------------------------------------
 
 def upsert_match(

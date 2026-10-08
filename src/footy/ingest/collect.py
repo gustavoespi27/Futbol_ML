@@ -85,8 +85,14 @@ def collect_details(client: ApiFootball, conn: sqlite3.Connection, codes: list[s
         except ApiError as e:
             log.warning("fixture %s: %s", r["source_match_id"], e)
             continue
-        for item in items:
-            store_fixture_details(conn, item)
+        try:
+            for item in items:
+                store_fixture_details(conn, item)
+        except Exception:
+            # Un partido con datos raros no debe frenar el resto; la respuesta cruda queda en data/raw.
+            conn.rollback()
+            log.exception("fixture %s: error al guardar detalles", r["source_match_id"])
+            continue
         conn.commit()
         n += 1
     return n

@@ -25,6 +25,15 @@ def test_resolve_team_links_sources_by_normalized_name(conn):
     assert c != a
 
 
+def test_merge_teams_repoints_references(conn):
+    keep = repo.resolve_team(conn, "football_data", "Dep. Riestra", "Dep. Riestra", "Argentina")
+    dup = repo.resolve_team(conn, "other", "476", "Riestra FC", "Argentina")
+    assert keep != dup
+    repo.merge_teams(conn, dup, keep)
+    assert repo.resolve_team(conn, "other", "476", "Riestra FC", "Argentina") == keep
+    assert conn.execute("SELECT COUNT(*) FROM teams WHERE id = ?", (dup,)).fetchone()[0] == 0
+
+
 def test_resolve_team_is_stable_per_alias(conn):
     a = repo.resolve_team(conn, "api_football", "1", "Colo Colo", "Chile")
     assert repo.resolve_team(conn, "api_football", "1", "Colo-Colo renamed", "Chile") == a

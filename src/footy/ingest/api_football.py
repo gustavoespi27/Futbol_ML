@@ -8,6 +8,7 @@ Restricciones del plan Free (verificadas 2026-10-07, ver docs/decisiones.md):
 """
 
 import json
+import logging
 import re
 import sqlite3
 import time
@@ -20,6 +21,8 @@ from footy.db import repository as repo
 
 SOURCE = "api_football"
 BASE_URL = "https://v3.football.api-sports.io"
+
+log = logging.getLogger(__name__)
 
 STATUS_MAP = {
     "TBD": "scheduled", "NS": "scheduled",
@@ -170,8 +173,17 @@ def store_fixture_details(conn: sqlite3.Connection, item: dict) -> None:
         for side in ("home", "away")
     }
 
+    def team_of(block: dict, kind: str) -> int | None:
+        # La API a veces devuelve bloques con un id de equipo ajeno al partido: no adivinamos.
+        team_id = team_ids.get(block["team"]["id"])
+        if team_id is None:
+            log.warning("fixture %s: bloque %s con equipo inesperado %s, se omite",
+                        item["fixture"]["id"], kind, block["team"])
+        return team_id
+
     for block in item.get("statistics", []):
-        team_id = team_ids[block["team"]["id"]]
+        if (team_id := team_of(block, "statistics")) is None:
+            continue
         for s in block["statistics"]:
             conn.execute(
                 """INSERT OR REPLACE INTO team_match_stats
@@ -180,7 +192,8 @@ def store_fixture_details(conn: sqlite3.Connection, item: dict) -> None:
             )
 
     for block in item.get("lineups", []):
-        team_id = team_ids[block["team"]["id"]]
+        if (team_id := team_of(block, "lineups")) is None:
+            continue
         for starter, key in ((1, "startXI"), (0, "substitutes")):
             for entry in block.get(key) or []:
                 p = entry["player"]
@@ -196,7 +209,8 @@ def store_fixture_details(conn: sqlite3.Connection, item: dict) -> None:
                 )
 
     for block in item.get("players", []):
-        team_id = team_ids[block["team"]["id"]]
+        if (team_id := team_of(block, "players")) is None:
+            continue
         for entry in block["players"]:
             p = entry["player"]
             player_id = repo.get_or_create_player(conn, SOURCE, str(p["id"]), p["name"])

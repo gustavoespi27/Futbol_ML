@@ -1,0 +1,22 @@
+# Alias manuales: nombre en la fuente -> nombre canónico (el de football-data.co.uk).
+# Solo hace falta cuando el nombre normalizado no coincide entre fuentes.
+# Revisar con: python scripts/check_teams.py
+
+api_football:
+  # Argentina
+  Atletico Tucuman: Atl. Tucuman
+  Belgrano Cordoba: Belgrano
+  Central Cordoba de Santiago: Central Cordoba
+  Deportivo Riestra: Dep. Riestra
+  Independ. Rivadavia: Ind. Rivadavia
+  Instituto Cordoba: Instituto
+  Union Santa Fe: Union de Santa Fe
+  # Brasil
+  America Mineiro: America MG
+  Atletico Goianiense: Atletico GO
+  Atletico Paranaense: Athletico-PR
+  Botafogo: Botafogo RJ
+  Flamengo: Flamengo RJ
+  Fortaleza EC: Fortaleza
+  RB Bragantino: Bragantino
+  Vasco DA Gama: Vasco
