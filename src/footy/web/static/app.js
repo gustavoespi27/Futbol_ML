@@ -48,8 +48,6 @@ const matchTag = (o, size = 20) => `${teamTag(o.home_id, o.home, size)} <span cl
 // Fila grande local – visita para tarjetas.
 const teamsRow = (o) => `<div class="teams"><div class="t">${teamLogo(o.home_id, o.home, 34)}<span>${esc(o.home)}</span></div>
   <div class="vs">vs</div><div class="t r"><span>${esc(o.away)}</span>${teamLogo(o.away_id, o.away, 34)}</div></div>`;
-const leagueChip = (code, name, on, extra = "") =>
-  `<button class="chip ${on ? "on" : ""}" data-l="${esc(name)}">${code ? leagueLogo(code, 16) : ""}${esc(name)}${extra}</button>`;
 
 const cache = {};
 async function api(path, opts) {
@@ -83,7 +81,9 @@ function route() {
   const id = (location.hash || "#inicio").slice(1);
   const key = id in views ? id : "inicio";             // "#sugeridas" (enlaces antiguos) cae en el panel
   document.querySelectorAll("section.view").forEach((s) => s.classList.toggle("active", s.id === "v-" + key));
-  document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + key));
+  document.querySelectorAll(".navlink").forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + key));
+  const link = document.querySelector(`#nav a[href="#${key}"]`);
+  if (link) { $("#page-title").textContent = link.dataset.title; document.title = `${link.dataset.title} · Futbol ML`; }
   if (!rendered.has(key) || key === "combinadas") {          // combinadas se redibuja: depende del boleto
     rendered.add(key);
     Promise.resolve(views[key]()).catch((e) => showError("v-" + key, e));
@@ -105,6 +105,10 @@ function chart(id, build) {
   charts[id] = new Chart(document.getElementById(id), build());
 }
 function redrawCharts() { Object.keys(chartDefs).forEach((id) => chart(id, chartDefs[id])); }
+if (window.Chart) {                       // gráficos con la misma tipografía del sitio
+  Chart.defaults.font.family = '"Inter", system-ui, sans-serif';
+  Chart.defaults.font.size = 11.5;
+}
 function baseOptions(extra = {}) {
   const grid = css("--grid"), text = css("--text-2");
   return {
@@ -179,19 +183,16 @@ function vcell(op) {
 }
 const SEM_COLS = [["1", "Local"], ["X", "Empate"], ["2", "Visita"], ["O2.5", "Más 2,5"], ["U2.5", "Menos 2,5"], ["BTTS_Y", "Ambos marcan"]];
 const RANK = { green: 3, yellow: 2, none: 1, red: 0 };
-let semLeague = "Todas";
+let semSel = { type: "all" };
 async function renderSemaphore() {
-  const list = await api("/api/upcoming");
-  const leagues = ["Todas", ...new Set(list.map((m) => m.league_name))];
+  const [list, catalog] = await Promise.all([api("/api/upcoming"), leagueCatalog()]);
   const draw = () => {
-    const code = Object.fromEntries(list.map((m) => [m.league_name, m.league]));
-    $("#sem-filter").innerHTML = leagues.map((l) => leagueChip(code[l], l, l === semLeague)).join("");
-    const shown = list.filter((m) => semLeague === "Todas" || m.league_name === semLeague);
+    const shown = list.filter((m) => leagueSelMatch(semSel, m, catalog));
     $("#semaforo").innerHTML = shown.length ? `<table class="sem"><thead><tr><th>Partido</th>${SEM_COLS.map(([, n]) => `<th style="text-align:center">${n}</th>`).join("")}
       <th>Mejor opción</th></tr></thead><tbody>${shown.map(semRow).join("")}</tbody></table>`
       : `<div class="empty">No hay partidos programados en los próximos 7 días.</div>`;
   };
-  $("#sem-filter").onclick = (e) => { const b = e.target.closest("button"); if (b) { semLeague = b.dataset.l; draw(); } };
+  mountLeaguePicker($("#sem-filter"), { value: semSel, onChange: (s) => { semSel = s; draw(); } });
   draw();
   return list;
 }
@@ -258,23 +259,58 @@ async function renderHome() {
 }
 
 /* ---------- PRÓXIMOS PARTIDOS ---------- */
-let leagueFilter = "Todas";
+let matchSel = { type: "all" };
 async function renderMatches() {
-  const list = await api("/api/upcoming");
-  const leagues = ["Todas", ...new Set(list.map((m) => m.league_name))];
+  const [list, catalog] = await Promise.all([api("/api/upcoming"), leagueCatalog()]);
+  const byRef = Object.fromEntries(list.map((m) => [m.ref, m]));
   const draw = () => {
-    const code = Object.fromEntries(list.map((m) => [m.league_name, m.league]));
-    $("#league-filter").innerHTML = leagues.map((l) => leagueChip(code[l], l, l === leagueFilter, l === "Todas" ? ` (${list.length})` : "")).join("");
-    const shown = list.filter((m) => leagueFilter === "Todas" || m.league_name === leagueFilter);
-    $("#matches").innerHTML = shown.length ? shown.map(matchCard).join("")
-      : `<div class="card empty" style="grid-column:1/-1">No hay partidos programados en los próximos 7 días para las ligas seguidas
+    const shown = list.filter((m) => leagueSelMatch(matchSel, m, catalog));
+    $("#matches").innerHTML = shown.length ? matchGroups(shown)
+      : `<div class="card empty">No hay partidos programados en los próximos 7 días para las ligas seguidas
          (puede ser fecha FIFA). La tarea diaria agrega partidos y cuotas a medida que se publican.</div>`;
   };
-  $("#league-filter").addEventListener("click", (e) => {
-    const b = e.target.closest("button"); if (!b) return;
-    leagueFilter = b.dataset.l; draw();
-  });
+  mountLeaguePicker($("#league-filter"), { value: matchSel, onChange: (s) => { matchSel = s; draw(); } });
+  $("#matches").onclick = (e) => {
+    if (e.target.closest("button, a, .mdetail")) return;
+    const row = e.target.closest(".mrow"); if (!row) return;
+    const next = row.nextElementSibling;
+    if (next && next.classList.contains("mdetail")) { next.remove(); row.classList.remove("open"); return; }
+    row.classList.add("open");
+    row.insertAdjacentHTML("afterend", `<div class="mdetail">${matchCard(byRef[row.dataset.ref])}</div>`);
+  };
   draw();
+}
+function matchGroups(list) {
+  const groups = new Map();
+  list.forEach((m) => { if (!groups.has(m.league)) groups.set(m.league, []); groups.get(m.league).push(m); });
+  return [...groups.values()].map((ms) => `<div class="lg-block">
+    <div class="lg-head">${leagueLogo(ms[0].league, 20)}<span>${esc(ms[0].league_name)}</span>
+      <span class="cnt">${ms.length} ${ms.length === 1 ? "partido" : "partidos"}</span></div>
+    <div class="lg-cols"><span>Hora</span><span>Partido</span><span>1</span><span>X</span><span>2</span><span>Mejor opción</span><span></span></div>
+    ${ms.map(matchRow).join("")}</div>`).join("");
+}
+function matchRow(m) {
+  const p = m.p_official;
+  const ops = Object.fromEntries((m.options || []).map((o) => [o.key, o]));
+  const fav = p ? p.indexOf(Math.max(...p)) : -1;
+  const d = new Date(m.kickoff);
+  const time = new Intl.DateTimeFormat("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+  const day = new Intl.DateTimeFormat("es-CL", { weekday: "short", day: "numeric" }).format(d);
+  const cell = (k, i, color) => {
+    if (!p) return `<div class="pcell"><b>–</b><span>sin datos</span></div>`;
+    const o = ops[k], v = o && o.verdict;
+    return `<div class="pcell ${i === fav ? "top" : ""} ${v && v.level === "green" ? "green" : ""}" style="--w:${(p[i] * 100).toFixed(0)}%;--c:var(${color})"
+      title="${v ? esc(`${v.label}: ${v.reason}`) : ""}"><b>${pct(p[i])}</b><span>${o && o.odds ? num(o.odds) : "–"}</span></div>`;
+  };
+  const best = bestOption(m);
+  const tag = (id, name, isFav) => `<span class="team ${isFav ? "fav" : ""}">${teamLogo(id, name, 20)}<span>${esc(name)}</span></span>`;
+  return `<div class="mrow" data-ref="${esc(m.ref)}">
+    <div class="time"><b>${time}</b><span>${esc(day)}</span></div>
+    <div class="tm">${tag(m.home_id, m.home, fav === 0)}${tag(m.away_id, m.away, fav === 2)}</div>
+    ${cell("1", 0, "--home")}${cell("X", 1, "--draw")}${cell("2", 2, "--away")}
+    <div class="best">${best ? `${vchip(best.verdict)}<span>${esc(best.label)} · ${num(best.odds)}</span>` : `<span>${m.stale ? "datos atrasados" : "sin cuotas aún"}</span>`}</div>
+    <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+  </div>`;
 }
 function matchCard(m) {
   const p = m.p_official;
@@ -595,5 +631,20 @@ function renderSimResult(r) {
   drawSim();
 }
 
+/* ---------- barra lateral y superior ---------- */
+async function initChrome() {
+  $("#tb-date").textContent = new Intl.DateTimeFormat("es-CL", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
+  try {
+    const o = await api("/api/overview");
+    const el = $("#status-line");
+    if (o.last_daily_run) {
+      const h = (Date.now() - new Date(o.last_daily_run)) / 3.6e6;
+      const ago = h < 1 ? `hace ${Math.max(1, Math.round(h * 60))} min` : h < 48 ? `hace ${Math.round(h)} h` : `hace ${Math.round(h / 24)} días`;
+      el.classList.toggle("stale", h > 30);
+      el.innerHTML = `<i class="dot"></i><span>Datos actualizados ${ago}<br>modelo ${esc(o.model_version)}</span>`;
+    }
+  } catch (e) { /* el estado es informativo */ }
+}
+
 // combos.js se carga después de este archivo: se enruta cuando ambos están listos.
-window.addEventListener("DOMContentLoaded", route);
+window.addEventListener("DOMContentLoaded", () => { route(); initChrome(); });

@@ -31,6 +31,10 @@ python scripts/serve.py          # abre http://127.0.0.1:8000
 | Simulador | Cualquier partido de una liga con modelo, con cuotas y monto opcionales: calcula para local, empate y visita lo que recibes si aciertas, la ganancia neta, lo que pierdes y la ganancia esperada; sus opciones se pueden agregar a la combinada |
 | Cómo funciona | Explicación sin tecnicismos y glosario |
 
+**Buscador de ligas** en Partidos, Semáforo y Combinadas: sugerencias mientras escribes (sin importar tildes ni
+mayúsculas, con la coincidencia resaltada), filtros por continente y país, opción "todas las de un país/continente",
+interruptor "solo con partidos" y navegación con teclado. Catálogo en `/api/league-catalog`.
+
 Escudos de equipos y logos de ligas en todas las vistas: imágenes públicas de API-Football (no consumen cuota)
 servidas por `/logo/team/<id>` y `/logo/league/<código>` con caché local en `data/cache/logos/`; los ids de liga que
 no están en `settings.yaml` van en `config/logos.yaml`. Si un equipo no tiene logo se muestran sus iniciales.

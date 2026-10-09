@@ -6,7 +6,7 @@ const ticket = { legs: [], groupOdds: {} };
 try { Object.assign(ticket, JSON.parse(localStorage.getItem("ticket") || "{}")); } catch (e) { /* sin storage */ }
 const saveTicket = () => { try { localStorage.setItem("ticket", JSON.stringify(ticket)); } catch (e) { /* */ } };
 const hasLeg = (ref, key) => ticket.legs.some((l) => l.ref === ref && l.key === key);
-let cbLeague = "Todas";
+let cbSel = { type: "all" };
 let openRef = null;
 
 function afterTicketChange() {
@@ -33,7 +33,7 @@ function syncAddButtons() {
     b.title = on ? "Quitar de la combinada" : "Agregar a la combinada";
   });
   const n = ticket.legs.length;
-  document.querySelectorAll("[data-ticket-count]").forEach((el) => { el.textContent = n ? ` (${n})` : ""; });
+  document.querySelectorAll("[data-ticket-count]").forEach((el) => { el.textContent = n ? String(n) : ""; });
 }
 document.addEventListener("click", (e) => {
   const b = e.target.closest("button.add[data-ref]");
@@ -72,12 +72,9 @@ function suggestionsBlock(ctx) {
 async function renderCombos() {
   refreshTicket();
   const histP = api("/api/combos/history");
-  const list = await api("/api/upcoming");
-  const leagues = ["Todas", ...new Set(list.map((m) => m.league_name))];
+  const [list, catalog] = await Promise.all([api("/api/upcoming"), leagueCatalog()]);
   const draw = () => {
-    const code = Object.fromEntries(list.map((m) => [m.league_name, m.league]));
-    $("#cb-filter").innerHTML = leagues.map((l) => leagueChip(code[l], l, l === cbLeague)).join("");
-    const shown = list.filter((m) => cbLeague === "Todas" || m.league_name === cbLeague);
+    const shown = list.filter((m) => leagueSelMatch(cbSel, m, catalog));
     $("#cb-matches").innerHTML = shown.length ? shown.map((m) => `
       <details class="mx" data-ref="${esc(m.ref)}" ${m.ref === openRef ? "open" : ""}>
         <summary>
@@ -96,7 +93,7 @@ async function renderCombos() {
       openRef = null;
     }
   };
-  $("#cb-filter").onclick = (e) => { const b = e.target.closest("button"); if (b) { cbLeague = b.dataset.l; draw(); } };
+  mountLeaguePicker($("#cb-filter"), { value: cbSel, onChange: (s) => { cbSel = s; draw(); } });
   draw();
   renderComboHistory(await histP, list.length);
 }
@@ -283,6 +280,6 @@ function renderComboHistory(h, nUpcoming) {
 
 function goToCombos(ref) {
   openRef = ref;
-  cbLeague = "Todas";
+  cbSel = { type: "all" };
   if (location.hash === "#combinadas") renderCombos(); else location.hash = "#combinadas";
 }

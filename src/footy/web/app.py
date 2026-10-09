@@ -71,6 +71,11 @@ def leagues():
     return cached("leagues", 3600, service.leagues_list)
 
 
+@app.get("/api/league-catalog")
+def league_catalog():
+    return cached("league_catalog", 300, service.league_catalog)
+
+
 @app.get("/api/teams/{code}")
 def teams(code: str):
     try:
