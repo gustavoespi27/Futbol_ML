@@ -1,5 +1,5 @@
 ﻿# Registra (o actualiza) la tarea programada de recolección diaria.
-# Corre 2 veces al día; si el PC estaba apagado, se ejecuta al encenderlo (StartWhenAvailable).
+# Corre 3 veces al día; si el PC estaba apagado, se ejecuta al encenderlo (StartWhenAvailable).
 # Uso: powershell -ExecutionPolicy Bypass -File scripts\register_task.ps1
 
 $ErrorActionPreference = "Stop"
@@ -12,6 +12,7 @@ $action = New-ScheduledTaskAction -Execute $python -Argument "`"$script`"" -Work
 $triggers = @(
     New-ScheduledTaskTrigger -Daily -At "10:00"   # resultados de ayer + cuotas tempranas
     New-ScheduledTaskTrigger -Daily -At "17:30"   # cuotas más cercanas al cierre de los partidos nocturnos
+    New-ScheduledTaskTrigger -Daily -At "21:15"   # recién renovada la cuota de API-Football (00:00 UTC): cuotas tempranas
 )
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 1) `
     -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries

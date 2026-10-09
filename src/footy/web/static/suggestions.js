@@ -48,6 +48,8 @@ function drawCurrent(d) {
         <div><span>Si acierta, ganas</span><b class="num">${money(s.stake * bank * (s.odds - 1))}</b></div>
         <div><span>% del bankroll</span><b class="num">${pct(s.stake, 1)}</b></div>
       </div>
+      <div class="callout" style="padding:10px 12px;font-size:13px"><div>Antes de apostar revisa la cuota en ${esc(s.book)}: tómala solo si
+        sigue en <b>${num((1 + r.min_edge / 2) / s.p)}</b> o más. Si bajó, la ventaja desapareció.</div></div>
       <button class="chip" style="justify-self:start" onclick="toggleLeg('${esc(s.ref)}','${s.key}'); this.textContent='En tu combinada ✓'">Agregar a combinada</button>
     </article>`).join("")
     : `<div class="card empty" style="grid-column:1/-1">Hoy ninguna casa paga ≥ ${signed(r.min_edge, 0)} sobre el precio justo de Pinnacle

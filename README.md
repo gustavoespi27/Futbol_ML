@@ -157,7 +157,7 @@ tests/
 | `scripts/screen_leagues.py` | Análisis 03: el mismo pipeline en 38 ligas, con criterio pre-registrado |
 | `scripts/evaluate_shots.py` | Análisis 04: Dixon-Coles entrenado con tiros además de goles |
 | `scripts/pro_backtest.py` | Análisis 06: el apostador profesional en el histórico (cuotas tempranas vs Pinnacle, CLV) |
-| `scripts/train_ml.py [--eval]` | Análisis 05: entrena los modelos de ML (1X2, más/menos 2,5, ambos marcan) y los evalúa en 2026 (`artifacts/ml/`, ~15 min) |
+| `scripts/train_ml.py [--eval \| --production]` | Análisis 05: entrena los modelos de ML (1X2, más/menos 2,5, ambos marcan) y los evalúa en 2026 (`artifacts/ml/`, ~15 min); `--production` los reentrena con todos los datos hasta hoy para predecir |
 | `scripts/build_league_models.py` | Ajusta pesos, umbrales y calibración O/U por liga (2016-2025) en `config/league_models.json` |
 | `scripts/predict.py --league E0 --home X --away Y [--odds L E V]` | Predicción de un partido en consola |
 
@@ -176,5 +176,6 @@ ruff check src scripts tests
 ```
 
 La primera vez hay que poblar la base (`scripts/update_football_data.py`, luego los análisis 03-04,
-`scripts/build_league_models.py` y `scripts/train_ml.py`); después basta la tarea diaria. Los modelos de ML se
+`scripts/build_league_models.py`, `scripts/train_ml.py` y `scripts/train_ml.py --production`); después basta la
+tarea diaria (`scripts/register_task.ps1`: 10:00, 17:30 y 21:15, justo después de que se renueva la cuota de la API). Los modelos de ML se
 guardan en `artifacts/ml/` (no versionado) y conviene reentrenarlos cada temporada.

@@ -6,7 +6,9 @@
 3. Mezcla con el mercado (pesos ajustados en VALID).
 4. Evaluación única en 2026: calidad de las probabilidades, alta confianza y apuestas con la regla de sugerencias.
 
-Uso:  python scripts/train_ml.py        (unos 15-20 minutos)
+Uso:  python scripts/train_ml.py                (unos 15-20 minutos)
+      python scripts/train_ml.py --eval         (solo evaluación, con los modelos ya entrenados)
+      python scripts/train_ml.py --production   (reentrena con todos los datos hasta hoy para predecir)
 Salida: artifacts/ml/ (modelos), data/processed/ml/report.json, docs/analisis/05_ml.md
 """
 
@@ -119,8 +121,17 @@ def main() -> int:
     k = fin.kickoff_utc
     va = ((k >= ml.VALID_FROM) & (k < ml.TEST_FROM)).to_numpy()
 
+    if "--production" in sys.argv:
+        models, meta = ml.load()
+        prod = ml.refit_production(fin, models)
+        ml.save(prod, {**meta, "trained_until": fin.kickoff_utc.max()[:10], "production": True})
+        log(f"modelos de producción entrenados con {len(fin):,} partidos hasta {fin.kickoff_utc.max()[:10]}")
+        return 0
     if "--eval" in sys.argv:                     # reutiliza los modelos ya entrenados
         models, meta = ml.load()
+        if meta.get("production"):               # ya vieron 2026: evaluarlos en 2026 sería hacer trampa
+            log("Los modelos guardados son de producción (entrenados con 2026). Reentrena sin --eval para evaluar.")
+            return 1
         choice, blend, valid_ll = meta["choice"], meta["blend"], meta["valid_logloss"]
     else:
         models, choice, blend, valid_ll = train(fin, y_all, va)

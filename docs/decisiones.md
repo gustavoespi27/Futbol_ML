@@ -287,3 +287,27 @@ CONMEBOL/UEFA/CONCACAF, Nations League, Copa América, Eurocopa, amistosos; equi
 peticiones diarias las cuotas se piden por prioridad (`odds_priority`) y una vez cada 10 horas por partido. El
 historial de selecciones accesible en el plan gratuito (2022-2024) se carga de a 3 temporadas por día. El ML no
 muestra pronósticos para competiciones que no vio al entrenar (selecciones y copas internacionales).
+
+## 2026-10-09 — Modelos de producción y factibilidad de apostar con dinero real
+
+**Producción.** Evaluado el ML en 2026, se reentrena con todos los partidos hasta hoy (173 mil) con los mismos
+hiperparámetros y número de árboles (`train_ml.py --production`). Los modelos de evaluación quedan en
+`artifacts/ml/models_eval.joblib`; `--eval` se niega a evaluar modelos de producción (ya vieron 2026). La regla del
+apostador profesional NO se reajusta con los datos de prueba: queda fija y la mide la cartera en vivo.
+Tarea programada: se agrega una ejecución a las 21:15 (la cuota de API-Football se renueva a las 00:00 UTC).
+
+**¿Conviene apostar con dinero real?** Monte Carlo con las apuestas de la prueba (cuota media 3,2, monto medio 1,1%
+del bankroll, ~60-90 apuestas al año):
+
+| Ventaja supuesta | Horizonte | Bankroll mediano (inicio 100) | P(perder) | P(perder > 20%) |
+|---|---|---:|---:|---:|
+| +3% (CLV +5% menos cuota que se mueve) | 1 año | 101,5 | 46% | 6% |
+| +3% | 3 años | 105,7 | 42% | 15% |
+| 0% (sin ventaja) | 3 años | 96,3 | 56% | 24% |
+
+Aun si la ventaja es real, con este volumen el resultado de uno o tres años es casi una moneda al aire y la ganancia
+esperada es pequeña (~+2% anual del bankroll). Recomendación: no apostar dinero real todavía. Primero 2-3 meses de
+cartera en papel (≥ 150 apuestas con CLV medio > +2% y > 60% de apuestas sobre el cierre); si se cumple, montos
+pequeños que se puedan perder, verificando la cuota mínima antes de cada apuesta y deteniéndose si el CLV real de
+100 apuestas es ≤ 0. Riesgos fuera del modelo: límites de cuenta de las casas, cuotas que se mueven, legalidad e
+impuestos.

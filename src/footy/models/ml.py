@@ -104,6 +104,22 @@ def fit_task(df: pd.DataFrame, task: str, use_elo_dc: bool, log=print) -> tuple[
     return TaskModel(task, use_elo_dc, comps, params, int(n_iter), ll, final), P_valid
 
 
+def refit_production(df: pd.DataFrame, models: dict[str, TaskModel]) -> dict[str, TaskModel]:
+    """Modelos de producción: mismos hiperparámetros y número de árboles elegidos en validación, reentrenados con
+    TODOS los partidos terminados hasta hoy (incluido el período de prueba, ya evaluado)."""
+    out = {}
+    y_all = targets(df)
+    for task, m in models.items():
+        start = TRAIN_FROM if not m.use_elo_dc else "2016-01-01"
+        rows = (df.kickoff_utc >= start).to_numpy().copy()
+        if m.use_elo_dc:
+            rows &= df[ELO_DC_COLS[0]].notna().to_numpy()
+        X = design(df, m.use_elo_dc, m.comps)
+        final = _new(m.params, m.n_iter, early=False).fit(X[rows], y_all[task][rows])
+        out[task] = TaskModel(task, m.use_elo_dc, m.comps, m.params, m.n_iter, m.valid_logloss, final)
+    return out
+
+
 def save(models: dict[str, TaskModel], meta: dict) -> None:
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     joblib.dump(models, ARTIFACTS / "models.joblib")
