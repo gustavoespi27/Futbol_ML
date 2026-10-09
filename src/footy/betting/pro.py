@@ -101,3 +101,12 @@ def clv(odds_taken: float, closing_1x2: dict[str, dict], sel: str) -> float | No
     """CLV contra el precio justo de Pinnacle al cierre (o su último snapshot antes del partido)."""
     p = fair_1x2(closing_1x2)
     return None if p is None else float(odds_taken * p[SEL.index(sel)] - 1)
+
+
+def reason(o: dict) -> str:
+    """Por qué el apostador profesional hace (o hizo) esta apuesta, en una línea."""
+    sel = {"H": "el local", "D": "el empate", "A": "la visita", "1": "el local", "X": "el empate", "2": "la visita"}
+    s = sel.get(o.get("sel") or o.get("key"), "esta opción")
+    e = f"{o['edge'] * 100:+.1f}%".replace(".", ",")
+    return (f"{o['book']} paga {o['odds']:.2f} por {s}; el precio justo de Pinnacle es {1 / o['p_fair']:.2f} "
+            f"({o['p_fair']:.0%}). Ventaja {e} → apuesta {o['stake']:.1%} del bankroll (¼ de Kelly).")

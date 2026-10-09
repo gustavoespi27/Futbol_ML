@@ -544,3 +544,129 @@ table.sem td.m:hover .team span { color: var(--accent); }
 /* el buscador reemplaza a los filtros de botones: sin recorte ni desplazamiento horizontal */
 .filters.lp { display: inline-flex; flex-wrap: nowrap; overflow: visible !important; margin-left: 0 !important; margin-right: 0 !important; padding: 0 !important; gap: 0; }
 .lp.flip .lp-pop { left: auto; right: 0; }
+
+/* boleto: cada selección en su fila, agrupadas por partido */
+.legs { display: grid; gap: 10px; }
+.leg-group { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.lg-match { display: grid; gap: 3px; padding: 8px 10px; background: var(--surface-2); border-bottom: 1px solid var(--border); font-size: 12.5px; }
+.lg-match small { color: var(--muted); font-size: 11px; display: inline-flex; align-items: center; gap: 5px; }
+.sel-row { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto 70px 24px; gap: 8px; align-items: center; padding: 7px 10px; font-size: 13px; }
+.sel-row + .sel-row { border-top: 1px dashed var(--grid); }
+.sel-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.sel-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sel-p { color: var(--text-2); font-size: 12.5px; }
+.sel-odds { text-align: right; color: var(--muted); font-size: 12px; }
+.sel-row input { width: 70px; padding: 4px 6px; font-size: 12.5px; text-align: right; }
+.sel-row .x { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 0; }
+.sel-row .x:hover { color: var(--bad); }
+.sel-joint { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; padding: 7px 10px;
+  background: color-mix(in srgb, var(--warn-bg) 70%, transparent); border-top: 1px solid var(--border); font-size: 12px; color: var(--text-2); }
+.sel-joint label { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; }
+.sel-joint input { width: 70px; padding: 3px 6px; font-size: 12.5px; text-align: right; }
+
+/* barra de filtros: liga + fecha */
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
+.toolbar .lp { margin-bottom: 0; }
+.sec-row .toolbar { margin-bottom: 0; }
+.df { display: inline-flex; align-items: center; gap: 2px; padding: 3px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: var(--shadow); height: 40px; }
+.df-btn { border: 0; background: none; color: var(--text-2); font: inherit; font-size: 12.5px; font-weight: 600; padding: 0 10px;
+  height: 32px; border-radius: 7px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.df-btn span { font-size: 11px; color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; }
+.df-btn:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
+.df-btn.on { background: var(--accent); color: #fff; }
+.df-btn.on span { color: rgba(255, 255, 255, .8); }
+.df-btn:disabled { opacity: .4; cursor: default; }
+@media (max-width: 640px) {
+  .toolbar { flex-direction: column; align-items: stretch; }
+  .df { overflow-x: auto; scrollbar-width: none; }
+}
+
+/* panel: recomendador con pestañas, bitácora */
+.reco-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.bank-inline { display: inline-flex; flex-direction: row; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); font-weight: 600; }
+.bank-field { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--border); border-radius: 8px; padding: 0 0 0 9px;
+  background: var(--surface-2); color: var(--text-2); }
+.bank-field input { border: 0; background: none; width: 110px; padding: 6px 8px 6px 2px; font-weight: 650; }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 14px; overflow-x: auto; scrollbar-width: none; }
+.tab { border: 0; background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--muted); padding: 9px 12px;
+  border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; white-space: nowrap; display: inline-flex; gap: 6px; align-items: center; }
+.tab:hover { color: var(--text); }
+.tab.on { color: var(--accent); border-bottom-color: var(--accent); }
+.tab span:empty { display: none; }
+.tab span { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--surface-3); color: var(--text-2);
+  font-size: 10.5px; display: inline-grid; place-items: center; }
+.tab.on span { background: var(--accent-soft); color: var(--accent); }
+.tab-pane { display: none; }
+.tab-pane.on { display: block; animation: fade .15s ease-out; }
+.pane-note { color: var(--text-2); font-size: 12.5px; margin-bottom: 12px; }
+.why { font-size: 12.5px; color: var(--text-2); background: var(--surface-2); border-radius: 8px; padding: 8px 10px; }
+.why b { color: var(--text); }
+.why-cell { color: var(--text-2); font-size: 12px; max-width: 380px; }
+tr.why-row td { color: var(--muted); font-size: 11.5px; padding-top: 0; padding-bottom: 10px; border-bottom: 1px solid var(--grid); }
+tr.why-row:hover td { background: none; }
+tbody tr:has(+ tr.why-row) td { border-bottom: 0; }
+.pbar { display: inline-grid; position: relative; min-width: 58px; padding: 2px 6px; border-radius: 6px; background: var(--surface-2); overflow: hidden; text-align: right; }
+.pbar::before { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w); background: color-mix(in srgb, var(--good) 22%, transparent); }
+.pbar b { position: relative; }
+.log-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; align-items: start; }
+.kpi-good { box-shadow: inset 0 3px 0 var(--good), var(--shadow); }
+@media (max-width: 1100px) { .log-layout { grid-template-columns: minmax(0, 1fr); } }
+
+.lp-head { padding: 8px 10px 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+
+/* ---------- partidos del boleto en Combinadas ---------- */
+details.mx.in-ticket { border: 2px solid var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent), var(--shadow); }
+.in-ticket-tag { background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+
+/* ---------- desplazamiento dentro de la tarjeta (listas largas no ocupan toda la página) ----------
+   Un solo nivel: nunca hay una zona desplazable dentro de otra, y al llegar al final la rueda sigue con la página. */
+#semaforo, #rel-today, #sg-closest, #sg-record, #rel-record, #trk-table, #trk-bets, #bt-leagues {
+  max-height: 460px; overflow-y: auto;
+}
+#sg-singles { max-height: 560px; overflow-y: auto; padding-right: 4px; }
+#matches, #cb-matches { max-height: calc(100vh - 210px); min-height: 320px; overflow-y: auto; padding: 2px 6px 2px 2px; }
+/* encabezados fijos mientras se desplaza la tabla */
+#semaforo thead th, #rel-today thead th, #sg-closest thead th, #sg-record thead th, #rel-record thead th,
+#trk-table thead th, #trk-bets thead th, #bt-leagues thead th {
+  position: sticky; top: 0; z-index: 2;
+}
+/* barra de desplazamiento discreta */
+#semaforo, #rel-today, #sg-closest, #sg-record, #rel-record, #trk-table, #trk-bets, #bt-leagues,
+#sg-singles, #matches, #cb-matches { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+@media (max-width: 760px) {
+  #matches, #cb-matches { max-height: calc(100vh - 170px); }
+  #semaforo, #rel-today, #sg-closest, #sg-record, #rel-record, #trk-table, #trk-bets, #bt-leagues { max-height: 400px; }
+}
+
+/* ---------- botón para volver arriba en Combinadas ---------- */
+.to-top {
+  position: fixed; right: 24px; bottom: 24px; z-index: 40; display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px; border: 0; border-radius: 999px; background: var(--accent); color: #fff;
+  font: 600 13px/1 inherit; font-family: inherit; cursor: pointer; box-shadow: 0 6px 20px rgba(0, 0, 0, .22);
+  opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .18s, transform .18s;
+}
+.to-top.show { opacity: 1; transform: none; pointer-events: auto; }
+.to-top:hover { filter: brightness(1.08); }
+.to-top b { background: rgba(255, 255, 255, .25); border-radius: 999px; padding: 2px 7px; font-size: 11.5px; }
+@media (max-width: 760px) { .to-top { right: 16px; bottom: 84px; } }
+/* opciones de un partido en Combinadas: la tabla cabe completa en la tarjeta, sin barra horizontal */
+details.mx .opt-table th { white-space: normal; line-height: 1.25; vertical-align: bottom; }
+details.mx .opt-table td, details.mx .opt-table th { padding: 7px 6px; }
+details.mx .opt-table .vchip { white-space: nowrap; }
+#cb-matches { container-type: inline-size; }
+@container (max-width: 560px) {
+  details.mx .opt-table th:nth-child(4), details.mx .opt-table td:nth-child(4) { display: none; }   /* cuota justa */
+  details.mx .opt-table { font-size: 12.5px; }
+  details.mx .opt-table .vchip { font-size: 11px; padding: 3px 6px; }
+}
+@container (max-width: 560px) {
+  details.mx .opt-table .vchip { white-space: normal; display: inline-grid; justify-items: center; line-height: 1.2; gap: 1px; }
+  details.mx .opt-table td:first-child { min-width: 0; }
+  details.mx .body { padding: 12px 10px 14px; }
+}
+@container (max-width: 400px) {
+  details.mx .opt-table td, details.mx .opt-table th { padding: 6px 3px; }
+  details.mx .opt-table { font-size: 12px; }
+  details.mx .opt-table button.add { width: 26px; height: 26px; }
+}

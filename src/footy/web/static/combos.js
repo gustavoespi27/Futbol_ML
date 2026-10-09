@@ -6,13 +6,16 @@ const ticket = { legs: [], groupOdds: {} };
 try { Object.assign(ticket, JSON.parse(localStorage.getItem("ticket") || "{}")); } catch (e) { /* sin storage */ }
 const saveTicket = () => { try { localStorage.setItem("ticket", JSON.stringify(ticket)); } catch (e) { /* */ } };
 const hasLeg = (ref, key) => ticket.legs.some((l) => l.ref === ref && l.key === key);
-let cbSel = { type: "all" };
+let cbSel = { type: "all" }, cbDate = { type: "all" };
 let openRef = null;
+let cbRedraw = null;      // redibuja la lista de Combinadas (los partidos del boleto van primero)
 
 function afterTicketChange() {
   const refs = new Set(ticket.legs.map((l) => l.ref));
   Object.keys(ticket.groupOdds).forEach((r) => { if (!refs.has(r)) delete ticket.groupOdds[r]; });
   saveTicket(); syncAddButtons(); refreshTicket();
+  if (cbRedraw && document.querySelector("#v-combinadas.active")) cbRedraw();
+  if (window.__toTopUpdate) window.__toTopUpdate();
 }
 function toggleLeg(ref, key) {
   if (hasLeg(ref, key)) ticket.legs = ticket.legs.filter((l) => !(l.ref === ref && l.key === key));
@@ -35,11 +38,13 @@ function syncAddButtons() {
   const n = ticket.legs.length;
   document.querySelectorAll("[data-ticket-count]").forEach((el) => { el.textContent = n ? String(n) : ""; });
 }
+let lastRef = null;
 document.addEventListener("click", (e) => {
   const b = e.target.closest("button.add[data-ref]");
   if (!b) return;
   e.preventDefault();
   const keys = b.dataset.keys.split(",");
+  lastRef = b.dataset.ref;
   if (keys.length > 1) toggleVariant(b.dataset.ref, keys); else toggleLeg(b.dataset.ref, keys[0]);
 });
 
@@ -74,28 +79,79 @@ async function renderCombos() {
   const histP = api("/api/combos/history");
   const [list, catalog] = await Promise.all([api("/api/upcoming"), leagueCatalog()]);
   const draw = () => {
-    const shown = list.filter((m) => leagueSelMatch(cbSel, m, catalog));
-    $("#cb-matches").innerHTML = shown.length ? shown.map((m) => `
-      <details class="mx" data-ref="${esc(m.ref)}" ${m.ref === openRef ? "open" : ""}>
+    const box = $("#cb-matches");
+    // los partidos que ya están en el boleto van arriba (aunque el filtro no los incluya), en el orden en que se agregaron
+    const inTicket = [...new Set(ticket.legs.map((l) => l.ref))];
+    const pinned = inTicket.map((r) => list.find((m) => m.ref === r)).filter(Boolean);
+    const rest = list.filter((m) => !inTicket.includes(m.ref) && leagueSelMatch(cbSel, m, catalog) && dateSelMatch(cbDate, m.kickoff));
+    const shown = [...pinned, ...rest];
+    const wasOpen = new Set([...box.querySelectorAll("details.mx[open]")].map((d) => d.dataset.ref));
+    const scroll = box.scrollTop;
+    box.innerHTML = shown.length ? shown.map((m) => {
+      const n = ticket.legs.filter((l) => l.ref === m.ref).length;
+      return `
+      <details class="mx ${n ? "in-ticket" : ""}" data-ref="${esc(m.ref)}" ${m.ref === openRef || wasOpen.has(m.ref) ? "open" : ""}>
         <summary>
-          <div style="display:flex;justify-content:space-between;color:var(--text-2);font-size:12.5px"><span class="lg">${leagueLogo(m.league, 16)}${esc(m.league_name)}</span><span>${fmtDate(m.kickoff)}</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--text-2);font-size:12.5px"><span class="lg">${leagueLogo(m.league, 16)}${esc(m.league_name)}</span>
+            <span style="display:flex;align-items:center;gap:8px">${n ? `<span class="in-ticket-tag">En tu combinada · ${n} ${n === 1 ? "selección" : "selecciones"}</span>` : ""}${fmtDate(m.kickoff)}</span></div>
           ${teamsRow(m)}
           ${probBar(m.p_official)}
           <div style="color:var(--muted);font-size:12px">Toca para ver todas las opciones · ${esc(m.source)}</div>
         </summary>
         <div class="body">${suggestionsBlock(m)}${optionsTable(m)}
           <p class="sub" style="margin:0">* Doble oportunidad estimada desde el 1X2 de la misma casa. Valor = probabilidad × cuota − 1.</p></div>
-      </details>`).join("") : `<div class="card empty">No hay partidos programados en los próximos 7 días.</div>`;
+      </details>`;
+    }).join("") : `<div class="card empty">No hay partidos programados en los próximos 3 días.</div>`;
     syncAddButtons();
-    if (openRef) {
-      const el = document.querySelector(`details.mx[data-ref="${CSS.escape(openRef)}"]`);
-      if (el) el.scrollIntoView({ block: "start" });
-      openRef = null;
+    box.scrollTop = scroll;
+    const focus = openRef || lastRef;
+    if (focus) {
+      // mantiene a la vista el partido abierto o el que se acaba de agregar / quitar (puede haber cambiado de lugar)
+      const el = box.querySelector(`details.mx[data-ref="${CSS.escape(focus)}"]`);
+      if (el) {
+        const top = el.offsetTop - box.offsetTop;
+        if (openRef || top < box.scrollTop || top > box.scrollTop + box.clientHeight - 80) box.scrollTop = Math.max(0, top - 8);
+        if (openRef) el.scrollIntoView({ block: "nearest" });
+      }
+      openRef = null; lastRef = null;
     }
   };
+  cbRedraw = draw;
+  mountToTop($("#cb-matches"));
   mountLeaguePicker($("#cb-filter"), { value: cbSel, onChange: (s) => { cbSel = s; draw(); } });
+  mountDateFilter($("#cb-date"), { list, value: cbDate, onChange: (s) => { cbDate = s; draw(); } });
   draw();
   renderComboHistory(await histP, list.length);
+}
+
+/* ---------- volver arriba: a los partidos de la combinada ---------- */
+function mountToTop(box) {
+  let btn = document.querySelector(".to-top");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.type = "button"; btn.className = "to-top";
+    document.body.appendChild(btn);
+  }
+  const update = () => {
+    const onView = !!document.querySelector("#v-combinadas.active");
+    const far = box.scrollTop > 300 || window.scrollY > box.getBoundingClientRect().top + window.scrollY + 200;
+    const n = new Set(ticket.legs.map((l) => l.ref)).size;
+    btn.innerHTML = n ? `↑ Tus partidos <b>${n}</b>` : "↑ Volver arriba";
+    btn.classList.toggle("show", onView && far);
+  };
+  btn.onclick = () => {
+    box.scrollTo({ top: 0, behavior: "smooth" });
+    const top = $("#cb-filter").getBoundingClientRect().top + window.scrollY - 80;
+    if (window.scrollY > top) window.scrollTo({ top, behavior: "smooth" });
+  };
+  box.onscroll = update;
+  if (!window.__toTopBound) {
+    window.__toTopBound = true;
+    window.addEventListener("scroll", () => document.querySelector(".to-top") && window.__toTopUpdate());
+    window.addEventListener("hashchange", () => window.__toTopUpdate());
+  }
+  window.__toTopUpdate = update;
+  update();
 }
 
 /* ---------- boleto ---------- */
@@ -123,24 +179,32 @@ async function refreshTicket() {
   if (seq !== ticketSeq) return;
   const stake = getStake();
 
+  // Un bloque por partido; dentro, cada selección es su propia fila con su probabilidad, su cuota y su botón ×.
   const legsHtml = r.groups.map((g) => {
     const single = !g.same_match;
-    const own = single ? (ticket.legs.find((l) => l.ref === g.ref && l.key === g.keys[0]) || {}).odds : ticket.groupOdds[g.ref];
-    const value = own ?? (single ? g.odds : "");
-    const removes = g.keys.map((k) => `<button class="x" title="Quitar ${esc(k)}" data-ref="${esc(g.ref)}" data-key="${k}">×</button>`).join("");
-    return `<div class="leg">
-      <div><b>${esc(g.label)}</b><div class="m">${(() => { const [h, a] = g.match.split(" vs "); return matchTag({ home: h, away: a, home_id: g.home_id, away_id: g.away_id }, 16); })()}
-        <div>${leagueLogo(g.league, 12)} ${esc(g.league_name)}</div></div></div>
-      <div style="text-align:right"><b class="num">${pct(g.p, 1)}</b></div>
-      <div class="tags">
-        ${g.impossible ? '<span class="pill bad">imposible</span>' : ""}
-        ${g.same_match ? '<span class="pill warn" title="Probabilidad conjunta calculada desde la matriz de marcadores">mismo partido</span>' : ""}
-        <span style="color:var(--muted);font-size:12px">justa ${num(g.fair)}</span>
-        <label style="display:flex;flex-direction:row;align-items:center;gap:6px;font-size:12px">cuota
-          <input type="number" step="0.01" min="1.01" value="${value ?? ""}" placeholder="${single ? "" : "tu casa"}"
-            data-ref="${esc(g.ref)}" data-key="${single ? g.keys[0] : ""}" class="t-odds"></label>
-        <span style="margin-left:auto">${removes}</span>
-      </div></div>`;
+    const [h, a] = g.match.split(" vs ");
+    const items = (g.items || g.keys.map((k) => ({ key: k, label: k }))).map((it) => {
+      const own = (ticket.legs.find((l) => l.ref === g.ref && l.key === it.key) || {}).odds;
+      const oddsCell = single
+        ? `<input type="number" step="0.01" min="1.01" value="${own ?? it.odds ?? ""}" data-ref="${esc(g.ref)}" data-key="${it.key}" class="t-odds" title="Cuota de tu casa">`
+        : `<span class="sel-odds">${it.odds ? num(it.odds) : "–"}</span>`;
+      return `<div class="sel-row">
+        <span class="sel-dot"></span>
+        <span class="sel-name">${esc(it.label)}</span>
+        <span class="sel-p num">${pct(it.p, 1)}</span>
+        ${oddsCell}
+        <button class="x" title="Quitar «${esc(it.label)}»" data-ref="${esc(g.ref)}" data-key="${it.key}">×</button>
+      </div>`;
+    }).join("");
+    const joint = g.same_match ? `<div class="sel-joint">
+        <span>${g.impossible ? '<span class="pill bad">imposible: se contradicen</span>' : `Juntas en este partido: <b>${pct(g.p, 1)}</b> · justa ${num(g.fair)}`}</span>
+        <label>cuota de tu casa<input type="number" step="0.01" min="1.01" value="${ticket.groupOdds[g.ref] ?? ""}" placeholder="—"
+          data-ref="${esc(g.ref)}" data-key="" class="t-odds"></label></div>` : "";
+    return `<div class="leg-group">
+      <div class="lg-match"><div class="mt">${matchTag({ home: h, away: a, home_id: g.home_id, away_id: g.away_id }, 16)}</div>
+        <small>${leagueLogo(g.league, 12)} ${esc(g.league_name)}${g.kickoff ? ` · ${fmtDate(g.kickoff)}` : ""}</small></div>
+      ${items}${joint}
+    </div>`;
   }).join("");
 
   const odds = r.book_odds;
@@ -156,7 +220,7 @@ async function refreshTicket() {
   el.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center"><h2>Tu combinada</h2>
       <button class="chip" id="t-clear">Vaciar</button></div>
-    <div>${legsHtml}</div>
+    <div class="legs">${legsHtml}</div>
     <div><div style="color:var(--text-2);font-size:13px">Probabilidad de acertarla</div>
       <div class="big-p num">${pct(r.p, 1)}</div>
       <div style="color:var(--muted);font-size:12.5px;margin-top:4px">${r.p > 0 ? `≈ 1 de cada ${Math.max(1, Math.round(1 / r.p))} veces` : "imposible: hay selecciones contradictorias"}</div></div>
@@ -203,7 +267,7 @@ function renderComboHistory(h, nUpcoming) {
       cal ? `combinadas con ~${pct(cal.pred)} de probabilidad se acertaron el ${pct(cal.obs)}` : ""),
     stat("Dobles más probables", two ? pct(two.hit) : "–", two ? `acertadas en 2026 · rendimiento ${signed(two.yield)}` : ""),
     stat("Triples más probables", three ? pct(three.hit) : "–", three ? `acertadas en 2026 · rendimiento ${signed(three.yield)}` : ""),
-    stat("Partidos para combinar", nUpcoming, "próximos 7 días"),
+    stat("Partidos para combinar", nUpcoming, "próximos 3 días"),
   ].join("");
 
   const calibSet = (label, pts, color) => ({ label, data: pts.map((c) => ({ x: c.pred * 100, y: c.obs * 100, n: c.n })), showLine: true,

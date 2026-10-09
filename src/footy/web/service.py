@@ -11,9 +11,11 @@ salen de la matriz de marcadores ajustada a esas probabilidades oficiales (footy
 """
 
 import json
+import pickle
 import threading
 import time
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -27,7 +29,7 @@ from footy.evaluation import live
 from footy.ingest.football_data import leagues as fd_leagues
 from footy.leagues import load_params
 from footy.markets import combos
-from footy.prediction import tracking
+from footy.prediction import recalibration, tracking
 from footy.prediction.predictor import LeaguePredictor
 
 PREDICTOR_TTL = 6 * 3600
@@ -35,6 +37,8 @@ CONTEXT_TTL = 600
 DISPLAY_BOOKS = ("Bet365", "Pinnacle", "Betfair Exchange", "Betfair", "Market Avg")   # cuota que se muestra
 REFERENCE_BOOKS = ("Pinnacle", "Betfair Exchange", "Market Avg", "Bet365")             # para quitar el margen
 STALE_DAYS = 12
+HORIZON_DAYS = 3          # el dashboard muestra partidos de hoy, mañana y pasado mañana
+LOCAL_TZ = ZoneInfo("America/Santiago")
 
 _predictors: dict[str, tuple[float, LeaguePredictor]] = {}
 _contexts: dict[str, tuple[float, dict]] = {}
@@ -72,12 +76,12 @@ CONTINENT = {
 
 
 def league_catalog() -> list[dict]:
-    """Todas las competiciones con país y continente (en español) y sus partidos de los próximos 7 días."""
+    """Todas las competiciones con país y continente (en español) y sus partidos de los próximos días."""
     cfg, comps = fd_leagues(), config.settings()["competitions"]
     info = {c: {"country": v["country"], "type": "league"} for g in ("main", "extra") for c, v in cfg[g].items()}
     info.update({c: {"country": v.get("country"), "type": v["type"]} for c, v in comps.items()})
     counts: dict[str, int] = {}
-    for m in upcoming(7):
+    for m in upcoming():
         counts[m["league"]] = counts.get(m["league"], 0) + 1
     names = league_names()
     out = []
@@ -88,18 +92,44 @@ def league_catalog() -> list[dict]:
     return sorted(out, key=lambda r: (-r["n"], r["name"]))
 
 
+PREDICTOR_DIR = config.PROJECT_ROOT / "data" / "cache" / "predictors"
+
+
+def _data_signature() -> str:
+    """Lo único que cambia un predictor: los partidos terminados y los parámetros de las ligas."""
+    from footy.leagues import PARAMS_PATH
+
+    n, last = connect().execute("SELECT COUNT(*), MAX(kickoff_utc) FROM matches WHERE status = 'finished'").fetchone()
+    return f"{n}|{last}|{PARAMS_PATH.stat().st_mtime_ns}"
+
+
 def predictor(code: str) -> LeaguePredictor:
-    """Predictor por liga, cacheado unas horas (ajustarlo toma 1-3 s)."""
+    """Predictor por liga. Ajustarlo toma 1-3 s y hay ~40 ligas, así que se guarda en disco y se reutiliza mientras
+    la base de datos no cambie (la tarea diaria lo deja recalculado); en memoria se reutiliza unas horas."""
     with _lock:
         hit = _predictors.get(code)
         if hit and time.time() - hit[0] < PREDICTOR_TTL:
             return hit[1]
-        p = LeaguePredictor(code)
+        path = PREDICTOR_DIR / f"{code}.pkl"
+        sig = _data_signature()
+        p = None
+        if path.exists():
+            try:
+                saved = pickle.loads(path.read_bytes())
+                p = saved["predictor"] if saved.get("sig") == sig else None
+            except Exception:  # noqa: BLE001 - archivo corrupto o de otra versión: se reajusta
+                p = None
+        if p is None:
+            p = LeaguePredictor(code)
+            p.df = None                        # el historial completo no hace falta para predecir (achica el archivo)
+            PREDICTOR_DIR.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(pickle.dumps({"sig": sig, "predictor": p}))
         _predictors[code] = (time.time(), p)
         return p
 
 
 def clear_caches() -> None:
+    _upcoming_cache.clear()
     _predictors.clear()
     _contexts.clear()
     live.live_frame.cache_clear()
@@ -170,7 +200,9 @@ def _option_odds(odds: dict) -> dict[str, dict]:
         for k, v in zip("1X2", (h, d, a)):
             out[k] = {"price": round(float(v), 2), "book": book, "estimated": False}
         for k, (x, y) in {"1X": (h, d), "X2": (d, a), "12": (h, a)}.items():
-            out[k] = {"price": round(1 / (1 / x + 1 / y), 2), "book": book, "estimated": True}
+            est = 1 / (1 / x + 1 / y)
+            if est > 1.01:                     # en partidos muy desiguales la estimación no tiene sentido
+                out[k] = {"price": round(est, 2), "book": book, "estimated": True}
     for line in (1.5, 2.5, 3.5):
         bk = _first_book(odds["OU"], lambda d: (line, "OVER") in d and (line, "UNDER") in d)
         if bk:
@@ -218,6 +250,7 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
         # Con cuotas manda la combinación validada con el mercado (el ML recibe peso ~0 frente al mercado).
         p_model = np.array([mlr["ml_H"], mlr["ml_D"], mlr["ml_A"]]) if mlr else pr["p_model"]
         p_off = pr["p_final"] if ref_book else p_model
+        p_off = recalibration.scale(p_off, recalibration.current_T())   # ajuste automático con resultados reales
         p_dc_over = float(combos.over_prob(pr["lam"], pr["mu"], pred.dc.rho)[0])
         if p_mkt_over is None and mlr:
             p_over = float(mlr["ml_over25"])
@@ -284,6 +317,7 @@ def _form(r: dict | None) -> dict | None:
         return None
     return {k: (None if r.get(k) is None or np.isnan(r[k]) else round(float(r[k]), 2))
             for k in ("form_h", "form_a", "gf_h", "ga_h", "gf_a", "ga_a", "h2h_n", "h2h_pts")}
+
 
 
 def _pro_verdict(po: dict) -> dict:
@@ -366,12 +400,31 @@ def context(ref: str) -> dict:
 
 # --- próximos partidos -----------------------------------------------------
 
-def upcoming(days: int = 7) -> list[dict]:
+_upcoming_cache: dict[int, tuple[float, list]] = {}
+_upcoming_lock = threading.Lock()
+
+
+def upcoming(days: int = HORIZON_DAYS) -> list[dict]:
+    """Partidos próximos con sus probabilidades. Se calcula una sola vez cada 5 minutos: las consultas simultáneas
+    esperan el mismo resultado en vez de recalcularlo en paralelo (en frío tarda ~1 minuto)."""
+    with _upcoming_lock:
+        hit = _upcoming_cache.get(days)
+        if hit and time.time() - hit[0] < 300:
+            return hit[1]
+        out = _upcoming(days)
+        _upcoming_cache[days] = (time.time(), out)
+        return out
+
+
+def _upcoming(days: int) -> list[dict]:
     conn = connect()
     now = datetime.now(timezone.utc)
+    # Hasta el final del día `days - 1` desde hoy en hora local (hoy, mañana y pasado mañana con days=3).
+    local_today = datetime.now(LOCAL_TZ).date()
+    end = datetime.combine(local_today + timedelta(days=days), datetime.min.time(), LOCAL_TZ)
     ids = [r[0] for r in conn.execute(
         """SELECT m.id FROM matches m WHERE m.status = 'scheduled' AND m.kickoff_utc BETWEEN ? AND ?
-           ORDER BY m.kickoff_utc""", (repo.to_iso(now), repo.to_iso(now + timedelta(days=days))))]
+           ORDER BY m.kickoff_utc""", (repo.to_iso(now), repo.to_iso(end)))]
     through = data_through(conn)
     out = []
     for mid in ids:
@@ -422,7 +475,9 @@ def combo(legs: list[dict], group_odds: dict | None = None) -> dict:
                        "league": ctx["league"], "home_id": ctx.get("home_id"), "away_id": ctx.get("away_id"),
                        "kickoff": ctx.get("kickoff"), "keys": keys, "label": combos.label(keys), "p": _f(p),
                        "fair": _f(1 / p, 2) if p > 0 else None, "odds": _f(book, 2), "odds_source": book_src,
-                       "impossible": p == 0, "same_match": len(keys) > 1})
+                       "impossible": p == 0, "same_match": len(keys) > 1,
+                       "items": [{"key": k, "label": combos.SELECTIONS[k][0], "p": _f(combos.prob(ctx["_M"], [k])),
+                                  "odds": opt[k]["odds"], "book": opt[k]["book"]} for k in keys]})
         p_total *= p
         fair_total = fair_total * (1 / p) if p > 0 else None
         book_total = book_total * book if (book_total is not None and book) else None
@@ -465,7 +520,7 @@ def current_suggestions(matches: list[dict] | None = None) -> dict:
     """Apuestas del apostador profesional (footy.betting.pro) para los próximos partidos."""
     from footy.betting import suggestions as sg
 
-    matches = matches if matches is not None else upcoming(7)
+    matches = matches if matches is not None else upcoming()
     now = repo.utc_now()
     info = {m["ref"]: m for m in matches if m["ref"].startswith("m:") and (m.get("kickoff") or "") > now}
     opps = {int(ref[2:]): m.get("pro") or [] for ref, m in info.items()}
@@ -474,7 +529,7 @@ def current_suggestions(matches: list[dict] | None = None) -> dict:
                         "ref": f"m:{o['match']}", **{k: info[f"m:{o['match']}"][k]
                                                      for k in ("home", "away", "league_name", "kickoff",
                                                                "home_id", "away_id", "league")}}
-    singles = [enrich(o) for o in pro.pick(opps)]
+    singles = [{**s, "reason": pro.reason(s)} for s in (enrich(o) for o in pro.pick(opps))]
     near = [enrich({**o, "match": mid}) for mid, os_ in opps.items() for o in os_ if not o["bet"]
             and o["odds"] <= pro.MAX_ODDS and o["p_fair"] >= 0.25]
     closest_pro: dict = {}
@@ -505,6 +560,20 @@ def suggestions_data() -> dict:
     bt = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     return {**current_suggestions(), "history": live.combo_backtest().get("suggestions", {}),
             "pro_backtest": bt, "ledger": pro_ledger.record(connect())}
+
+
+def reliable_data() -> dict:
+    """Pronósticos fiables de hoy, su historial de aciertos y el ajuste automático de probabilidades."""
+    from footy.prediction import reliable
+
+    return {"today": reliable.candidates(upcoming())[:30], "record": reliable.record(connect()),
+            "calibration": recalibration.load(), "min_p": reliable.MIN_P}
+
+
+def register_reliable(conn=None) -> dict:
+    from footy.prediction import reliable
+
+    return reliable.register(conn or connect(), reliable.candidates(upcoming()))
 
 
 def register_suggestions(conn=None) -> dict:

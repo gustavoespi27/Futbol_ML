@@ -52,60 +52,88 @@
   <section class="view" id="v-inicio">
     <div class="view-head">
       <h1>Apostador profesional</h1>
-      <p>El sistema apuesta como un profesional del value betting: toma el precio justo de <b>Pinnacle</b> (la casa más
-        eficiente del mundo), compara la cuota de todas las casas disponibles y solo apuesta cuando alguna paga
-        <b>al menos 6% más</b> de lo que vale el resultado, con cuota hasta 4,0. Monto: ¼ de Kelly. Su prueba de
-        ventaja es el <b>CLV</b>: conseguir mejor cuota que la del cierre.</p>
+      <p>La máquina revisa cada día todos los partidos: recomienda apuestas solo cuando una casa paga más que el precio justo
+        de <b>Pinnacle</b>, registra sus pronósticos más fiables para medir su precisión y ajusta sus probabilidades con los
+        resultados reales.</p>
     </div>
-    <div class="grid g4" id="pro-tiles"></div>
-    <div class="sem-legend" style="margin-top:16px">
-      <span class="vchip green"><b>Apostar</b> la mejor cuota supera en ≥ 6% el precio justo de Pinnacle (cuota ≤ 4,0)</span>
-      <span class="vchip yellow"><b>Neutral</b> precio cercano al justo o paga muy poco</span>
-      <span class="vchip red"><b>No apostar</b> probabilidad muy baja, cuota muy alta o paga mucho menos de lo que vale</span>
-    </div>
-    <div class="filters" style="margin-top:14px">
-      <label style="flex-direction:row;align-items:center;display:flex;gap:10px">Tu bankroll
-        <input id="sg-bank" type="number" min="1" step="any" style="width:160px"></label>
-      <span style="color:var(--muted);font-size:13px">Monto sugerido: ¼ de Kelly, máximo 2% por apuesta y 10% por día.</span>
-    </div>
-    <div class="grid g4" id="home-tiles"></div>
+    <div class="grid g4" id="home-tiles"><div class="card loading" style="grid-column:1/-1">Revisando los partidos de hoy, mañana y pasado mañana… (la primera carga después de abrir el sitio puede tardar hasta un minuto)</div></div>
 
-    <h2 class="sec">Apuestas de hoy</h2>
-    <div class="matches" id="sg-singles"><div class="loading">Calculando…</div></div>
-    <div id="sg-doubles-wrap" style="margin-top:16px"></div>
+    <div class="card reco-card" style="margin-top:16px">
+      <div class="reco-head">
+        <div><h2>Recomendaciones de la máquina</h2>
+          <p class="sub" style="margin:2px 0 0">Lo que el sistema encontró para los próximos partidos y por qué.</p></div>
+        <label class="bank-inline" title="Los montos sugeridos se calculan sobre este total">Montos sobre
+          <span class="bank-field">$<input id="sg-bank" type="number" min="1" step="any"></span></label>
+      </div>
+      <div class="tabs" id="reco-tabs">
+        <button class="tab on" data-tab="value">Con valor <span id="tab-n-value"></span></button>
+        <button class="tab" data-tab="reliable">Más fiables <span id="tab-n-reliable"></span></button>
+        <button class="tab" data-tab="near">Casi con valor <span id="tab-n-near"></span></button>
+      </div>
+      <div class="tab-pane on" data-pane="value">
+        <p class="pane-note">Apuestas con <b>ventaja</b>: la mejor cuota supera en ≥ 6% el precio justo de Pinnacle (cuota ≤ 4,0).
+          Monto: ¼ de Kelly, máximo 2% por apuesta y 10% por día.</p>
+        <div class="matches" id="sg-singles"><div class="loading">Calculando…</div></div>
+        <div id="sg-doubles-wrap" style="margin-top:14px"></div>
+      </div>
+      <div class="tab-pane" data-pane="reliable">
+        <p class="pane-note">Lo que el sistema ve <b>más probable</b> en cada partido (≥ <span id="rel-min"></span>). Sirven para medir
+          su precisión; suelen pagar poco, así que no son recomendaciones de apuesta por sí solas.</p>
+        <div class="table-wrap" id="rel-today"><div class="loading">Calculando…</div></div>
+      </div>
+      <div class="tab-pane" data-pane="near">
+        <p class="pane-note">Les falta poco para tener valor: si alguna casa paga al menos la <b>cuota mínima</b>, pasan a recomendación.</p>
+        <div class="table-wrap" id="sg-closest"><div class="loading">Calculando…</div></div>
+      </div>
+    </div>
 
     <div class="sec-row">
       <h2 class="sec">Semáforo de los próximos partidos</h2>
-      <div class="filters" id="sem-filter" style="margin:0"></div>
+      <div class="toolbar"><div class="filters" id="sem-filter" style="margin:0"></div><div id="sem-date"></div></div>
     </div>
     <div class="card"><div class="table-wrap" id="semaforo"><div class="loading">Cargando partidos…</div></div>
-      <p class="sub" style="margin:10px 0 0">Cada celda: probabilidad del sistema · cuota de la casa. Pasa el cursor para ver el motivo.
-        Toca un partido para ver todas sus opciones y armar una combinada.</p></div>
+      <div class="sem-legend" style="margin-top:12px">
+        <span class="vchip green"><b>Apostar</b> la mejor cuota supera en ≥ 6% el precio justo de Pinnacle</span>
+        <span class="vchip yellow"><b>Neutral</b> precio cercano al justo o paga muy poco</span>
+        <span class="vchip red"><b>No apostar</b> probabilidad muy baja, cuota muy alta o paga mucho menos de lo que vale</span>
+      </div></div>
 
-    <div class="grid g2" style="margin-top:16px">
+    <h2 class="sec">Bitácora de la máquina</h2>
+    <div class="log-layout">
       <div class="card">
-        <h2>Las más cercanas a tener valor</h2>
-        <p class="sub">Diferencia entre la mejor cuota y el precio justo de Pinnacle. Si alguna casa paga al menos la "cuota mínima", pasa a verde.</p>
-        <div class="table-wrap" id="sg-closest"></div>
+        <div class="tabs" id="log-tabs">
+          <button class="tab on" data-tab="bets">Apuestas realizadas <span id="tab-n-bets"></span></button>
+          <button class="tab" data-tab="picks">Pronósticos registrados <span id="tab-n-picks"></span></button>
+        </div>
+        <div class="tab-pane on" data-pane="bets">
+          <p class="pane-note">Apuestas en papel que la máquina registró antes de cada partido, con su motivo, resultado y CLV
+            (si consiguió mejor cuota que la del cierre).</p>
+          <div class="table-wrap" id="sg-record"><div class="loading">Cargando apuestas…</div></div>
+        </div>
+        <div class="tab-pane" data-pane="picks">
+          <p class="pane-note">Pronósticos fiables registrados antes de cada partido: así la máquina pone a prueba su precisión todos los días.</p>
+          <div class="table-wrap" id="rel-record"><div class="loading">Cargando pronósticos…</div></div>
+        </div>
       </div>
-      <div class="card">
-        <h2>Alta probabilidad</h2>
-        <p class="sub">Lo más probable de cada partido (70% o más). Se aciertan seguido, pero suelen pagar menos de lo que valen.</p>
-        <div class="table-wrap" id="sg-safest"></div>
+      <div class="stack">
+        <div class="card">
+          <h2>Precisión en vivo</h2>
+          <p class="sub" id="acc-sub">Pronósticos fiables: probabilidad que dio la máquina vs. acierto real.</p>
+          <div class="chart" style="height:220px"><canvas id="ch-reliable"></canvas></div>
+          <div id="acc-empty"></div>
+        </div>
+        <div class="card">
+          <h2>Ajuste automático</h2>
+          <p class="sub">Con cada resultado la máquina corrige si fue demasiado segura (T &gt; 1 suaviza) o demasiado tímida (T &lt; 1).</p>
+          <div id="calib-box"><div class="loading">Cargando…</div></div>
+        </div>
       </div>
     </div>
 
-    <div class="card" style="margin-top:16px">
-      <h2>Cartera del apostador (en vivo)</h2>
-      <p class="sub">Apuestas que el sistema registra antes de cada partido (dinero simulado, bankroll inicial 100) y su CLV contra Pinnacle.</p>
-      <div class="grid g4" id="sg-record-tiles" style="margin-bottom:12px"></div>
-      <div class="table-wrap" id="sg-record"></div>
-    </div>
-
-    <h2 class="sec">¿Cómo le habría ido? (2012-2026)</h2>
+    <h2 class="sec">Respaldo histórico (2012-2026)</h2>
     <div class="grid g2">
       <div class="card">
-        <h2>Bankroll en el histórico</h2>
+        <h2>Bankroll de la regla en el histórico</h2>
         <p class="sub" id="pro-bt-sub">Misma regla sobre las cuotas tempranas de 22 ligas europeas.</p>
         <div class="chart tall"><canvas id="ch-pro-bank"></canvas></div>
       </div>
@@ -113,12 +141,10 @@
         <h2>Selección vs prueba</h2>
         <p class="sub">La regla se eligió con 2013-2021; 2022 en adelante es la prueba.</p>
         <div class="table-wrap" id="pro-bt-table"></div>
-        <div id="pro-bt-reading" class="stack" style="font-size:14px;color:var(--text-2);margin-top:14px"></div>
+        <div id="pro-bt-reading" class="stack" style="font-size:13.5px;color:var(--text-2);margin-top:14px"></div>
       </div>
     </div>
-
-    <h2 class="sec">¿Se puede confiar en estas probabilidades?</h2>
-    <div class="hero">
+    <div class="hero" style="margin-top:14px">
       <div class="card">
         <h3>Acierto del resultado más probable</h3>
         <div class="hero-num num" id="hero-acc">–</div>
@@ -134,9 +160,8 @@
     </div>
     <div class="callout warn" style="margin-top:16px">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
-      <div><b>Sin ventaja demostrada.</b> Las probabilidades son fiables, pero las casas ya predicen muy bien: en 2026 la regla
-        de apuestas sugeridas no ganó dinero (ver "¿Qué tan fiable es?"). Usa montos que puedas perder; cada sugerencia
-        se registra antes del partido para medirla.</div>
+      <div><b>Sin ventaja demostrada en dinero.</b> Las probabilidades son fiables y la regla de valor mostró CLV positivo en el
+        histórico, pero la ganancia aún no es concluyente. Todo se registra en papel antes de cada partido para medirlo.</div>
     </div>
   </section>
 
@@ -144,11 +169,11 @@
   <section class="view" id="v-partidos">
     <div class="view-head">
       <h1>Próximos partidos</h1>
-      <p>Probabilidad de cada resultado para los partidos de los próximos 7 días. La barra suma 100%:
+      <p>Probabilidad de cada resultado para los partidos de hoy, mañana y pasado mañana. La barra suma 100%:
         <b style="color:var(--home)">■</b> local, <b style="color:var(--draw)">■</b> empate, <b style="color:var(--away)">■</b> visita.
         Horarios en tu zona horaria.</p>
     </div>
-    <div class="filters" id="league-filter"></div>
+    <div class="toolbar"><div class="filters" id="league-filter"></div><div id="match-date"></div></div>
     <div id="matches"><div class="loading">Cargando partidos…</div></div>
   </section>
 
@@ -163,7 +188,7 @@
     <div class="grid g4" id="cb-tiles"></div>
     <div class="combo-layout" style="margin-top:16px">
       <div>
-        <div class="filters" id="cb-filter"></div>
+        <div class="toolbar"><div class="filters" id="cb-filter"></div><div id="cb-date"></div></div>
         <div class="stack" id="cb-matches"><div class="loading">Cargando partidos…</div></div>
       </div>
       <aside class="card ticket" id="ticket"></aside>

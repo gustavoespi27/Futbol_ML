@@ -311,3 +311,32 @@ cartera en papel (≥ 150 apuestas con CLV medio > +2% y > 60% de apuestas sobre
 pequeños que se puedan perder, verificando la cuota mínima antes de cada apuesta y deteniéndose si el CLV real de
 100 apuestas es ≤ 0. Riesgos fuera del modelo: límites de cuenta de las casas, cuotas que se mueven, legalidad e
 impuestos.
+
+## 2026-10-09 — La máquina se pone a prueba cada día: pronósticos fiables y ajuste automático
+
+**Pronósticos fiables** (`footy/prediction/reliable.py`, tabla `daily_picks`): cada día, en cada partido de las
+próximas 36 horas, se registra antes del inicio la selección más probable con probabilidad ≥ 65% entre 1X2,
+más/menos 2,5 y ambos marcan (máximo 20 por día), con su motivo (probabilidad, mercado, forma, goles esperados,
+cuota). La doble oportunidad se excluyó: acierta casi siempre y no mide nada. Al terminar se liquida y se compara el
+acierto real con el esperado, por mercado y por nivel de confianza. No es recomendación de apuesta: pagan poco.
+
+**Ajuste automático** (`footy/prediction/recalibration.py`): temperatura T sobre las probabilidades oficiales 1X2,
+ajustada por log loss con las predicciones registradas antes de cada partido. T se encoge hacia 1 según la cantidad
+de datos (T_ef = 1 + (T − 1)·n/(n + 300)) y se limita a [0,8; 1,25] para que corrija de a poco y no sobreajuste al
+ruido. Se recalcula en la tarea diaria y se guarda su historial. Hoy: 8 partidos liquidados → sin ajuste.
+
+**Corrección:** la cuota estimada de la doble oportunidad (desde el 1X2 de la misma casa) podía quedar ≤ 1 en
+partidos muy desiguales; ahora no se muestra si no supera 1,01.
+
+**Dashboard:** el Panel deja de mostrar un "bankroll" sin uso; el monto base queda como ajuste dentro de las
+recomendaciones. Recomendador con pestañas (con valor / más fiables / casi con valor) y bitácora (apuestas y
+pronósticos registrados con su motivo y resultado), precisión en vivo y estado del ajuste. Filtro por fecha en
+Partidos, Semáforo y Combinadas, y en el boleto cada selección es una fila propia aunque sea del mismo partido.
+
+**Corrección de carga (mismo día).** Al abrir el dashboard, cada endpoint recalculaba en paralelo los próximos
+partidos y reajustaba los modelos de ~40 ligas (~40 s); mientras tanto el Panel quedaba en blanco y parecía roto.
+Ahora: los próximos partidos se calculan una sola vez y las consultas simultáneas esperan ese resultado; los
+predictores por liga se guardan en `data/cache/predictors/` y solo se reajustan cuando hay partidos terminados nuevos
+(carga en frío de ~40 s a ~4 s); el Panel dibuja cada sección por separado con avisos de carga; los archivos JS/CSS
+llevan versión para que el navegador no use copias viejas. El dashboard muestra solo hoy, mañana y pasado mañana
+(hora de Chile) y el filtro de fecha queda en Todos / Hoy / Mañana / pasado mañana (sin selector de día).

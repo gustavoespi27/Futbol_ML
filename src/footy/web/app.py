@@ -1,12 +1,13 @@
 """Servidor del dashboard (FastAPI). Arranque: python scripts/serve.py  ->  http://127.0.0.1:8000"""
 
+import re
 import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -14,14 +15,17 @@ from footy.web import logos, service
 
 STATIC = Path(__file__).with_name("static")
 _cache: dict[str, tuple[float, object]] = {}
+_locks: dict[str, threading.Lock] = {}
+_locks_guard = threading.Lock()
 
 
 def _prewarm():
     """Calcula en segundo plano lo más pesado (evaluación 2026, combinadas, próximos partidos)
     para que la primera visita sea rápida."""
-    for key, ttl, fn in (("backtest", 3600, service.backtest), ("combo_history", 3600, service.combo_history),
-                         ("ml", 3600, service.ml_report),
-                         ("upcoming7", 300, lambda: service.upcoming(7))):
+    for key, ttl, fn in (("upcoming", 300, service.upcoming), ("suggestions", 300, service.suggestions_data),
+                         ("reliable", 300, service.reliable_data), ("league_catalog", 300, service.league_catalog),
+                         ("backtest", 3600, service.backtest), ("combo_history", 3600, service.combo_history),
+                         ("ml", 3600, service.ml_report)):
         try:
             cached(key, ttl, fn)
         except Exception:  # noqa: BLE001 - si falla, se recalcula al pedirlo y ahí se ve el error
@@ -38,12 +42,19 @@ app = FastAPI(title="Futbol_ML", docs_url="/api/docs", lifespan=lifespan)
 
 
 def cached(key: str, ttl: float, fn):
+    """Resultado cacheado; si otra consulta ya lo está calculando, espera ese cálculo en vez de repetirlo."""
     hit = _cache.get(key)
     if hit and time.time() - hit[0] < ttl:
         return hit[1]
-    value = service.to_json(fn())
-    _cache[key] = (time.time(), value)
-    return value
+    with _locks_guard:
+        lock = _locks.setdefault(key, threading.Lock())
+    with lock:
+        hit = _cache.get(key)
+        if hit and time.time() - hit[0] < ttl:
+            return hit[1]
+        value = service.to_json(fn())
+        _cache[key] = (time.time(), value)
+        return value
 
 
 @app.get("/api/overview")
@@ -52,8 +63,8 @@ def overview():
 
 
 @app.get("/api/upcoming")
-def upcoming(days: int = 7):
-    return cached(f"upcoming{days}", 300, lambda: service.upcoming(days))
+def upcoming():
+    return cached("upcoming", 300, service.upcoming)
 
 
 @app.get("/api/tracking")
@@ -132,6 +143,11 @@ def ml_report():
     return cached("ml", 3600, service.ml_report)
 
 
+@app.get("/api/reliable")
+def reliable():
+    return cached("reliable", 300, service.reliable_data)
+
+
 @app.get("/api/suggestions")
 def suggestions():
     return cached("suggestions", 300, service.suggestions_data)
@@ -166,4 +182,9 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 @app.get("/")
 def index():
-    return FileResponse(STATIC / "index.html")
+    """index.html con la versión de cada archivo estático (?v=fecha de modificación): el navegador siempre
+    carga el JS/CSS actual después de una actualización, sin quedarse con una copia vieja en caché."""
+    html = (STATIC / "index.html").read_text(encoding="utf-8")
+    html = re.sub(r'/static/([\w.-]+\.(?:js|css))"',
+                  lambda m: f'/static/{m.group(1)}?v={int((STATIC / m.group(1)).stat().st_mtime)}"', html)
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache"})

@@ -182,3 +182,17 @@ CREATE TABLE IF NOT EXISTS pro_bets (
     edge            REAL NOT NULL,
     stake           REAL NOT NULL          -- fracción del bankroll
 );
+
+-- Pronósticos fiables del día (footy.prediction.reliable): la selección más probable de cada partido, registrada
+-- antes del partido con su motivo, para medir de forma continua la precisión del sistema.
+CREATE TABLE IF NOT EXISTS daily_picks (
+    id              INTEGER PRIMARY KEY,
+    created_at      TEXT NOT NULL,
+    match_id        INTEGER NOT NULL UNIQUE REFERENCES matches(id),
+    selection       TEXT NOT NULL,
+    market          TEXT NOT NULL,
+    p               REAL NOT NULL,
+    odds            REAL,
+    book            TEXT,
+    reason          TEXT
+);

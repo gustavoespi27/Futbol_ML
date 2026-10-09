@@ -63,6 +63,8 @@ def record(conn: sqlite3.Connection) -> dict:
                 "kickoff": r.kickoff_utc,
                 "sel": r.selection, "book": r.book, "odds": r.odds, "p_fair": r.p_fair, "edge": r.edge,
                 "stake": r.stake, "created_at": r.created_at, "status": "abierta", "profit": None, "clv": None}
+        item["reason"] = pro.reason({"sel": r.selection, "book": r.book, "odds": r.odds, "p_fair": r.p_fair,
+                                     "edge": r.edge, "stake": r.stake})
         close = _closing(conn, r.match_id, r.kickoff_utc)
         if close:
             item["clv"] = pro.clv(r.odds, close, r.selection)

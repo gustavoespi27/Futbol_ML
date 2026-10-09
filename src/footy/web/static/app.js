@@ -183,16 +183,17 @@ function vcell(op) {
 }
 const SEM_COLS = [["1", "Local"], ["X", "Empate"], ["2", "Visita"], ["O2.5", "Más 2,5"], ["U2.5", "Menos 2,5"], ["BTTS_Y", "Ambos marcan"]];
 const RANK = { green: 3, yellow: 2, none: 1, red: 0 };
-let semSel = { type: "all" };
+let semSel = { type: "all" }, semDate = { type: "all" };
 async function renderSemaphore() {
   const [list, catalog] = await Promise.all([api("/api/upcoming"), leagueCatalog()]);
   const draw = () => {
-    const shown = list.filter((m) => leagueSelMatch(semSel, m, catalog));
+    const shown = list.filter((m) => leagueSelMatch(semSel, m, catalog) && dateSelMatch(semDate, m.kickoff));
     $("#semaforo").innerHTML = shown.length ? `<table class="sem"><thead><tr><th>Partido</th>${SEM_COLS.map(([, n]) => `<th style="text-align:center">${n}</th>`).join("")}
       <th>Mejor opción</th></tr></thead><tbody>${shown.map(semRow).join("")}</tbody></table>`
-      : `<div class="empty">No hay partidos programados en los próximos 7 días.</div>`;
+      : `<div class="empty">No hay partidos programados en los próximos 3 días.</div>`;
   };
   mountLeaguePicker($("#sem-filter"), { value: semSel, onChange: (s) => { semSel = s; draw(); } });
+  mountDateFilter($("#sem-date"), { list, value: semDate, onChange: (s) => { semDate = s; draw(); } });
   draw();
   return list;
 }
@@ -225,18 +226,17 @@ async function renderHome() {
     ["Casas de apuestas", pct(b.acc_market, 1), "cuotas de cierre"],
   ].map(([l, v, h]) => `<div class="stat"><div class="label">${l}</div><div class="value num" style="font-size:22px">${v}</div><div class="hint">${h}</div></div>`).join("");
 
-  const [sug, list] = await Promise.all([renderSuggestions(), renderSemaphore()]);
-  const counts = { green: 0, yellow: 0, red: 0 };
-  list.forEach((m) => (m.options || []).forEach((op) => { if (op.verdict && op.verdict.level in counts) counts[op.verdict.level] += 1; }));
-  const upd = o.last_daily_run ? new Date(o.last_daily_run) : null;
+  // Cada sección se dibuja por su cuenta en cuanto llega su dato; los indicadores esperan a ambos.
+  renderSemaphore().catch((e) => showError("v-inicio", e));
+  const [sug, rel] = await Promise.all([renderSuggestions(), renderReliable()]);
+  const L = sug.ledger || {}, R = rel.record || {};
   $("#home-tiles").innerHTML = [
-    `<div class="card stat" style="box-shadow:inset 0 4px 0 var(--good),var(--shadow)"><div class="label">Apuestas sugeridas</div>
-      <div class="value num" style="color:var(--good)">${sug.singles.length}</div><div class="hint">en ${sug.n_matches_with_odds} partidos con cuotas</div></div>`,
-    stat("Opciones en el semáforo", `<span style="color:var(--good)">${counts.green}</span> · <span style="color:var(--warn)">${counts.yellow}</span> · <span style="color:var(--bad)">${counts.red}</span>`,
-      "verde · amarillo · rojo"),
-    stat("Partidos próximos", list.length, `${t.evaluated + t.pending} predicciones en seguimiento`),
-    stat("Última actualización", upd ? new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "short" }).format(upd) : "–",
-      upd ? `a las ${new Intl.DateTimeFormat("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false }).format(upd)} · modelo ${o.model_version}` : ""),
+    `<div class="card stat kpi-good"><div class="label">Apuestas con valor hoy</div>
+      <div class="value num">${sug.singles.length}</div><div class="hint">en ${sug.n_matches_sharp} partidos con precio de Pinnacle</div></div>`,
+    stat("Pronósticos fiables hoy", rel.today.length, `selecciones con ${pct(rel.min_p)} o más`),
+    stat("Precisión en vivo", R.n ? pct(R.hit, 1) : "–", R.n ? `esperaba ${pct(R.expected, 1)} · ${R.n} pronósticos` : `${R.pending || 0} pronósticos esperando resultado`),
+    stat("Cartera en papel", L.settled ? signed(L.yield) : `${L.open || 0} abiertas`,
+      L.clv != null ? `CLV ${signed(L.clv)} · ${pct(L.clv_pos)} sobre el cierre` : L.settled ? `${L.won} ganadas de ${L.settled}` : "se mide al terminar cada partido"),
   ].join("");
 
   chart("ch-confidence", () => ({
@@ -259,17 +259,18 @@ async function renderHome() {
 }
 
 /* ---------- PRÓXIMOS PARTIDOS ---------- */
-let matchSel = { type: "all" };
+let matchSel = { type: "all" }, matchDate = { type: "all" };
 async function renderMatches() {
   const [list, catalog] = await Promise.all([api("/api/upcoming"), leagueCatalog()]);
   const byRef = Object.fromEntries(list.map((m) => [m.ref, m]));
   const draw = () => {
-    const shown = list.filter((m) => leagueSelMatch(matchSel, m, catalog));
+    const shown = list.filter((m) => leagueSelMatch(matchSel, m, catalog) && dateSelMatch(matchDate, m.kickoff));
     $("#matches").innerHTML = shown.length ? matchGroups(shown)
-      : `<div class="card empty">No hay partidos programados en los próximos 7 días para las ligas seguidas
+      : `<div class="card empty">No hay partidos programados en los próximos 3 días para las ligas seguidas
          (puede ser fecha FIFA). La tarea diaria agrega partidos y cuotas a medida que se publican.</div>`;
   };
   mountLeaguePicker($("#league-filter"), { value: matchSel, onChange: (s) => { matchSel = s; draw(); } });
+  mountDateFilter($("#match-date"), { list, value: matchDate, onChange: (s) => { matchDate = s; draw(); } });
   $("#matches").onclick = (e) => {
     if (e.target.closest("button, a, .mdetail")) return;
     const row = e.target.closest(".mrow"); if (!row) return;

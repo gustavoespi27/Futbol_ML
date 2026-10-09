@@ -31,6 +31,8 @@ async function renderRuleHistory() {
 function drawCurrent(d) {
   const bank = getBank();
   const r = d.rules;
+  setTabCount("value", d.singles.length);
+  setTabCount("near", d.closest.length);
   $("#sg-singles").innerHTML = d.singles.length ? d.singles.map((s) => `
     <article class="card sg-card green">
       <div class="meta" style="display:flex;justify-content:space-between;color:var(--text-2);font-size:12.5px">
@@ -48,13 +50,14 @@ function drawCurrent(d) {
         <div><span>Si acierta, ganas</span><b class="num">${money(s.stake * bank * (s.odds - 1))}</b></div>
         <div><span>% del bankroll</span><b class="num">${pct(s.stake, 1)}</b></div>
       </div>
+      ${s.reason ? `<p class="why"><b>Por qué:</b> ${esc(s.reason)}</p>` : ""}
       <div class="callout" style="padding:10px 12px;font-size:13px"><div>Antes de apostar revisa la cuota en ${esc(s.book)}: tómala solo si
         sigue en <b>${num((1 + r.min_edge / 2) / s.p)}</b> o más. Si bajó, la ventaja desapareció.</div></div>
       <button class="chip" style="justify-self:start" onclick="toggleLeg('${esc(s.ref)}','${s.key}'); this.textContent='En tu combinada ✓'">Agregar a combinada</button>
     </article>`).join("")
     : `<div class="card empty" style="grid-column:1/-1">Hoy ninguna casa paga ≥ ${signed(r.min_edge, 0)} sobre el precio justo de Pinnacle
        (cuota ≤ ${num(r.max_odds, 1)}) en los ${d.n_matches_sharp} partidos con Pinnacle disponible. Un profesional no fuerza apuestas:
-       la mayoría de los días no hay valor. Abajo están las más cercanas.</div>`;
+       la mayoría de los días no hay valor. Mira la pestaña «Casi con valor».</div>`;
 
   $("#sg-doubles-wrap").innerHTML = d.doubles.length ? `<h2 style="margin-bottom:12px">Dobles sugeridas</h2>
     <div class="card"><div class="table-wrap"><table><thead><tr><th>Selecciones</th><th class="r">Probabilidad</th><th class="r">Cuota</th>
@@ -74,12 +77,6 @@ function drawCurrent(d) {
     <td class="r"><button class="add" data-ref="${esc(c.ref)}" data-keys="${c.key}">+</button></td></tr>`).join("")}</tbody></table>`
     : `<div class="empty">Sin partidos con cuotas en los próximos días.</div>`;
 
-  $("#sg-safest").innerHTML = d.safest.length ? `<table><thead><tr><th>Partido</th><th>Selección</th><th class="r">Prob.</th>
-    <th class="r">Cuota</th><th class="r">Valor</th><th></th></tr></thead><tbody>${d.safest.map((c) => `<tr>
-    <td><div class="mt">${matchTag(c, 18)}</div></td><td>${esc(c.label)}</td><td class="r"><b>${pct(c.p)}</b></td><td class="r">${num(c.odds)}</td>
-    <td class="r">${vchip(c.verdict, signed(c.ev))}</td>
-    <td class="r"><button class="add" data-ref="${esc(c.ref)}" data-keys="${c.key}">+</button></td></tr>`).join("")}</tbody></table>`
-    : `<div class="empty">Ningún partido con una opción de 70% o más y cuota disponible.</div>`;
   syncAddButtons();
 }
 
@@ -130,15 +127,7 @@ function drawHistory(h) {
 
 /* ---------- apostador profesional: cartera e histórico ---------- */
 function drawLedger(L) {
-  const clvTxt = L.clv != null ? `${signed(L.clv)} · ${pct(L.clv_pos)} le gana al cierre` : "se mide al cerrar cada partido";
-  $("#pro-tiles").innerHTML = [
-    `<div class="card stat" style="box-shadow:inset 0 4px 0 var(--good),var(--shadow)"><div class="label">Bankroll de la cartera</div>
-      <div class="value num">${num(L.bank, 1)}</div><div class="hint">inicio ${num(L.start, 0)} · dinero simulado</div></div>`,
-    stat("CLV real", L.clv != null ? signed(L.clv) : "–", clvTxt),
-    stat("Apuestas", `${L.settled || 0} <small style="font-size:14px;color:var(--muted)">liquidadas</small>`, `${L.open || 0} abiertas`),
-    stat("Rendimiento", L.settled ? signed(L.yield) : "–", L.settled ? `${L.won} ganadas de ${L.settled}` : "aún sin apuestas liquidadas"),
-  ].join("");
-  $("#sg-record-tiles").innerHTML = "";
+  setTabCount("bets", (L.items || []).length);
   const st = { ganada: "good", perdida: "bad", abierta: "", anulada: "warn" };
   const SELN = { H: "Local", D: "Empate", A: "Visita" };
   $("#sg-record").innerHTML = L.items && L.items.length ? `<table><thead><tr><th>Partido</th><th>Apuesta</th><th class="r">Cuota</th>
@@ -147,7 +136,8 @@ function drawLedger(L) {
     <td>${SELN[it.sel]} <span style="color:var(--muted)">(${esc(it.book)})</span></td><td class="r">${num(it.odds)}</td>
     <td class="r">${signed(it.edge)}</td><td class="r">${pct(it.stake, 1)}</td>
     <td class="r">${it.clv == null ? "–" : `<span style="color:${it.clv > 0 ? "var(--good)" : "var(--bad)"}">${signed(it.clv)}</span>`}</td>
-    <td><span class="pill ${st[it.status]}">${it.status}${it.profit != null ? ` ${it.profit > 0 ? "+" : ""}${num(it.profit, 2)}` : ""}</span></td></tr>`).join("")}</tbody></table>`
+    <td><span class="pill ${st[it.status]}">${it.status}${it.profit != null ? ` ${it.profit > 0 ? "+" : ""}${num(it.profit, 2)}` : ""}</span></td></tr>
+    ${it.reason ? `<tr class="why-row"><td colspan="7">${esc(it.reason)}</td></tr>` : ""}`).join("")}</tbody></table>`
     : `<div class="empty">La cartera está vacía: la tarea diaria registra aquí cada apuesta antes del partido, cuando alguna casa supera el precio justo de Pinnacle.</div>`;
 }
 
@@ -182,4 +172,80 @@ function drawProBacktest(bt) {
         y: { ...baseOptions().scales.y } },
     }),
   }));
+}
+
+/* ---------- pestañas y pronósticos fiables ---------- */
+function setTabCount(tab, n) {
+  const el = document.getElementById(`tab-n-${tab}`);
+  if (el) el.textContent = n ? String(n) : "";
+}
+document.addEventListener("click", (e) => {
+  const t = e.target.closest(".tabs .tab");
+  if (!t) return;
+  const card = t.closest(".card");
+  card.querySelectorAll(".tabs .tab").forEach((x) => x.classList.toggle("on", x === t));
+  card.querySelectorAll(".tab-pane").forEach((p) => p.classList.toggle("on", p.dataset.pane === t.dataset.tab));
+});
+
+async function renderReliable() {
+  const d = await api("/api/reliable");
+  const R = d.record || {};
+  $("#rel-min").textContent = pct(d.min_p);
+  setTabCount("reliable", d.today.length);
+  setTabCount("picks", (R.items || []).length);
+  $("#rel-today").innerHTML = d.today.length ? `<table><thead><tr><th>Partido</th><th>Pronóstico</th><th class="r">Prob.</th>
+    <th class="r">Cuota</th><th>Por qué</th><th></th></tr></thead><tbody>${d.today.map((c) => `<tr>
+    <td><div class="mt">${matchTag(c, 18)}</div><div style="color:var(--muted);font-size:12px">${leagueLogo(c.league, 12)} ${fmtDate(c.kickoff)}</div></td>
+    <td><b>${esc(c.label)}</b><div style="color:var(--muted);font-size:11.5px">${esc(c.market)}</div></td>
+    <td class="r"><span class="pbar" style="--w:${(c.p * 100).toFixed(0)}%"><b>${pct(c.p)}</b></span></td>
+    <td class="r">${c.odds ? num(c.odds) : "–"}</td>
+    <td class="why-cell">${esc(c.reason)}</td>
+    <td class="r"><button class="add" data-ref="${esc(c.ref)}" data-keys="${c.key}">+</button></td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">Ningún partido próximo con una opción de ${pct(d.min_p)} o más.</div>`;
+
+  const st = { acierto: "good", fallo: "bad", pendiente: "" };
+  $("#rel-record").innerHTML = R.items && R.items.length ? `<table><thead><tr><th>Partido</th><th>Pronóstico</th><th class="r">Prob.</th>
+    <th class="r">Resultado</th><th>Estado</th></tr></thead><tbody>${R.items.map((it) => `<tr>
+    <td><div class="mt">${matchTag(it, 18)}</div><div style="color:var(--muted);font-size:12px">${leagueLogo(it.league, 12)} ${fmtDate(it.kickoff)}</div></td>
+    <td><b>${esc(it.label)}</b></td><td class="r">${pct(it.p)}</td><td class="r"><b>${it.score ? esc(it.score) : "–"}</b></td>
+    <td><span class="pill ${st[it.status]}">${it.status}</span></td></tr>
+    <tr class="why-row"><td colspan="5">${esc(it.reason || "")}</td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">Aún no hay pronósticos registrados: la tarea diaria los guarda antes de cada partido.</div>`;
+
+  // Precisión en vivo
+  if (R.n) {
+    $("#acc-sub").textContent = `${R.n} pronósticos liquidados: acertó ${pct(R.hit, 1)} cuando esperaba ${pct(R.expected, 1)}.`;
+    $("#acc-empty").innerHTML = "";
+    chart("ch-reliable", () => ({
+      type: "bar",
+      data: { labels: R.bins.map((b) => b.range), datasets: [
+        { label: "Esperado", data: R.bins.map((b) => b.expected * 100), backgroundColor: css("--official"), borderRadius: 4, maxBarThickness: 22 },
+        { label: "Real", data: R.bins.map((b) => b.hit * 100), backgroundColor: css("--model"), borderRadius: 4, maxBarThickness: 22 },
+      ] },
+      options: baseOptions({
+        plugins: { ...baseOptions().plugins, tooltip: { ...baseOptions().plugins.tooltip, callbacks: {
+          label: (c) => `${c.dataset.label}: ${c.parsed.y.toFixed(0)}%`, footer: (i) => `${R.bins[i[0].dataIndex].n} pronósticos` } } },
+        scales: { ...baseOptions().scales, y: { ...baseOptions().scales.y, min: 0, max: 100, ticks: { ...baseOptions().scales.y.ticks, callback: (v) => v + "%" } } },
+      }),
+    }));
+  } else {
+    $("#ch-reliable").closest(".chart").style.display = "none";
+    $("#acc-empty").innerHTML = `<div class="empty">La precisión se mide al terminar los partidos de los pronósticos registrados
+      (${R.pending || 0} pendientes).</div>`;
+  }
+
+  // Ajuste automático
+  const c = d.calibration || {};
+  const T = c.T ?? 1;
+  const verb = Math.abs(T - 1) < 0.005 ? "sin ajuste todavía" : T > 1 ? "suaviza: estaba demasiado segura" : "agudiza: estaba demasiado tímida";
+  const hist = (c.history || []).slice(-30);
+  $("#calib-box").innerHTML = `<div class="kv">
+      <div><span>Temperatura actual</span><b class="num">${num(T, 3)}</b></div>
+      <div><span>Partidos usados</span><b class="num">${(c.n || 0).toLocaleString("es-CL")}</b></div>
+      <div><span>Efecto</span><b style="font-size:13px">${verb}</b></div>
+      <div><span>Log loss antes → después</span><b class="num" style="font-size:13px">${c.ll_before != null ? `${num(c.ll_before, 3)} → ${num(c.ll_after, 3)}` : "–"}</b></div>
+    </div>
+    <p class="sub" style="margin:10px 0 0">El ajuste se acerca al valor medido a medida que hay más resultados (a los ${300} partidos pesa la mitad).
+      ${hist.length > 1 ? `Últimos ${hist.length} días: ${hist.map((h) => num(h.T, 2)).join(" · ")}` : ""}</p>`;
+  return d;
 }
