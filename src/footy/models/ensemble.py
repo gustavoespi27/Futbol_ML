@@ -17,10 +17,14 @@ def pool(Ps: list[np.ndarray], w: np.ndarray) -> np.ndarray:
     return e / e.sum(axis=1, keepdims=True)
 
 
-def fit_weights(Ps: list[np.ndarray], y: np.ndarray) -> np.ndarray:
+def fit_weights(Ps: list[np.ndarray], y: np.ndarray, nonneg: bool = False) -> np.ndarray:
+    """Con nonneg=True los pesos quedan >= 0: un peso negativo "invierte" una fuente y
+    extrapola mal fuera de validación (ver docs/decisiones.md, 2026-10-09)."""
     def nll(w):
         P = pool(Ps, w)
         return -np.mean(np.log(np.clip(P[np.arange(len(y)), y], 1e-12, 1)))
 
     x0 = np.full(len(Ps), 1.0 / len(Ps))
+    if nonneg:
+        return minimize(nll, x0, method="L-BFGS-B", bounds=[(0, 3)] * len(Ps)).x
     return minimize(nll, x0, method="Nelder-Mead", options={"maxiter": 4000, "xatol": 1e-5}).x

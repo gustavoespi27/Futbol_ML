@@ -80,3 +80,29 @@ def _add_stats(conn, df: pd.DataFrame, comps: list[str]) -> pd.DataFrame:
         if c not in df:
             df[c] = np.nan
     return df
+
+
+OU_BOOKS = ("Pinnacle", "Market Avg", "Bet365")
+
+
+def load_ou_closing(conn: sqlite3.Connection, match_ids) -> pd.DataFrame:
+    """Cierre Over/Under 2,5 por partido: p_over (sin margen; Pinnacle > promedio > Bet365) y cuotas Bet365.
+
+    Índice match_id; columnas p_over, b365_over, b365_under (NaN si falta)."""
+    ids = ",".join(str(int(i)) for i in match_ids)
+    if not ids:
+        return pd.DataFrame(columns=["p_over", "b365_over", "b365_under"])
+    odds = pd.read_sql_query(
+        f"""SELECT match_id, bookmaker, selection, price FROM odds
+            WHERE market = 'OU' AND line = 2.5 AND is_closing = 1 AND match_id IN ({ids})""", conn)
+    wide = odds.pivot_table(index="match_id", columns=["bookmaker", "selection"], values="price")
+    out = pd.DataFrame(index=wide.index)
+    out["p_over"] = np.nan
+    for book in reversed(OU_BOOKS):                      # el primero de OU_BOOKS gana
+        if (book, "OVER") in wide and (book, "UNDER") in wide:
+            o, u = wide[(book, "OVER")], wide[(book, "UNDER")]
+            p = (1 / o) / (1 / o + 1 / u)
+            out["p_over"] = p.where(p.notna(), out["p_over"])
+    for sel in ("OVER", "UNDER"):
+        out[f"b365_{sel.lower()}"] = wide[("Bet365", sel)] if ("Bet365", sel) in wide else np.nan
+    return out.dropna(subset=["p_over"])

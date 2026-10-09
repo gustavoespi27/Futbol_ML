@@ -62,7 +62,8 @@ def report(codes: list[str]) -> None:
         b = per_match_ll(SHOTS / f"wf_{code}.csv").set_index("match_id").loc[a.index]
         d_dc = (b["Dixon-Coles"] - a["Dixon-Coles"]).to_numpy()
         d_ens = (b["Elo+DC"] - a["Elo+DC"]).to_numpy()
-        pooled.append(pd.DataFrame({"dc": d_dc, "ens": d_ens, "blend": (b["Elo+DC+Mercado"] - a["Elo+DC+Mercado"]).to_numpy()}))
+        d_blend = (b["Elo+DC+Mercado"] - a["Elo+DC+Mercado"]).to_numpy()
+        pooled.append(pd.DataFrame({"dc": d_dc, "ens": d_ens, "blend": d_blend}))
         mean, lo, hi = paired_ci(d_dc)
         rows.append({
             "Liga": f"{code} · {new['name']}", "mix elegido": new["dc_params"]["mix"],

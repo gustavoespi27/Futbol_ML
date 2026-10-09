@@ -52,3 +52,30 @@ def test_odds_by_book_requires_complete_triplets():
     row = {"B365H": 2.0, "B365D": 3.4, "B365A": 3.9, "BFEH": 2.1, "BFED": None, "BFEA": 4.0}
     books = tracking._odds_by_book(row)
     assert list(books) == ["Bet365"]
+
+
+def test_evaluate_falls_back_to_last_pre_kickoff_odds(conn):
+    mid = _match(conn, 0, 1)
+    _predict(conn, mid, "2026-10-10T10:00:00Z", [])
+    rows = [dict(match_id=mid, source="api", bookmaker="Pinnacle", market="1X2", line=0.0, selection=s, price=p,
+                 captured_at=t, is_closing=0)
+            for t, prices in (("2026-10-10T09:00:00Z", (3.0, 3.0, 3.0)), ("2026-10-10T16:00:00Z", (2.0, 3.5, 4.0)),
+                              ("2026-10-10T18:00:00Z", (9.0, 9.0, 1.1)))       # en vivo: se ignora
+            for s, p in zip("HDA", prices)]
+    repo.insert_odds(conn, rows)
+    matches, _ = tracking.evaluate(conn)
+    fair_a = (1 / 4.0) / (1 / 2.0 + 1 / 3.5 + 1 / 4.0)
+    assert matches.close_kind.iloc[0] == "último pre-partido"
+    assert matches.ll_market_close.iloc[0] == pytest.approx(-np.log(fair_a))
+    assert not matches.hit.iloc[0]
+    assert "Acierto" in tracking.report(conn)
+
+
+def test_latest_odds_takes_last_snapshot_per_book(conn):
+    mid = _match(conn, None, None)
+    repo.insert_odds(conn, [dict(match_id=mid, source="api", bookmaker="Bet365", market="1X2", line=0.0,
+                                 selection=s, price=p, captured_at=t, is_closing=0)
+                            for t, prices in (("2026-10-09T09:00:00Z", (2.0, 3.0, 4.0)),
+                                              ("2026-10-10T09:00:00Z", (2.1, 3.1, 3.9)))
+                            for s, p in zip("HDA", prices)])
+    assert tracking.latest_odds(conn, mid)["Bet365"].tolist() == [2.1, 3.1, 3.9]

@@ -13,8 +13,14 @@ from datetime import datetime, timedelta, timezone
 from footy import config
 from footy.db import repository as repo
 from footy.ingest.api_football import (
-    SOURCE, ApiError, ApiFootball, BudgetExhausted,
-    competitions_by_api_id, odds_rows, store_fixture, store_fixture_details,
+    SOURCE,
+    ApiError,
+    ApiFootball,
+    BudgetExhausted,
+    competitions_by_api_id,
+    odds_rows,
+    store_fixture,
+    store_fixture_details,
 )
 
 log = logging.getLogger(__name__)
@@ -36,8 +42,10 @@ def collect_fixtures_by_date(client: ApiFootball, conn: sqlite3.Connection, date
     return n
 
 
-def collect_odds(client: ApiFootball, conn: sqlite3.Connection, horizon_hours: float) -> tuple[int, int]:
-    """Un snapshot de cuotas por partido próximo de las ligas con collect_odds. Devuelve (partidos, filas)."""
+def collect_odds(client: ApiFootball, conn: sqlite3.Connection, horizon_hours: float,
+                 refresh_hours: float = 10) -> tuple[int, int]:
+    """Un snapshot de cuotas por partido próximo de las ligas con collect_odds. Devuelve (partidos, filas).
+    Los partidos con snapshot de hace menos de `refresh_hours` se saltan (presupuesto de 100 peticiones/día)."""
     codes = [c for c, v in config.settings()["competitions"].items() if v.get("collect_odds")]
     now = datetime.now(timezone.utc)
     rows = conn.execute(
@@ -46,8 +54,10 @@ def collect_odds(client: ApiFootball, conn: sqlite3.Connection, horizon_hours: f
             JOIN match_sources ms ON ms.match_id = m.id AND ms.source = ?
             WHERE c.code IN ({",".join("?" * len(codes))})
               AND m.status = 'scheduled' AND m.kickoff_utc BETWEEN ? AND ?
+              AND NOT EXISTS (SELECT 1 FROM odds o WHERE o.match_id = m.id AND o.source = ? AND o.captured_at > ?)
             ORDER BY m.kickoff_utc""",
-        (SOURCE, *codes, repo.to_iso(now), repo.to_iso(now + timedelta(hours=horizon_hours))),
+        (SOURCE, *codes, repo.to_iso(now), repo.to_iso(now + timedelta(hours=horizon_hours)),
+         SOURCE, repo.to_iso(now - timedelta(hours=refresh_hours))),
     ).fetchall()
 
     n_matches = n_rows = 0

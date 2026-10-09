@@ -59,9 +59,17 @@ def competition_id(conn: sqlite3.Connection, code: str) -> int:
 
 # --- Equipos ---------------------------------------------------------------
 
+# Letras que NFKD no descompone en base + acento (se perderían al pasar a ASCII).
+_NON_DECOMPOSABLE = str.maketrans({"ı": "i", "ø": "o", "Ø": "O", "æ": "ae", "ß": "ss", "đ": "d", "ł": "l", "Ł": "L"})
+# Palabras que no identifican al club (prefijos/sufijos societarios).
+_FILLER = {"fc", "sc", "cf", "ac", "as", "ssc", "ss", "sk", "fk", "cp", "sp", "sad", "calcio", "club", "cd", "ud",
+           "afc", "if", "bk", "jk", "spor", "futebol", "clube", "de", "kulubu"}
+
+
 def normalize_name(name: str) -> str:
     """'Unión La Calera' -> 'union la calera'. Sirve para enlazar fuentes sin falsos positivos."""
-    s = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    s = name.translate(_NON_DECOMPOSABLE)
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
     s = re.sub(r"[^a-z0-9]+", " ", s.lower())
     return s.strip()
 
@@ -104,6 +112,42 @@ def resolve_team(conn: sqlite3.Connection, source: str, alias: str, name: str, c
         "INSERT INTO team_aliases (source, alias, team_id) VALUES (?, ?, ?)", (source, alias, team_id)
     )
     return team_id
+
+
+def _core(name: str) -> set[str]:
+    toks = []
+    for t in normalize_name(name).split():
+        if len(t) > 5 and t.endswith("spor"):          # Amedspor ~ Amed, Erzurumspor FK ~ Erzurum
+            t = t[:-4]
+        if t not in _FILLER and len(t) > 1:
+            toks.append(t)
+    return set(toks)
+
+
+def fuzzy_team_match(conn: sqlite3.Connection, name: str, competition_code: str, years: int = 3) -> int | None:
+    """Equipo de football-data de la misma competición cuyo nombre coincide sin prefijos/sufijos
+    ("SC Braga" ~ "Sp Braga", "Hellas Verona" ~ "Verona"). Devuelve None si no hay uno único."""
+    import difflib
+
+    since = to_iso(datetime.now(timezone.utc) - timedelta(days=365 * years))
+    cands = conn.execute(
+        """SELECT DISTINCT t.id, t.name FROM teams t
+           JOIN matches m ON t.id IN (m.home_team_id, m.away_team_id)
+           JOIN competitions c ON c.id = m.competition_id
+           JOIN team_aliases a ON a.team_id = t.id AND a.source = 'football_data'
+           WHERE c.code = ? AND m.kickoff_utc >= ?""", (competition_code, since)).fetchall()
+    core = _core(name)
+    if not core:
+        return None
+    hits = []
+    for c in cands:
+        other = _core(c["name"])
+        if not other:
+            continue
+        joined_a, joined_b = " ".join(sorted(core)), " ".join(sorted(other))
+        if core <= other or other <= core or difflib.SequenceMatcher(None, joined_a, joined_b).ratio() >= 0.85:
+            hits.append(c["id"])
+    return hits[0] if len(hits) == 1 else None
 
 
 def merge_teams(conn: sqlite3.Connection, from_id: int, into_id: int) -> None:

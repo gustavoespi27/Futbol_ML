@@ -7,6 +7,8 @@ paths:
   database: data/db/football.sqlite
 
 # collect_odds: se guardan snapshots de cuotas (consume 1 petición por partido).
+# I1, P1 y T1 también vienen de football-data.co.uk (histórico); API-Football agrega calendario, resultados
+# y cuotas pre-partido del día (football-data puede atrasarse varias semanas).
 # Las copas se recolectan solo como calendario (congestión, rotaciones).
 competitions:
   CHL:
@@ -31,6 +33,24 @@ competitions:
     country: Brazil
     type: league
     api_football_id: 71
+    collect_odds: true
+  I1:
+    name: Serie A
+    country: Italy
+    type: league
+    api_football_id: 135
+    collect_odds: true
+  P1:
+    name: Primeira Liga
+    country: Portugal
+    type: league
+    api_football_id: 94
+    collect_odds: true
+  T1:
+    name: Süper Lig
+    country: Turkey
+    type: league
+    api_football_id: 203
     collect_odds: true
   LIB:
     name: Copa Libertadores

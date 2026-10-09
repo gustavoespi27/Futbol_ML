@@ -73,3 +73,24 @@ def test_insert_odds_ignores_duplicates(conn):
                selection="H", price=2.1, captured_at="2026-10-09T12:00:00Z", is_closing=0)
     assert repo.insert_odds(conn, [row]) == 1
     assert repo.insert_odds(conn, [row]) == 0
+
+
+def test_normalize_name_handles_turkish_dotless_i():
+    assert repo.normalize_name("Kasımpaşa") == "kasimpasa"
+
+
+def test_fuzzy_team_match_within_competition(conn):
+    comp = repo.competition_id(conn, "T1")
+    names = ["Amedspor", "Erzurumspor", "Genclerbirligi", "Karagumruk", "Galatasaray", "Goztep"]
+    ids = {n: repo.resolve_team(conn, "football_data", n, n, "Turkey") for n in names}
+    for i, (h, a) in enumerate(zip(names, names[1:] + names[:1])):
+        repo.upsert_match(conn, source="football_data", source_match_id=str(i), competition_id=comp, season="2026/2027",
+                          kickoff_utc=f"2026-09-{10 + i:02d}T17:00:00Z", home_team_id=ids[h], away_team_id=ids[a],
+                          status="finished", home_goals=1, away_goals=0)
+    assert repo.fuzzy_team_match(conn, "Amed", "T1") == ids["Amedspor"]
+    assert repo.fuzzy_team_match(conn, "Erzurumspor FK", "T1") == ids["Erzurumspor"]
+    assert repo.fuzzy_team_match(conn, "Gençlerbirliği S.K.", "T1") == ids["Genclerbirligi"]
+    assert repo.fuzzy_team_match(conn, "Fatih Karagümrük", "T1") == ids["Karagumruk"]
+    assert repo.fuzzy_team_match(conn, "Göztepe", "T1") == ids["Goztep"]
+    assert repo.fuzzy_team_match(conn, "Besiktas", "T1") is None          # sin candidato: no se inventa
+    assert repo.fuzzy_team_match(conn, "Galatasaray", "I1") is None       # solo dentro de la competición

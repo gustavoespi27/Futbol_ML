@@ -29,7 +29,8 @@ def render(r: dict) -> str:
         "Goles esperados:", "", f"{h}: {m['xg_home']:.2f}", f"{a}: {m['xg_away']:.2f}", "",
         "Marcadores más probables:", "",
         *[f"{s}: {pct(q)}" for s, q in m["top_scores"]], "",
-        *[f"Over {k}: {pct(v)}   Under {k}: {pct(1 - v)}" for k, v in m["over_under"].items() if k in (1.5, 2.5, 3.5)], "",
+        *[f"Over {k}: {pct(v)}   Under {k}: {pct(1 - v)}"
+          for k, v in m["over_under"].items() if k in (1.5, 2.5, 3.5)], "",
         "Ambos marcan:", "", f"Sí: {pct(m['btts_yes'])}", f"No: {pct(m['btts_no'])}", "",
         f"Confianza: {r['confidence']['level']} (partidos recientes del equipo con menos datos: "
         f"{r['confidence']['min_recent_matches']}; desacuerdo Elo vs DC: {r['confidence']['elo_dc_max_diff']:.1%})",

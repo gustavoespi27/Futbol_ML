@@ -3,7 +3,7 @@
 1. API-Football: calendario, cuotas pre-partido y detalles (Chile, Argentina, Brasil).
 2. football-data.co.uk: resultados y cuotas de cierre de la temporada en curso (todas las ligas).
 3. Seguimiento: predicciones de los próximos partidos, registradas antes del kickoff.
-4. Informe docs/seguimiento.md.
+4. Informe docs/seguimiento.md y, si el dashboard está abierto, refresco de sus cachés.
 
 Cada paso es independiente: si uno falla, los demás se ejecutan igual (queda en logs/daily.log).
 """
@@ -11,6 +11,8 @@ Cada paso es independiente: si uno falla, los demás se ejecutan igual (queda en
 import logging
 import sys
 from datetime import datetime, timedelta, timezone
+
+import requests
 
 from footy import config
 from footy.db import repository as repo
@@ -51,8 +53,9 @@ def main() -> int:
         ("api_football", lambda: log.info("Resumen API: %s", run_daily(conn, ApiFootball(conn)))),
         ("football_data", lambda: update_current_season(conn)),
         ("tracking", lambda: log.info("Seguimiento: %s", tracking.register(conn, tracking.fetch_fixtures()))),
+        ("tracking_api", lambda: log.info("Seguimiento API: %s", tracking.register_scheduled(conn))),
         ("report", lambda: (config.PROJECT_ROOT / "docs" / "seguimiento.md").write_text(
-            tracking.report(conn), encoding="utf-8")),
+            tracking.report(conn), encoding="utf-8", newline="\n")),
     ]
     failed = []
     for name, step in steps:
@@ -62,6 +65,10 @@ def main() -> int:
             log.exception("Paso %s falló", name)
             conn.rollback()
             failed.append(name)
+    try:
+        requests.post("http://127.0.0.1:8000/api/refresh", timeout=3)
+    except requests.RequestException:
+        pass                                      # dashboard cerrado: no hay nada que refrescar
     log.info("Fin. Pasos con error: %s", failed or "ninguno")
     return 1 if failed else 0
 

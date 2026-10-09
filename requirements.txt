@@ -8,3 +8,8 @@ requests>=2.32
 python-dotenv>=1.0
 pytest>=8.0
 tabulate>=0.9
+fastapi>=0.115
+uvicorn>=0.30
+
+# Desarrollo (lint): ruff check src scripts tests
+ruff>=0.6

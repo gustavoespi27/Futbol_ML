@@ -7,7 +7,8 @@ Dos formatos:
   estadísticas (tiros, tiros al arco, corners, faltas, tarjetas; xG desde 2026/27) y cuotas.
 
 Horas en hora del Reino Unido (sin hora antes de 2019/20 en "main": se asume 15:00).
-Solo se guardan cuotas de cierre: is_closing=1, captured_at = kickoff.
+Solo se guardan cuotas de cierre: is_closing=1, captured_at = kickoff. 1X2 en ambos formatos;
+Over/Under 2,5 (market "OU", selección OVER/UNDER) solo existe en "main".
 Las estadísticas del partido se conocen al terminar: captured_at = kickoff + 3 h.
 """
 
@@ -35,6 +36,9 @@ CLOSING_BOOKMAKERS = {
     "MaxC": "Market Max",
     "AvgC": "Market Avg",
 }
+
+# En Over/Under 2,5 Pinnacle usa otro prefijo (PC>2.5 en vez de PSC).
+CLOSING_OU_BOOKMAKERS = {**{k: v for k, v in CLOSING_BOOKMAKERS.items() if k != "PSC"}, "PC": "Pinnacle"}
 
 # Solo Argentina mezcla dos torneos en el mismo archivo.
 ARG_LEAGUES = {"Liga Profesional": "ARG", "Primera Division": "ARG", "Copa De La Liga Profesional": "ARGC"}
@@ -116,7 +120,7 @@ def parse_extra(text: str, code: str) -> pd.DataFrame:
 
 def parse_main(text: str, code: str, season: str) -> pd.DataFrame:
     df = pd.read_csv(StringIO(text), on_bad_lines="skip", encoding_errors="replace")
-    df = df.dropna(subset=["HomeTeam", "AwayTeam", "Date"])
+    df = df.dropna(subset=["HomeTeam", "AwayTeam", "Date"]).copy()   # copy: evita un frame fragmentado
     df = df.rename(columns={"HomeTeam": "Home", "AwayTeam": "Away", "FTHG": "HG", "FTAG": "AG"})
     df["Home"], df["Away"] = df.Home.astype(str).str.strip(), df.Away.astype(str).str.strip()
     df["Season"] = season
@@ -156,7 +160,7 @@ def store(conn: sqlite3.Connection, df: pd.DataFrame) -> dict:
             away_goals=int(row["AG"]) if played else None,
         )
         counts["matches"] += 1
-        counts["odds"] += repo.insert_odds(conn, _closing_odds(match_id, row))
+        counts["odds"] += repo.insert_odds(conn, _closing_odds(match_id, row) + closing_ou_odds(match_id, row))
         counts["stats"] += _store_stats(conn, match_id, home, away, row)
     conn.commit()
     return counts
@@ -188,6 +192,21 @@ def _closing_odds(match_id: int, row: dict) -> list[dict]:
                 "market": "1X2", "line": 0.0, "selection": sel, "price": price,
                 "captured_at": row["kickoff_utc"], "is_closing": 1,
             })
+    return rows
+
+
+def closing_ou_odds(match_id: int, row: dict, prefixes: dict = CLOSING_OU_BOOKMAKERS,
+                    is_closing: int = 1, captured_at: str | None = None, source: str = SOURCE) -> list[dict]:
+    """Cuotas Over/Under 2,5 (columnas '<prefijo>>2.5' y '<prefijo><2.5'), solo pares completos."""
+    rows = []
+    for prefix, bookmaker in prefixes.items():
+        over, under = _num(row.get(f"{prefix}>2.5")), _num(row.get(f"{prefix}<2.5"))
+        if over is None or under is None or over <= 1 or under <= 1:
+            continue
+        for sel, price in (("OVER", over), ("UNDER", under)):
+            rows.append({"match_id": match_id, "source": source, "bookmaker": bookmaker, "market": "OU",
+                         "line": 2.5, "selection": sel, "price": price,
+                         "captured_at": captured_at or row["kickoff_utc"], "is_closing": is_closing})
     return rows
 
 

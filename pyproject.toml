@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "footy"
-version = "0.1.0"
+version = "0.3.0"
 description = "Modelo probabilístico de partidos de fútbol y evaluación de valor frente al mercado"
 requires-python = ">=3.11"
 
@@ -12,7 +12,17 @@ requires-python = ">=3.11"
 where = ["src"]
 
 [tool.setuptools.package-data]
-footy = ["db/*.sql"]
+footy = ["db/*.sql", "web/static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/test_football_data.py" = ["E501"]   # filas CSV de ejemplo

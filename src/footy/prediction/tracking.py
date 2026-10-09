@@ -26,12 +26,14 @@ from footy.prediction.predictor import LeaguePredictor
 
 log = logging.getLogger(__name__)
 SOURCE = "football_data_fixtures"
-MODEL_VERSION = "elo_dc_v1"
+MODEL_VERSION = "elo_dc_v3"     # v3: pesos ajustados con 2016-2025 (v2: pesos >= 0 y cuota <= max_odds)
 PRE_BOOKS = {"PS": "Pinnacle", "B365": "Bet365", "BFE": "Betfair Exchange", "Max": "Market Max", "Avg": "Market Avg"}
-MARKET_REFERENCE = ("Pinnacle", "Betfair Exchange", "Market Avg")   # para quitar margen, en este orden
+PRE_OU_BOOKS = {"B365": "Bet365", "P": "Pinnacle", "Max": "Market Max", "Avg": "Market Avg", "BFE": "Betfair Exchange"}
+MARKET_REFERENCE = ("Pinnacle", "Betfair Exchange", "Market Avg", "Bet365")   # para quitar margen, en este orden
 PAPER_BOOKS = {"Bet365": 0.0, "Betfair Exchange": 0.05}             # casa -> comisión sobre ganancias
 FLAGGED = ("T1", "I1", "P1", "SWE")                                  # pasaron el criterio del análisis 03
 MIN_HOURS_BETWEEN = 6
+ALL_VERSIONS = ("elo_dc_v1", "elo_dc_v2", MODEL_VERSION)
 
 
 def fetch_fixtures() -> pd.DataFrame:
@@ -88,34 +90,97 @@ def register(conn: sqlite3.Connection, fixtures: pd.DataFrame) -> dict:
             repo.insert_odds(conn, [
                 {"match_id": match_id, "source": SOURCE, "bookmaker": b, "market": "1X2", "line": 0.0,
                  "selection": s, "price": float(o), "captured_at": now_iso, "is_closing": 0}
-                for b, odds in books.items() for s, o in zip("HDA", odds)])
-            if _recent_prediction(conn, match_id, now):
-                continue
-            ref = next((b for b in MARKET_REFERENCE if b in books), None)
-            pr = predictor.probabilities(home, away, books[ref] if ref else None)
-            extra = {"league": code, "market_reference": ref, "params_source": predictor.params["source"],
-                     "min_ev": predictor.params["min_ev"], "lam": pr["lam"], "mu": pr["mu"], "paper_bets": []}
-            if ref:
-                extra["p_market"] = pr["p_market"].round(5).tolist()
-                extra["p_final"] = pr["p_final"].round(5).tolist()
-                for book, commission in PAPER_BOOKS.items():
-                    if book not in books:
-                        continue
-                    eff = 1 + (books[book] - 1) * (1 - commission)
-                    ev = pr["p_final"] * eff - 1
-                    k = int(np.argmax(ev))
-                    if ev[k] > predictor.params["min_ev"]:
-                        extra["paper_bets"].append({"book": book, "sel": "HDA"[k], "odds": float(books[book][k]),
-                                                    "effective_odds": float(eff[k]), "ev": float(ev[k])})
-                        counts["paper_bets"] += 1
-            conn.execute(
-                """INSERT INTO predictions (match_id, model_version, created_at, p_home, p_draw, p_away,
-                       lambda_home, lambda_away, extra_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (match_id, MODEL_VERSION, now_iso, *map(float, pr["p_model"]), pr["lam"], pr["mu"],
-                 json.dumps(extra)))
-            counts["predictions"] += 1
+                for b, odds in books.items() for s, o in zip("HDA", odds)]
+                + fd.closing_ou_odds(match_id, row, PRE_OU_BOOKS, is_closing=0, captured_at=now_iso, source=SOURCE))
+            if not _recent_prediction(conn, match_id, now):
+                _store_prediction(conn, predictor, code, match_id, home, away, books, now_iso, counts)
         conn.commit()
     return counts
+
+
+def register_scheduled(conn: sqlite3.Connection, horizon_hours: float = 48) -> dict:
+    """Igual que `register`, para partidos ya en la base (API-Football: ARG, BRA) usando el último
+    snapshot de cuotas pre-partido de cada casa."""
+    now = datetime.now(timezone.utc)
+    now_iso = repo.to_iso(now)
+    counts = {"fixtures": 0, "predictions": 0, "paper_bets": 0}
+    params = load_params()
+    rows = pd.read_sql_query(
+        """SELECT m.id, c.code, m.home_team_id, m.away_team_id FROM matches m
+           JOIN competitions c ON c.id = m.competition_id
+           WHERE m.status = 'scheduled' AND m.kickoff_utc BETWEEN ? AND ?""",
+        conn, params=(now_iso, repo.to_iso(now + timedelta(hours=horizon_hours))))
+    rows = rows[rows.code.isin(params)]
+    for code, group in rows.groupby("code"):
+        try:
+            predictor = LeaguePredictor(code)
+        except Exception:
+            log.exception("No se pudo ajustar el modelo de %s", code)
+            continue
+        for r in group.to_dict("records"):
+            counts["fixtures"] += 1
+            if _recent_prediction(conn, r["id"], now):
+                continue
+            books = latest_odds(conn, r["id"])
+            _store_prediction(conn, predictor, code, r["id"], r["home_team_id"], r["away_team_id"],
+                              books, now_iso, counts)
+        conn.commit()
+    return counts
+
+
+def latest_odds(conn: sqlite3.Connection, match_id: int) -> dict[str, np.ndarray]:
+    """Último snapshot 1X2 pre-partido por casa (sin cuotas de cierre)."""
+    df = pd.read_sql_query(
+        """SELECT bookmaker, selection, price, captured_at FROM odds
+           WHERE match_id = ? AND market = '1X2' AND is_closing = 0""", conn, params=(match_id,))
+    out = {}
+    for book, g in df.sort_values("captured_at").groupby("bookmaker"):
+        last = g[g.captured_at == g.captured_at.max()].set_index("selection").price
+        if all(s in last.index for s in "HDA") and (last > 1).all():
+            out[book] = last.loc[list("HDA")].to_numpy(dtype=float)
+    return out
+
+
+def latest_market_odds(conn: sqlite3.Connection, match_id: int) -> dict:
+    """Último snapshot pre-partido por casa y mercado:
+    {"1X2": {casa: {sel: cuota}}, "OU": {casa: {(línea, sel): cuota}}, "BTTS": {casa: {sel: cuota}}}."""
+    df = pd.read_sql_query(
+        """SELECT bookmaker, market, line, selection, price, captured_at FROM odds
+           WHERE match_id = ? AND is_closing = 0 AND market IN ('1X2', 'OU', 'BTTS')""", conn, params=(match_id,))
+    out: dict = {"1X2": {}, "OU": {}, "BTTS": {}}
+    if df.empty:
+        return out
+    df = df.sort_values("captured_at").groupby(["bookmaker", "market", "line", "selection"]).tail(1)
+    for r in df.itertuples(index=False):
+        key = (float(r.line), r.selection) if r.market == "OU" else r.selection
+        out[r.market].setdefault(r.bookmaker, {})[key] = float(r.price)
+    return out
+
+
+def _store_prediction(conn, predictor, code, match_id, home, away, books, now_iso, counts) -> None:
+    ref = next((b for b in MARKET_REFERENCE if b in books), None)
+    pr = predictor.probabilities(home, away, books[ref] if ref else None)
+    extra = {"league": code, "market_reference": ref, "params_source": predictor.params["source"],
+             "min_ev": predictor.params["min_ev"], "lam": pr["lam"], "mu": pr["mu"], "paper_bets": []}
+    if ref:
+        extra["p_market"] = pr["p_market"].round(5).tolist()
+        extra["p_final"] = pr["p_final"].round(5).tolist()
+        for book, commission in PAPER_BOOKS.items():
+            if book not in books:
+                continue
+            eff = 1 + (books[book] - 1) * (1 - commission)
+            ev = pr["p_final"] * eff - 1
+            ev = np.where(books[book] > predictor.params.get("max_odds", np.inf), -np.inf, ev)
+            k = int(np.argmax(ev))
+            if ev[k] > predictor.params["min_ev"]:
+                extra["paper_bets"].append({"book": book, "sel": "HDA"[k], "odds": float(books[book][k]),
+                                            "effective_odds": float(eff[k]), "ev": float(ev[k])})
+                counts["paper_bets"] += 1
+    conn.execute(
+        """INSERT INTO predictions (match_id, model_version, created_at, p_home, p_draw, p_away,
+               lambda_home, lambda_away, extra_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (match_id, MODEL_VERSION, now_iso, *map(float, pr["p_model"]), pr["lam"], pr["mu"], json.dumps(extra)))
+    counts["predictions"] += 1
 
 
 def _odds_by_book(row: dict) -> dict[str, np.ndarray]:
@@ -135,35 +200,40 @@ def _recent_prediction(conn, match_id: int, now: datetime) -> bool:
 
 # --- Evaluación -------------------------------------------------------------
 
-def evaluate(conn: sqlite3.Connection) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Última predicción previa al kickoff de cada partido terminado + cierre del mercado."""
+def evaluate(conn: sqlite3.Connection,
+             versions: tuple[str, ...] = (MODEL_VERSION,)) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Última predicción previa al kickoff de cada partido terminado (por versión) + cierre del mercado.
+
+    Si todavía no hay cuotas de cierre se usa el último snapshot pre-partido (columna close_kind)."""
+    q = ",".join("?" * len(versions))
     preds = pd.read_sql_query(
-        """SELECT p.*, m.kickoff_utc, m.home_goals, m.away_goals, th.name AS home, ta.name AS away
-           FROM predictions p JOIN matches m ON m.id = p.match_id
-           JOIN teams th ON th.id = m.home_team_id JOIN teams ta ON ta.id = m.away_team_id
-           WHERE m.status = 'finished' AND p.created_at < m.kickoff_utc AND p.model_version = ?""",
-        conn, params=(MODEL_VERSION,))
+        f"""SELECT p.*, m.kickoff_utc, m.home_goals, m.away_goals, th.name AS home, ta.name AS away
+            FROM predictions p JOIN matches m ON m.id = p.match_id
+            JOIN teams th ON th.id = m.home_team_id JOIN teams ta ON ta.id = m.away_team_id
+            WHERE m.status = 'finished' AND p.created_at < m.kickoff_utc AND p.model_version IN ({q})""",
+        conn, params=versions)
     if preds.empty:
         return pd.DataFrame(), pd.DataFrame()
-    preds = preds.sort_values("created_at").groupby("match_id").tail(1).reset_index(drop=True)
-    closing = pd.read_sql_query(
-        f"""SELECT match_id, bookmaker, selection, price FROM odds
-            WHERE is_closing = 1 AND market = '1X2' AND match_id IN ({",".join(map(str, preds.match_id))})""", conn)
-    close = closing.pivot_table(index="match_id", columns=["bookmaker", "selection"], values="price")
+    preds = preds.sort_values("created_at").groupby(["match_id", "model_version"]).tail(1).reset_index(drop=True)
+    close = _reference_odds(conn, preds.match_id.unique())
 
     rows, bets = [], []
     for r in preds.to_dict("records"):
         extra = json.loads(r["extra_json"])
         y = 0 if r["home_goals"] > r["away_goals"] else 1 if r["home_goals"] == r["away_goals"] else 2
-        rec = {"match_id": r["match_id"], "league": extra["league"], "kickoff": r["kickoff_utc"],
-               "partido": f"{r['home']} vs {r['away']}", "y": y,
-               "ll_model": -np.log([r["p_home"], r["p_draw"], r["p_away"]][y])}
-        if "p_final" in extra:
-            rec["ll_final"] = -np.log(extra["p_final"][y])
+        p_model = [r["p_home"], r["p_draw"], r["p_away"]]
+        p_off = extra.get("p_final", p_model)                    # probabilidad oficial: con mercado si lo hubo
+        rec = {"match_id": r["match_id"], "model_version": r["model_version"], "league": extra["league"],
+               "kickoff": r["kickoff_utc"], "home": r["home"], "away": r["away"],
+               "partido": f"{r['home']} vs {r['away']}", "score": f"{r['home_goals']}-{r['away_goals']}", "y": y,
+               "p_model": p_model, "p_official": p_off, "p_market": extra.get("p_market"),
+               "pick": int(np.argmax(p_off)), "hit": int(np.argmax(p_off)) == y,
+               "ll_model": -np.log(p_model[y]), "ll_final": -np.log(p_off[y]),
+               "ll_market_close": np.nan, "market_close_book": None, "close_kind": None}
         fair = _closing_fair(close, r["match_id"])
         if fair is not None:
             rec["ll_market_close"] = -np.log(fair[0][y])
-            rec["market_close_book"] = fair[1]
+            rec["market_close_book"], rec["close_kind"] = fair[1], fair[2]
         rows.append(rec)
         for b in extra["paper_bets"]:
             k = "HDA".index(b["sel"])
@@ -172,43 +242,62 @@ def evaluate(conn: sqlite3.Connection) -> tuple[pd.DataFrame, pd.DataFrame]:
             clv = None
             if fair is not None:
                 clv = b["odds"] * fair[0][k] - 1          # cuota tomada vs probabilidad justa de cierre
-            bets.append({"league": extra["league"], "partido": rec["partido"], "book": b["book"], "sel": b["sel"],
+            bets.append({"model_version": r["model_version"], "league": extra["league"], "kickoff": r["kickoff_utc"],
+                         "partido": rec["partido"], "book": b["book"], "sel": b["sel"],
                          "odds": b["odds"], "ev": b["ev"], "won": won, "profit": profit, "clv": clv})
     return pd.DataFrame(rows), pd.DataFrame(bets)
 
 
+def _reference_odds(conn, match_ids) -> pd.DataFrame:
+    """Cuotas 1X2 de referencia por partido y casa: el cierre si existe; si no, el último snapshot pre-partido."""
+    ids = ",".join(map(str, match_ids))
+    odds = pd.read_sql_query(
+        f"""SELECT o.match_id, o.bookmaker, o.selection, o.price, o.is_closing, o.captured_at
+            FROM odds o JOIN matches m ON m.id = o.match_id
+            WHERE o.market = '1X2' AND o.match_id IN ({ids})
+              AND (o.is_closing = 1 OR o.captured_at < m.kickoff_utc)""", conn)
+    odds = odds.sort_values(["is_closing", "captured_at"]).groupby(["match_id", "bookmaker", "selection"]).tail(1)
+    return odds.set_index(["match_id", "bookmaker", "selection"])
+
+
 def _closing_fair(close: pd.DataFrame, match_id: int):
-    if match_id not in close.index:
+    """(probabilidades justas, casa, 'cierre' | 'último pre-partido') o None."""
+    if match_id not in close.index.get_level_values(0):
         return None
-    for book in ("Pinnacle", "Betfair Exchange", "Market Avg"):
-        cols = [(book, s) for s in "HDA"]
-        if all(c in close.columns for c in cols):
-            odds = close.loc[match_id, cols].to_numpy(dtype=float)
-            if not np.isnan(odds).any():
-                return proportional(odds[None, :])[0], book
+    sub = close.loc[match_id]
+    for book in ("Pinnacle", "Betfair Exchange", "Market Avg", "Bet365"):
+        if all((book, s) in sub.index for s in "HDA"):
+            rows = sub.loc[[(book, s) for s in "HDA"]]
+            kind = "cierre" if rows.is_closing.min() == 1 else "último pre-partido"
+            return proportional(rows.price.to_numpy(dtype=float)[None, :])[0], book, kind
     return None
 
 
 def report(conn: sqlite3.Connection) -> str:
-    matches, bets = evaluate(conn)
+    matches, bets = evaluate(conn, ALL_VERSIONS)
     pending = conn.execute(
         """SELECT COUNT(DISTINCT p.match_id) FROM predictions p JOIN matches m ON m.id = p.match_id
-           WHERE m.status != 'finished' AND p.model_version = ?""", (MODEL_VERSION,)).fetchone()[0]
+           WHERE m.status != 'finished'""").fetchone()[0]
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     md = [f"# Seguimiento prospectivo ({MODEL_VERSION})", "",
-          f"*Actualizado {now} por `scripts/daily.py`. Predicciones registradas antes de cada partido; sin dinero real.*", "",
-          f"Partidos evaluados: **{len(matches)}** · pendientes de resultado: **{pending}** · apuestas en papel: **{len(bets)}**", "",
+          f"*Actualizado {now} por `scripts/daily.py`. Predicciones registradas antes de cada partido; "
+          "sin dinero real.*", "",
+          f"Partidos evaluados: **{len(matches)}** · pendientes de resultado: **{pending}** · "
+          f"apuestas en papel: **{len(bets)}**", "",
           f"Ligas marcadas en el análisis 03: {', '.join(FLAGGED)}.", ""]
     if matches.empty:
         md += ["Todavía no hay partidos terminados con predicción previa."]
         return "\n".join(md)
-    m = matches.dropna(subset=["ll_market_close"])
     md += ["## Calidad probabilística (log loss; menor es mejor)", "",
-           "| Grupo | Partidos | Modelo | Modelo + mercado pre-partido | Mercado al cierre |",
-           "|---|---:|---:|---:|---:|"]
-    for name, g in (("Todas", m), ("Ligas marcadas", m[m.league.isin(FLAGGED)])):
-        if len(g):
-            md.append(f"| {name} | {len(g)} | {g.ll_model.mean():.4f} | {g.ll_final.mean():.4f} | {g.ll_market_close.mean():.4f} |")
+           "Mercado de referencia: cuotas de cierre sin margen; si aún no llegan, el último snapshot pre-partido.", "",
+           "| Versión | Grupo | Partidos | Acierto | Modelo | Modelo + mercado pre-partido | Mercado (referencia) |",
+           "|---|---|---:|---:|---:|---:|---:|"]
+    for version, mv in matches.groupby("model_version"):
+        for name, g in (("Todas", mv), ("Ligas marcadas", mv[mv.league.isin(FLAGGED)])):
+            if len(g):
+                mk = g.ll_market_close.dropna()
+                md.append(f"| {version} | {name} | {len(g)} | {g.hit.mean():.0%} | {g.ll_model.mean():.4f} | "
+                          f"{g.ll_final.mean():.4f} | {f'{mk.mean():.4f} ({len(mk)})' if len(mk) else '–'} |")
     if not bets.empty:
         md += ["", "## Apuestas en papel", "",
                "CLV = cuota tomada × probabilidad justa al cierre − 1. CLV medio positivo y sostenido es la señal "

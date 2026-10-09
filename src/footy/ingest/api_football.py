@@ -71,7 +71,8 @@ class ApiFootball:
         requested_at = repo.utc_now()
         data = r.json()
         header = r.headers.get("x-ratelimit-requests-remaining")
-        self.remaining = int(header) if header is not None else self.remaining - 1
+        # El header a veces llega atrasado: se toma el valor más conservador entre él y la cuenta local.
+        self.remaining = min(int(header), self.remaining - 1) if header is not None else self.remaining - 1
 
         self._save_raw(endpoint, params, requested_at, data)
         errors = data.get("errors") or None
@@ -128,8 +129,8 @@ def store_fixture(conn: sqlite3.Connection, item: dict) -> int | None:
 
     home = item["teams"]["home"]
     away = item["teams"]["away"]
-    home_id = _resolve_api_team(conn, home, country, comp["type"])
-    away_id = _resolve_api_team(conn, away, country, comp["type"])
+    home_id = _resolve_api_team(conn, home, country, comp["type"], comp_code)
+    away_id = _resolve_api_team(conn, away, country, comp["type"], comp_code)
 
     return repo.upsert_match(
         conn,
@@ -148,8 +149,18 @@ def store_fixture(conn: sqlite3.Connection, item: dict) -> int | None:
     )
 
 
-def _resolve_api_team(conn, team: dict, country: str, comp_type: str) -> int:
+def _resolve_api_team(conn, team: dict, country: str, comp_type: str, comp_code: str | None = None) -> int:
     alias = str(team["id"])
+    known = conn.execute("SELECT 1 FROM team_aliases WHERE source = ? AND alias = ?", (SOURCE, alias)).fetchone()
+    if not known and comp_type == "league" and comp_code:
+        # Ligas con historial de football-data: enlazar al equipo existente aunque el nombre difiera un poco.
+        canonical = repo._manual_aliases().get(SOURCE, {}).get(team["name"], team["name"])
+        exact = any(repo.normalize_name(r["name"]) == repo.normalize_name(canonical)
+                    for r in conn.execute("SELECT name FROM teams WHERE country = ?", (country,)))
+        match = None if exact else repo.fuzzy_team_match(conn, canonical, comp_code)
+        if match is not None:
+            conn.execute("INSERT INTO team_aliases (source, alias, team_id) VALUES (?, ?, ?)", (SOURCE, alias, match))
+            return match
     if comp_type == "cup":
         # En copas internacionales el país del equipo no viene en el fixture: solo enlazamos
         # por id ya conocido; si es nuevo, se crea con país 'unknown' para revisión manual.

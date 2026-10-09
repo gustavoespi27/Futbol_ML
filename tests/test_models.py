@@ -38,7 +38,8 @@ def test_score_matrix_and_markets_are_consistent():
     assert m.sum() == pytest.approx(1.0)
     mk = markets(1.6, 1.1, -0.05)
     assert mk["home"] + mk["draw"] + mk["away"] == pytest.approx(1.0)
-    assert outcome_probs(np.array([1.6]), np.array([1.1]), -0.05)[0] == pytest.approx([mk["home"], mk["draw"], mk["away"]])
+    p = outcome_probs(np.array([1.6]), np.array([1.1]), -0.05)[0]
+    assert p == pytest.approx([mk["home"], mk["draw"], mk["away"]])
     assert mk["over_under"][2.5] < mk["over_under"][1.5]
     assert mk["top_scores"][0][1] >= mk["top_scores"][1][1]
 
@@ -85,6 +86,20 @@ def test_pool_weights_prefer_informative_source():
     w = fit_weights([truth, noise], y)
     assert w[0] > 0.8
     assert np.allclose(pool([truth, noise], np.array([1.0, 0.0])), truth)
+
+
+def test_fit_weights_nonneg_never_inverts_a_source():
+    rng = np.random.default_rng(1)
+    truth = rng.dirichlet([2, 2, 2], 3000)
+    y = np.array([rng.choice(3, p=p) for p in truth])
+    noisy = lambda: truth * rng.lognormal(0, 0.5, truth.shape)  # noqa: E731
+    d = noisy()
+    direct = d / d.sum(1, keepdims=True)
+    inv = 1 / noisy()
+    anti = inv / inv.sum(1, keepdims=True)                 # informativa al revés: sin restricción, peso < 0
+    assert fit_weights([direct, anti], y)[1] < 0
+    w = fit_weights([direct, anti], y, nonneg=True)
+    assert (w >= 0).all() and w[1] < 0.05
 
 
 def test_backtest_flat_and_no_bet_rule():

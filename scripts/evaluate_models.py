@@ -107,7 +107,8 @@ def league_section(res) -> str:
             "yield_ic95", "max_dd_u", "racha_perd", "kelly_profit_%", "kelly_max_dd", "mix"]
     chosen = chosen.reindex(columns=cols).fillna("")
 
-    all_test = b[(b.periodo == "test") & (b.cuota == "Pinnacle")][["estrategia", "min_ev", "apuestas", "yield", "yield_ic95"]].copy()
+    cols = ["estrategia", "min_ev", "apuestas", "yield", "yield_ic95"]
+    all_test = b[(b.periodo == "test") & (b.cuota == "Pinnacle")][cols].copy()
     all_test["yield"] = all_test["yield"].map(pct)
 
     return f"""## {res.code}

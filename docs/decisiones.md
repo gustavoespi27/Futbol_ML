@@ -123,3 +123,92 @@ Detalle: [analisis/04_tiros.md](analisis/04_tiros.md). 22 ligas europeas, 30.033
 datos que el mercado usa y el modelo no: alineaciones y bajas (pre-partido), xG de calidad, y cuotas
 tempranas para medir CLV. Mientras tanto, el seguimiento prospectivo (`docs/seguimiento.md`) registra
 predicciones antes de cada partido en todas las ligas y mide CLV contra el cierre.
+
+## 2026-10-09 — Revisión de predicciones y modelo v2 (`elo_dc_v2`)
+
+**Seguimiento prospectivo (primeros resultados).** De las 8 predicciones v1 del 08-10, terminaron 3 (BRA):
+1 acierto de 3 (Palmeiras 1-0 Bahia); Santos–Flamengo y Athletico–Atlético-MG terminaron 2-2.
+Las 2 apuestas en papel (local a 4,50 y visita a 6,00) se perdieron. Muestra demasiado pequeña para concluir.
+
+**Evaluación fuera de muestra 2026** (walk-forward, 8.608 partidos, 38 ligas; parámetros elegidos en 2016-21):
+
+| | Acierto | Log loss |
+|---|---:|---:|
+| Modelo solo (Elo+DC) | 48,8% | 1,0237 |
+| Mercado (cierre sin margen) | 50,6% | 1,0034 |
+| Modelo + mercado | 50,7% | 1,0037 |
+
+Las probabilidades combinadas están bien calibradas (dice 60-70% → ocurre 65%; dice ≥70% → ocurre 77%),
+pero no mejoran al mercado. Apostar con el modelo solo pierde −15% por unidad (IC95% excluye 0);
+las cuotas > 4 son las que más pierden (−16% a −22%).
+
+**Errores corregidos:**
+1. Tras renombrar la carpeta, el paquete instalado y la tarea programada apuntaban a `Footbol_ML`: nada corría.
+   Reinstalado (`pip install -e .`) y tarea re-registrada.
+2. El presupuesto de API-Football se pasaba de la reserva (terminaba en −2 / 3 con reserva 5): el header de
+   peticiones restantes llega atrasado. Ahora se toma el mínimo entre header y cuenta local.
+3. El informe de seguimiento fallaba si un partido terminado no tenía cuotas de cierre (resultados de
+   API-Football llegan antes que el cierre de football-data). Ahora usa el último snapshot pre-partido
+   (marcado como tal) y nunca rompe.
+4. El seguimiento solo registraba partidos de `fixtures.csv`; ahora también los de API-Football (ARG, BRA)
+   con sus cuotas pre-partido (`register_scheduled`).
+
+**Cambios de modelo (v2):**
+1. **Pesos del ensamble ≥ 0.** 36 de 38 ligas tenían algún peso negativo (el modelo "invertido"). Restringidos,
+   ajustados igual solo con validación: log loss 2026 1,00368 vs 1,00373 y la mitad de varianza frente al
+   mercado. Resultado honesto: el peso del modelo queda en ~0 en la mayoría de ligas.
+2. **Apuestas en papel solo con cuota ≤ 4,0** (`max_odds`), por el sesgo favorito-longshot del análisis 01;
+   el umbral de EV se reelige en validación con esa regla. Advertencia: el tramo de cuotas también se miró en
+   2026, así que 2026 ya no es una prueba limpia de esta regla; la prueba limpia es el seguimiento prospectivo.
+   En 2026 la regla v2 hace 298 apuestas con −7% (IC95% [−22%; +8%]): tampoco demuestra ventaja.
+3. Las predicciones nuevas se guardan como `elo_dc_v2`; las v1 se siguen evaluando por separado.
+
+**Probabilidad oficial del MVP:** modelo + mercado cuando hay cuotas (la más fiable), modelo solo si no hay cuotas,
+mercado sin margen en ligas sin modelo validado (Chile). Recomendación por defecto: **no apostar**.
+
+**Dashboard:** `scripts/serve.py` (o `dashboard.bat`) levanta http://127.0.0.1:8000 con inicio, próximos partidos,
+resultados del seguimiento, fiabilidad 2026, simulador y explicación para público no técnico.
+
+## 2026-10-09 — v3: reentrenamiento 2016-2025, mercado de goles, combinadas y Serie A / Portugal / Turquía
+
+**Reentrenamiento (`elo_dc_v3`).** Pesos del ensamble (≥ 0), umbral de EV y calibración O/U ajustados con las
+predicciones walk-forward de 2016-2025 (antes solo 2016-21); hiperparámetros de Elo/DC sin cambios. 2026 sigue fuera
+de todo ajuste. Log loss 1X2 en 2026: 1,00343 (v2: 1,00368; mercado: 1,00342). Con 10 años de datos el ensamble pone
+casi todo el peso en el mercado: el modelo propio aporta sobre todo cuando no hay cuotas. La regla de apuestas en
+papel v3 en 2026: 168 apuestas, −11% (IC95% [−30%; +8%]).
+
+**Mercado de goles.** Se guardan las cuotas de cierre O/U 2,5 de football-data (antes se descartaban; 457.574 filas
+en 22 ligas, `scripts/backfill_ou_odds.py`) y las pre-partido de `fixtures.csv`. En 2026 (5.302 partidos):
+Dixon-Coles solo acierta 55,7% (log loss 0,6821); el mercado 57,8% (0,6742); la combinación calibrada 57,5% (0,6743).
+Igual que en 1X2: el mercado manda.
+
+**Combinadas.** Todas las selecciones salen de la matriz de marcadores ajustada (IPF) a las probabilidades oficiales
+1X2 y O/U 2,5, así que la probabilidad de varias selecciones del mismo partido es exacta (respeta la correlación) y la
+de partidos distintos es el producto. Evaluación 2026 a cuota de cierre Bet365 (`footy/evaluation/live.py`):
+
+| Estrategia | 1 | 2 | 3 | 4 piernas |
+|---|---:|---:|---:|---:|
+| Las más probables: acierto real (esperado) | 55,7% (55,9%) | 32,4% (32,3%) | 19,2% (19,2%) | 11,3% (11,8%) |
+| Las más probables: rendimiento | −5,9% | −10,4% | −17,2% | −23,4% |
+| Con valor (EV > 0, cuota ≤ 4): rendimiento | −4,6% | +2,0% | +33,3% | +33,1% |
+| Con valor: IC95% | [−12; +3] | [−18; +22] | [−16; +83] | [−62; +128] |
+
+- Las probabilidades de combinadas están **bien calibradas** (dice 25% → se cumple 26%; 34% → 34%).
+- Combinar las selecciones más probables **pierde siempre y más con cada pierna** (IC excluye 0): el margen se
+  multiplica. No es una vía para rentabilizar.
+- Las combinadas "con valor" salen positivas, pero con pocos casos e IC que incluyen pérdidas grandes; además se
+  calcularon contra el cierre (donde la probabilidad oficial ya incluye el mercado de cierre). **No es una ventaja
+  demostrada**: el siguiente paso sería seguirlas en papel de forma prospectiva.
+
+**Serie A, Primeira Liga y Süper Lig en API-Football.** Ya tenían modelo (football-data), pero football-data está
+atrasado (último partido cargado: 20-09; su `fixtures.csv` aún lista partidos del 03-10). Se agregan a la recolección
+diaria (ids 135, 94, 203) para tener calendario, resultados y cuotas pre-partido. Para enlazar equipos entre fuentes:
+emparejamiento tolerante dentro de la misma liga (`repository.fuzzy_team_match`: sin prefijos/sufijos societarios,
+"…spor", inclusión de palabras o similitud ≥ 0,85) y alias manuales (Sporting CP, Istanbul Basaksehir, Göztepe…);
+la "ı" turca ahora se normaliza. Los 26 equipos vistos se enlazaron sin duplicados. Para no agotar las 100
+peticiones/día, las cuotas de un partido no se vuelven a pedir antes de 10 horas. El dashboard marca las ligas con
+datos atrasados más de 12 días.
+
+**Aclaración sobre esas ligas:** I1, P1 y T1 (junto con SWE) pasaron el criterio pre-registrado del análisis 03,
+pero **no son significativas** tras corregir por 38 comparaciones; en 2026 el ensamble no mejora al mercado en
+ninguna. Están en observación, no son "las más fiables para apostar".

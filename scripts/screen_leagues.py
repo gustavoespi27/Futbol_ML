@@ -158,7 +158,7 @@ def report(rows: list[dict]) -> None:
         "Liga": df.code, "Umbral EV": df.min_ev.map(lambda d: f"{d['Elo+DC+Mercado']:.0%}"),
         "Yield val": df.val_yield_blend.map(pct), "Apuestas val": df.val_bets_blend,
         "Yield test Pinnacle": df.test_yield_blend_pin.map(pct), "Apuestas test": df.test_bets_blend_pin,
-        "IC95%": df.test_ci_blend_pin, f"IC Bonferroni": df.test_ci_bonf_blend_pin,
+        "IC95%": df.test_ci_blend_pin, "IC Bonferroni": df.test_ci_bonf_blend_pin,
         "Yield test promedio": df.test_yield_blend_avg.map(pct),
         "Yield test modelo solo (Pinnacle)": df.test_yield_model_pin.map(pct),
         "Criterio": df.criterio,
@@ -212,7 +212,8 @@ def main() -> int:
             code = futures[fut]
             try:
                 r = fut.result()
-                print(f"{code}: Δ modelo test {r.get('d_model_test')}, Δ ensamble test {r.get('d_blend_test')}", flush=True)
+                print(f"{code}: Δ modelo test {r.get('d_model_test')}, Δ ensamble test {r.get('d_blend_test')}",
+                      flush=True)
             except Exception as e:  # una liga con datos raros no detiene el resto
                 print(f"{code}: ERROR {e!r}", flush=True)
     rows = [json.loads((CACHE / f"{c}.json").read_text(encoding="utf-8"))

@@ -11,17 +11,33 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.5882,
-      0.4775
+      0.8075,
+      0.2037
     ],
     "w_blend": [
-      0.1552,
-      -0.3343,
-      1.2139
+      0.0,
+      0.0,
+      1.0088
     ],
-    "min_ev": 0.04,
+    "min_ev": 0.15,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 03"
+    "source": "análisis 03",
+    "trained_on": "2016-2025",
+    "rho": -0.0948,
+    "ou": {
+      "dc": [
+        0.7059,
+        0.0058
+      ],
+      "blend": [
+        0.0,
+        1.0686,
+        0.0087
+      ],
+      "n": 49381,
+      "shared": true
+    }
   },
   "BRA": {
     "dixon_coles": {
@@ -35,17 +51,33 @@
       "season_regress": 0.3
     },
     "w_models": [
-      0.6266,
-      0.3588
+      0.5859,
+      0.4425
     ],
     "w_blend": [
-      0.1805,
-      -0.1963,
-      1.0521
+      0.0,
+      0.0,
+      1.0709
     ],
     "min_ev": 0.0,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 03"
+    "source": "análisis 03",
+    "trained_on": "2016-2025",
+    "rho": -0.0364,
+    "ou": {
+      "dc": [
+        0.7059,
+        0.0058
+      ],
+      "blend": [
+        0.0,
+        1.0686,
+        0.0087
+      ],
+      "n": 49381,
+      "shared": true
+    }
   },
   "AUT": {
     "dixon_coles": {
@@ -59,17 +91,33 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.4753,
-      0.5215
+      0.5562,
+      0.4568
     ],
     "w_blend": [
-      -0.0549,
-      -0.1378,
-      1.0774
+      0.0883,
+      0.0,
+      0.875
     ],
-    "min_ev": 0.04,
+    "min_ev": 0.0,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada (candidata en validación, falló en test)",
-    "source": "análisis 03"
+    "source": "análisis 03",
+    "trained_on": "2016-2025",
+    "rho": -0.0956,
+    "ou": {
+      "dc": [
+        0.7059,
+        0.0058
+      ],
+      "blend": [
+        0.0,
+        1.0686,
+        0.0087
+      ],
+      "n": 49381,
+      "shared": true
+    }
   },
   "CHN": {
     "dixon_coles": {
@@ -83,17 +131,33 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.2533,
-      0.8233
+      0.3491,
+      0.7402
     ],
     "w_blend": [
-      -0.0612,
-      0.1389,
-      1.0373
+      0.0,
+      0.0,
+      1.1556
     ],
     "min_ev": 0.02,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada (candidata en validación, falló en test)",
-    "source": "análisis 03"
+    "source": "análisis 03",
+    "trained_on": "2016-2025",
+    "rho": -0.0678,
+    "ou": {
+      "dc": [
+        0.7059,
+        0.0058
+      ],
+      "blend": [
+        0.0,
+        1.0686,
+        0.0087
+      ],
+      "n": 49381,
+      "shared": true
+    }
   },
   "DNK": {
     "dixon_coles": {
@@ -107,17 +171,33 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.6814,
-      0.3221
+      0.6396,
+      0.3709
     ],
     "w_blend": [
-      0.2376,
-      -0.3478,
-      1.1939
+      0.0,
+      0.0,
+      1.0979
     ],
     "min_ev": 0.0,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada (candidata en validación, falló en test)",
-    "source": "análisis 03"
+    "source": "análisis 03",
+    "trained_on": "2016-2025",
+    "rho": -0.0793,
+    "ou": {
+      "dc": [
+        0.7059,
+        0.0058
+      ],
+      "blend": [
+        0.0,
+        1.0686,
+        0.0087
+      ],
+      "n": 49381,
+      "shared": true
+    }
   },
   "FIN": {
     "dixon_coles": {
@@ -131,17 +211,33 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.737,
-      0.309
+      0.8848,
+      0.1391
     ],
     "w_blend": [
-      0.224,
-      -0.2501,
-      1.0674
+      0.1591,
+      0.0,
+      0.9469
     ],
     "min_ev": 0.02,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 03"
+    "source": "análisis 03",
+    "trained_on": "2016-2025",
+    "rho": -0.0443,
+    "ou": {
+      "dc": [
+        0.7059,
+        0.0058
+      ],
+      "blend": [
+        0.0,
+        1.0686,
+        0.0087
+      ],
+      "n": 49381,
+      "shared": true
+    }
   },
   "IRL": {
     "dixon_coles": {
@@ -155,17 +251,33 @@
       "season_regress": 0.3
     },
     "w_models": [
-      0.592,
-      0.4852
+      0.5458,
+      0.5248
     ],
     "w_blend": [
-      0.0238,
-      -0.0747,
-      1.1063
+      0.0,
+      0.0,
+      1.0329
     ],
-    "min_ev": 0.0,
+    "min_ev": 0.15,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 03"
+    "source": "análisis 03",
+    "trained_on": "2016-2025",
+    "rho": -0.1675,
+    "ou": {
+      "dc": [
+        0.7059,
+        0.0058
+      ],
+      "blend": [
+        0.0,
+        1.0686,
+        0.0087
+      ],
+      "n": 49381,
+      "shared": true
+    }
   },
   "JPN": {
     "dixon_coles": {
@@ -179,17 +291,33 @@
       "season_regress": 0.3
     },
     "w_models": [
-      0.2282,
-      0.8001
+      0.2238,
+      0.7557
     ],
     "w_blend": [
-      -0.0568,
-      0.3107,
-      0.8357
+      0.0,
+      0.1518,
+      0.9123
     ],
     "min_ev": 0.02,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada (candidata en validación, falló en test)",
-    "source": "análisis 03"
+    "source": "análisis 03",
+    "trained_on": "2016-2025",
+    "rho": 0.0405,
+    "ou": {
+      "dc": [
+        0.7059,
+        0.0058
+      ],
+      "blend": [
+        0.0,
+        1.0686,
+        0.0087
+      ],
+      "n": 49381,
+      "shared": true
+    }
   },
   "MEX": {
     "dixon_coles": {
@@ -203,17 +331,33 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.0494,
-      0.9577
+      0.2411,
+      0.8425
     ],
     "w_blend": [
-      -0.2904,
-      0.3201,
-      1.0127
+      0.0,
+      0.0711,
+      1.0364
     ],
-    "min_ev": 0.02,
+    "min_ev": 0.0,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 03"
+    "source": "análisis 03",
+    "trained_on": "2016-2025",
+    "rho": -0.0561,
+    "ou": {
+      "dc": [
+        0.7059,
+        0.0058
+      ],
+      "blend": [
+        0.0,
+        1.0686,
+        0.0087
+      ],
+      "n": 49381,
+      "shared": true
+    }
   },
   "NOR": {
     "dixon_coles": {
@@ -227,17 +371,33 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.2067,
-      0.8266
+      0.3673,
+      0.6888
     ],
     "w_blend": [
-      -0.4034,
-      0.4844,
-      0.9919
+      0.0,
+      0.0399,
+      1.0043
     ],
-    "min_ev": 0.06,
+    "min_ev": 0.15,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada (candidata en validación, falló en test)",
-    "source": "análisis 03"
+    "source": "análisis 03",
+    "trained_on": "2016-2025",
+    "rho": -0.0119,
+    "ou": {
+      "dc": [
+        0.7059,
+        0.0058
+      ],
+      "blend": [
+        0.0,
+        1.0686,
+        0.0087
+      ],
+      "n": 49381,
+      "shared": true
+    }
   },
   "POL": {
     "dixon_coles": {
@@ -251,17 +411,33 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.693,
-      0.392
+      0.6608,
+      0.4048
     ],
     "w_blend": [
-      0.017,
-      0.0588,
-      0.978
+      0.0,
+      0.0,
+      1.0224
     ],
     "min_ev": 0.15,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 03"
+    "source": "análisis 03",
+    "trained_on": "2016-2025",
+    "rho": -0.1045,
+    "ou": {
+      "dc": [
+        0.7059,
+        0.0058
+      ],
+      "blend": [
+        0.0,
+        1.0686,
+        0.0087
+      ],
+      "n": 49381,
+      "shared": true
+    }
   },
   "ROU": {
     "dixon_coles": {
@@ -275,17 +451,33 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.546,
-      0.4964
+      0.611,
+      0.4092
     ],
     "w_blend": [
-      -0.139,
-      0.0844,
-      1.1089
+      0.0,
+      0.0,
+      1.0757
     ],
     "min_ev": 0.0,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 03"
+    "source": "análisis 03",
+    "trained_on": "2016-2025",
+    "rho": -0.0319,
+    "ou": {
+      "dc": [
+        0.7059,
+        0.0058
+      ],
+      "blend": [
+        0.0,
+        1.0686,
+        0.0087
+      ],
+      "n": 49381,
+      "shared": true
+    }
   },
   "RUS": {
     "dixon_coles": {
@@ -299,17 +491,33 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.443,
-      0.5225
+      0.6078,
+      0.4054
     ],
     "w_blend": [
-      -0.2227,
-      0.1964,
-      1.0471
+      0.0744,
+      0.0728,
+      0.9434
     ],
-    "min_ev": 0.02,
+    "min_ev": 0.0,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 03"
+    "source": "análisis 03",
+    "trained_on": "2016-2025",
+    "rho": -0.0927,
+    "ou": {
+      "dc": [
+        0.7059,
+        0.0058
+      ],
+      "blend": [
+        0.0,
+        1.0686,
+        0.0087
+      ],
+      "n": 49381,
+      "shared": true
+    }
   },
   "SWE": {
     "dixon_coles": {
@@ -323,17 +531,33 @@
       "season_regress": 0.3
     },
     "w_models": [
-      0.781,
-      0.1742
+      0.6377,
+      0.3574
     ],
     "w_blend": [
-      0.1783,
-      -0.4414,
-      1.2987
+      0.0,
+      0.0,
+      1.0945
     ],
-    "min_ev": 0.06,
+    "min_ev": 0.0,
+    "max_odds": 4.0,
     "status": "pasó el criterio pre-registrado, pero sin significancia tras corregir por 38 ligas (seguimiento prospectivo)",
-    "source": "análisis 03"
+    "source": "análisis 03",
+    "trained_on": "2016-2025",
+    "rho": -0.0282,
+    "ou": {
+      "dc": [
+        0.7059,
+        0.0058
+      ],
+      "blend": [
+        0.0,
+        1.0686,
+        0.0087
+      ],
+      "n": 49381,
+      "shared": true
+    }
   },
   "SWZ": {
     "dixon_coles": {
@@ -347,17 +571,33 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.8648,
-      0.0442
+      0.7069,
+      0.2479
     ],
     "w_blend": [
-      0.3738,
-      -0.5477,
-      1.133
+      0.0766,
+      0.0,
+      0.9355
     ],
-    "min_ev": 0.04,
+    "min_ev": 0.15,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada (candidata en validación, falló en test)",
-    "source": "análisis 03"
+    "source": "análisis 03",
+    "trained_on": "2016-2025",
+    "rho": -0.025,
+    "ou": {
+      "dc": [
+        0.7059,
+        0.0058
+      ],
+      "blend": [
+        0.0,
+        1.0686,
+        0.0087
+      ],
+      "n": 49381,
+      "shared": true
+    }
   },
   "USA": {
     "dixon_coles": {
@@ -371,17 +611,33 @@
       "season_regress": 0.3
     },
     "w_models": [
-      0.6367,
-      0.3789
+      0.6032,
+      0.3861
     ],
     "w_blend": [
-      0.3924,
-      -0.3374,
-      0.9614
+      0.0,
+      0.0,
+      1.0169
     ],
-    "min_ev": 0.06,
+    "min_ev": 0.15,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada (candidata en validación, falló en test)",
-    "source": "análisis 03"
+    "source": "análisis 03",
+    "trained_on": "2016-2025",
+    "rho": -0.0332,
+    "ou": {
+      "dc": [
+        0.7059,
+        0.0058
+      ],
+      "blend": [
+        0.0,
+        1.0686,
+        0.0087
+      ],
+      "n": 49381,
+      "shared": true
+    }
   },
   "E0": {
     "dixon_coles": {
@@ -396,17 +652,32 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.0044,
-      1.1322
+      0.1526,
+      0.9929
     ],
     "w_blend": [
-      -0.2283,
-      0.2508,
-      0.9818
+      0.0,
+      0.0,
+      1.0541
     ],
-    "min_ev": 0.04,
+    "min_ev": 0.0,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.1003,
+    "ou": {
+      "dc": [
+        0.8014,
+        0.0482
+      ],
+      "blend": [
+        0.1504,
+        0.9175,
+        0.0047
+      ],
+      "n": 2466
+    }
   },
   "E1": {
     "dixon_coles": {
@@ -421,17 +692,32 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.126,
-      0.9312
+      0.078,
+      0.9589
     ],
     "w_blend": [
-      0.0307,
-      -0.2095,
-      1.2212
+      0.0,
+      0.0,
+      1.0381
     ],
-    "min_ev": 0.02,
+    "min_ev": 0.15,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.0781,
+    "ou": {
+      "dc": [
+        0.5357,
+        -0.0599
+      ],
+      "blend": [
+        0.0,
+        0.9924,
+        -0.0208
+      ],
+      "n": 3598
+    }
   },
   "E2": {
     "dixon_coles": {
@@ -446,17 +732,32 @@
       "season_regress": 0.3
     },
     "w_models": [
-      0.1561,
-      0.9614
+      0.3195,
+      0.8522
     ],
     "w_blend": [
-      -0.2229,
-      -0.1427,
-      1.4249
+      0.0,
+      0.0,
+      1.1345
     ],
-    "min_ev": 0.08,
+    "min_ev": 0.0,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada (candidata en validación, falló en test)",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.0305,
+    "ou": {
+      "dc": [
+        0.4238,
+        -0.0285
+      ],
+      "blend": [
+        0.0,
+        1.1274,
+        0.0164
+      ],
+      "n": 3427
+    }
   },
   "E3": {
     "dixon_coles": {
@@ -471,17 +772,32 @@
       "season_regress": 0.3
     },
     "w_models": [
-      0.0998,
-      0.9768
+      0.3166,
+      0.7496
     ],
     "w_blend": [
-      -0.3028,
-      0.0994,
-      1.2326
+      0.0,
+      0.0,
+      1.03
     ],
-    "min_ev": 0.06,
+    "min_ev": 0.15,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.0034,
+    "ou": {
+      "dc": [
+        0.7539,
+        -0.0393
+      ],
+      "blend": [
+        0.0,
+        1.2668,
+        0.0287
+      ],
+      "n": 3476
+    }
   },
   "EC": {
     "dixon_coles": {
@@ -496,17 +812,32 @@
       "season_regress": 0.3
     },
     "w_models": [
-      0.3936,
-      0.6001
+      0.3992,
+      0.6157
     ],
     "w_blend": [
-      -0.0735,
-      0.0425,
-      1.0088
+      0.0,
+      0.0094,
+      0.9837
     ],
     "min_ev": 0.15,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": 0.0438,
+    "ou": {
+      "dc": [
+        0.536,
+        0.0463
+      ],
+      "blend": [
+        0.1448,
+        0.8627,
+        0.0027
+      ],
+      "n": 3384
+    }
   },
   "SC0": {
     "dixon_coles": {
@@ -521,17 +852,32 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.369,
-      0.7251
+      0.3939,
+      0.695
     ],
     "w_blend": [
-      0.0739,
-      -0.2934,
-      1.196
+      0.0,
+      0.0,
+      1.037
     ],
-    "min_ev": 0.0,
+    "min_ev": 0.15,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.0132,
+    "ou": {
+      "dc": [
+        0.8348,
+        0.1052
+      ],
+      "blend": [
+        0.0,
+        0.9462,
+        0.0905
+      ],
+      "n": 1435
+    }
   },
   "SC1": {
     "dixon_coles": {
@@ -546,17 +892,32 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.4555,
-      0.4766
+      0.1426,
+      0.8106
     ],
     "w_blend": [
-      -0.0016,
-      -0.1603,
-      0.9581
+      0.0,
+      0.0,
+      0.8868
     ],
-    "min_ev": 0.08,
+    "min_ev": 0.0,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada (candidata en validación, falló en test)",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.1514,
+    "ou": {
+      "dc": [
+        0.446,
+        -0.065
+      ],
+      "blend": [
+        0.0,
+        1.3083,
+        0.0325
+      ],
+      "n": 1091
+    }
   },
   "SC2": {
     "dixon_coles": {
@@ -571,17 +932,32 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.2063,
-      0.8628
+      0.312,
+      0.8698
     ],
     "w_blend": [
-      -0.1145,
-      0.3628,
-      0.8162
+      0.0,
+      0.1647,
+      0.9396
     ],
     "min_ev": 0.0,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.0954,
+    "ou": {
+      "dc": [
+        0.39,
+        0.1063
+      ],
+      "blend": [
+        0.0,
+        0.8143,
+        0.0327
+      ],
+      "n": 1063
+    }
   },
   "SC3": {
     "dixon_coles": {
@@ -596,17 +972,32 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.4696,
-      0.6802
+      0.2532,
+      0.782
     ],
     "w_blend": [
-      0.1083,
-      -0.0636,
-      1.0883
+      0.0,
+      0.1019,
+      0.9686
     ],
-    "min_ev": 0.0,
+    "min_ev": 0.15,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.0315,
+    "ou": {
+      "dc": [
+        0.5884,
+        -0.0167
+      ],
+      "blend": [
+        0.388,
+        0.4177,
+        -0.0325
+      ],
+      "n": 1057
+    }
   },
   "D1": {
     "dixon_coles": {
@@ -621,17 +1012,32 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.1301,
-      0.9465
+      0.2118,
+      0.843
     ],
     "w_blend": [
-      -0.1016,
-      -0.1244,
-      1.126
+      0.0,
+      0.0,
+      0.9711
     ],
-    "min_ev": 0.08,
+    "min_ev": 0.15,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.0771,
+    "ou": {
+      "dc": [
+        0.9124,
+        -0.001
+      ],
+      "blend": [
+        0.0,
+        1.2627,
+        -0.0176
+      ],
+      "n": 1971
+    }
   },
   "D2": {
     "dixon_coles": {
@@ -646,17 +1052,32 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.4395,
-      0.5392
+      0.4474,
+      0.5818
     ],
     "w_blend": [
-      0.2192,
-      -0.239,
-      0.9085
+      0.0868,
+      0.0,
+      0.9
     ],
-    "min_ev": 0.04,
+    "min_ev": 0.0,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.017,
+    "ou": {
+      "dc": [
+        0.3233,
+        0.2486
+      ],
+      "blend": [
+        0.0,
+        0.9289,
+        0.1004
+      ],
+      "n": 1989
+    }
   },
   "I1": {
     "dixon_coles": {
@@ -671,17 +1092,32 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.2114,
-      0.9741
+      0.3407,
+      0.7988
     ],
     "w_blend": [
-      -0.1085,
-      -0.2425,
-      1.4298
+      0.0,
+      0.0,
+      1.1115
     ],
-    "min_ev": 0.08,
+    "min_ev": 0.0,
+    "max_odds": 4.0,
     "status": "pasó el criterio pre-registrado, pero sin significancia tras corregir por 38 ligas (seguimiento prospectivo)",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.0043,
+    "ou": {
+      "dc": [
+        0.6921,
+        0.044
+      ],
+      "blend": [
+        0.0,
+        1.0331,
+        0.0233
+      ],
+      "n": 2446
+    }
   },
   "I2": {
     "dixon_coles": {
@@ -696,17 +1132,32 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.1623,
-      0.8637
+      0.3661,
+      0.6067
     ],
     "w_blend": [
-      -0.1538,
-      0.0397,
-      1.1605
+      0.0,
+      0.0,
+      1.0467
     ],
-    "min_ev": 0.0,
+    "min_ev": 0.15,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.0865,
+    "ou": {
+      "dc": [
+        0.1242,
+        -0.2047
+      ],
+      "blend": [
+        0.0,
+        0.7917,
+        -0.0637
+      ],
+      "n": 2457
+    }
   },
   "SP1": {
     "dixon_coles": {
@@ -721,17 +1172,32 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.7588,
-      0.282
+      0.6365,
+      0.4555
     ],
     "w_blend": [
-      0.4072,
-      -0.4252,
-      1.0115
+      0.0872,
+      0.0,
+      0.9985
     ],
     "min_ev": 0.02,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada (candidata en validación, falló en test)",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.0084,
+    "ou": {
+      "dc": [
+        0.8098,
+        -0.0303
+      ],
+      "blend": [
+        0.0,
+        1.0287,
+        -0.0221
+      ],
+      "n": 2451
+    }
   },
   "SP2": {
     "dixon_coles": {
@@ -746,17 +1212,32 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.3941,
-      0.6547
+      0.413,
+      0.6609
     ],
     "w_blend": [
-      -0.249,
-      0.1561,
-      1.2239
+      0.0,
+      0.0,
+      1.0936
     ],
     "min_ev": 0.0,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.0203,
+    "ou": {
+      "dc": [
+        0.715,
+        -0.0891
+      ],
+      "blend": [
+        0.0,
+        1.1621,
+        0.0799
+      ],
+      "n": 2981
+    }
   },
   "F1": {
     "dixon_coles": {
@@ -771,17 +1252,32 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.3232,
-      0.7862
+      0.3958,
+      0.7527
     ],
     "w_blend": [
-      -0.0245,
-      -0.1719,
-      1.2042
+      0.0,
+      0.0,
+      1.058
     ],
     "min_ev": 0.0,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.042,
+    "ou": {
+      "dc": [
+        0.667,
+        0.0495
+      ],
+      "blend": [
+        0.0,
+        1.1027,
+        0.0514
+      ],
+      "n": 2175
+    }
   },
   "F2": {
     "dixon_coles": {
@@ -796,17 +1292,32 @@
       "season_regress": 0.3
     },
     "w_models": [
-      0.2861,
-      0.7181
+      0.3663,
+      0.6322
     ],
     "w_blend": [
-      -0.1117,
-      -0.0001,
-      1.1406
+      0.0,
+      0.0,
+      1.0664
     ],
     "min_ev": 0.0,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.0239,
+    "ou": {
+      "dc": [
+        0.3828,
+        -0.1201
+      ],
+      "blend": [
+        0.0,
+        1.0931,
+        0.0431
+      ],
+      "n": 2257
+    }
   },
   "N1": {
     "dixon_coles": {
@@ -821,17 +1332,32 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.1717,
-      0.8981
+      0.4502,
+      0.5804
     ],
     "w_blend": [
-      -0.4075,
-      0.2661,
-      1.2088
+      0.0,
+      0.0,
+      1.0441
     ],
-    "min_ev": 0.08,
+    "min_ev": 0.15,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada (candidata en validación, falló en test)",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.0898,
+    "ou": {
+      "dc": [
+        0.7027,
+        -0.0055
+      ],
+      "blend": [
+        0.0,
+        1.1014,
+        -0.0588
+      ],
+      "n": 1914
+    }
   },
   "B1": {
     "dixon_coles": {
@@ -846,17 +1372,32 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.0677,
-      1.0294
+      0.1896,
+      0.9431
     ],
     "w_blend": [
-      -0.457,
-      0.4398,
-      1.0549
+      0.0,
+      0.0,
+      1.0561
     ],
-    "min_ev": 0.0,
+    "min_ev": 0.15,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada (candidata en validación, falló en test)",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.0567,
+    "ou": {
+      "dc": [
+        0.6707,
+        0.0399
+      ],
+      "blend": [
+        0.0,
+        1.2516,
+        -0.0979
+      ],
+      "n": 1934
+    }
   },
   "P1": {
     "dixon_coles": {
@@ -871,17 +1412,32 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.5233,
-      0.4911
+      0.6911,
+      0.3227
     ],
     "w_blend": [
-      0.0515,
-      0.1039,
-      0.995
+      0.0385,
+      0.0,
+      1.1269
     ],
     "min_ev": 0.04,
+    "max_odds": 4.0,
     "status": "pasó el criterio pre-registrado, pero sin significancia tras corregir por 38 ligas (seguimiento prospectivo)",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": 0.0083,
+    "ou": {
+      "dc": [
+        0.6234,
+        0.0281
+      ],
+      "blend": [
+        0.0,
+        1.1083,
+        0.0027
+      ],
+      "n": 1978
+    }
   },
   "T1": {
     "dixon_coles": {
@@ -896,17 +1452,32 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.5055,
-      0.5455
+      0.6554,
+      0.4121
     ],
     "w_blend": [
-      0.1536,
-      -0.1256,
-      1.0727
+      0.0,
+      0.0,
+      1.1926
     ],
-    "min_ev": 0.0,
+    "min_ev": 0.04,
+    "max_odds": 4.0,
     "status": "pasó el criterio pre-registrado, pero sin significancia tras corregir por 38 ligas (seguimiento prospectivo)",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.0896,
+    "ou": {
+      "dc": [
+        0.738,
+        0.0012
+      ],
+      "blend": [
+        0.0,
+        1.3074,
+        -0.0727
+      ],
+      "n": 2294
+    }
   },
   "G1": {
     "dixon_coles": {
@@ -921,16 +1492,31 @@
       "season_regress": 0.1
     },
     "w_models": [
-      0.4212,
-      0.595
+      0.3596,
+      0.667
     ],
     "w_blend": [
-      0.1694,
-      -0.1868,
-      1.1211
+      0.0499,
+      0.0098,
+      1.0373
     ],
-    "min_ev": 0.04,
+    "min_ev": 0.0,
+    "max_odds": 4.0,
     "status": "sin ventaja demostrada",
-    "source": "análisis 04 (tiros)"
+    "source": "análisis 04 (tiros)",
+    "trained_on": "2016-2025",
+    "rho": -0.1517,
+    "ou": {
+      "dc": [
+        0.5397,
+        -0.012
+      ],
+      "blend": [
+        0.0,
+        1.0632,
+        0.05
+      ],
+      "n": 1537
+    }
   }
 }

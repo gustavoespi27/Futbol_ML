@@ -22,7 +22,8 @@ from footy.evaluation import metrics
 from footy.evaluation.walk_forward import naive_frequencies, probs, walk_forward_dc, walk_forward_elo
 from footy.models.ensemble import fit_weights, pool
 
-PERIODS = {"val": ("2016-01-01", "2022-01-01"), "test": ("2022-01-01", "2026-01-01"), "live": ("2026-01-01", "2100-01-01")}
+PERIODS = {"val": ("2016-01-01", "2022-01-01"), "test": ("2022-01-01", "2026-01-01"),
+           "live": ("2026-01-01", "2100-01-01")}
 
 # Si un valor elegido cae en el borde de la grilla, hay que ampliarla (el óptimo podría estar fuera).
 DC_GRID = {"xi": [0.0005, 0.001, 0.002, 0.003, 0.005], "alpha": [1e-3, 3e-3, 1e-2, 3e-2, 0.1]}

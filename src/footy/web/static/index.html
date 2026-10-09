@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Futbol ML</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%232a78d6'/%3E%3Cpath d='M16 9l6 4.4-2.3 7.1h-7.4L10 13.4z' fill='white'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="var(--accent)"/><path d="M16 9l6 4.4-2.3 7.1h-7.4L10 13.4z" fill="#fff"/></svg>
+      Futbol ML
+    </div>
+    <nav id="nav">
+      <a href="#inicio">Inicio</a>
+      <a href="#partidos">Próximos partidos</a>
+      <a href="#combinadas">Combinadas<span data-ticket-count></span></a>
+      <a href="#resultados">Resultados</a>
+      <a href="#rendimiento">¿Qué tan fiable es?</a>
+      <a href="#simulador">Simulador</a>
+      <a href="#como-funciona">Cómo funciona</a>
+    </nav>
+    <button class="icon-btn" id="theme" title="Cambiar tema claro/oscuro" aria-label="Cambiar tema">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+  <!-- INICIO -->
+  <section class="view" id="v-inicio">
+    <div class="view-head">
+      <h1>Probabilidades de fútbol, medidas con honestidad</h1>
+      <p>Este sistema estima la probabilidad de que gane el local, empaten o gane la visita en 38 ligas,
+        y verifica cada semana si esas probabilidades se cumplen. No promete ganar apuestas: si no hay ventaja, lo dice.</p>
+    </div>
+    <div class="hero">
+      <div class="card">
+        <h3>Acierto del resultado más probable</h3>
+        <div class="hero-num num" id="hero-acc">–</div>
+        <p class="sub" id="hero-sub">Partidos de 2026 que el sistema no había visto al ajustarse.</p>
+        <div class="grid g3" id="hero-stats"></div>
+        <div class="callout" id="hero-note" style="margin-top:18px"></div>
+      </div>
+      <div class="card">
+        <h3>Cuando el sistema está más seguro, acierta más</h3>
+        <p class="sub">Probabilidad que dio el sistema vs. porcentaje de veces que realmente ocurrió.</p>
+        <div class="chart"><canvas id="ch-confidence"></canvas></div>
+      </div>
+    </div>
+    <div class="grid g4" style="margin-top:16px" id="home-tiles"></div>
+    <div class="callout warn" style="margin-top:16px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <div><b>Lo más importante:</b> las casas de apuestas ya predicen muy bien. El modelo por sí solo es un poco peor que el
+        mercado, y combinado con él queda prácticamente igual. Por eso la recomendación por defecto es <b>no apostar</b>.
+        El valor del sistema está en entender los partidos con probabilidades bien calibradas, no en "ganarle" a la casa.</div>
+    </div>
+  </section>
+
+  <!-- PRÓXIMOS PARTIDOS -->
+  <section class="view" id="v-partidos">
+    <div class="view-head">
+      <h1>Próximos partidos</h1>
+      <p>Probabilidad de cada resultado para los partidos de los próximos 7 días. La barra suma 100%:
+        <b style="color:var(--home)">■</b> local, <b style="color:var(--draw)">■</b> empate, <b style="color:var(--away)">■</b> visita.
+        Horarios en tu zona horaria.</p>
+    </div>
+    <div class="filters" id="league-filter"></div>
+    <div class="matches" id="matches"><div class="loading">Cargando partidos…</div></div>
+  </section>
+
+  <!-- COMBINADAS -->
+  <section class="view" id="v-combinadas">
+    <div class="view-head">
+      <h1>Combinadas</h1>
+      <p>Arma una combinada con selecciones de uno o varios partidos y mira la probabilidad real de acertarla.
+        Dentro de un mismo partido la probabilidad se calcula en conjunto (por ejemplo, "gana el local" y "más de 2,5 goles"
+        suelen ir juntos); entre partidos distintos se multiplica.</p>
+    </div>
+    <div class="grid g4" id="cb-tiles"></div>
+    <div class="combo-layout" style="margin-top:16px">
+      <div>
+        <div class="filters" id="cb-filter"></div>
+        <div class="stack" id="cb-matches"><div class="loading">Cargando partidos…</div></div>
+      </div>
+      <aside class="card ticket" id="ticket"></aside>
+    </div>
+    <div class="view-head" style="margin:36px 0 16px">
+      <h2 style="font-size:22px">Lo que dice la historia</h2>
+      <p id="cb-hist-intro">Combinadas simuladas con todos los partidos de 2026 que el modelo no vio al entrenar.</p>
+    </div>
+    <div class="grid g2">
+      <div class="card">
+        <h2>¿El porcentaje que muestra se cumple?</h2>
+        <p class="sub">Probabilidad que dio el sistema a cada combinada vs. cuántas se acertaron de verdad.</p>
+        <div class="chart tall"><canvas id="ch-combo-calib"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>¿Combinar paga?</h2>
+        <p class="sub">Rendimiento por unidad apostada según el número de partidos (cuotas de cierre Bet365).</p>
+        <div class="chart tall"><canvas id="ch-combo-yield"></canvas></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Estrategias simuladas</h2>
+      <div class="table-wrap" id="cb-strategies"></div>
+      <div id="cb-reading" class="stack" style="font-size:14px;color:var(--text-2);margin-top:14px"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:end">
+        <div><h2>Combinaciones de un mismo partido que más se cumplen</h2>
+          <p class="sub" style="margin-bottom:0">Frecuencia real en 2026 y probabilidad media que les dio el sistema.</p></div>
+        <label style="min-width:220px">Liga<select id="cb-pattern-league"></select></label>
+      </div>
+      <div class="table-wrap" id="cb-patterns" style="margin-top:12px"></div>
+    </div>
+  </section>
+
+  <!-- RESULTADOS -->
+  <section class="view" id="v-resultados">
+    <div class="view-head">
+      <h1>Resultados: ¿acertó el sistema?</h1>
+      <p>Cada predicción se guarda <b>antes</b> de que empiece el partido y no se puede modificar. Cuando llega el resultado
+        se compara con lo que pasó. Es la prueba más limpia, pero necesita cientos de partidos para ser concluyente.</p>
+    </div>
+    <div class="grid g4" id="trk-tiles"></div>
+    <div class="card" style="margin-top:16px">
+      <h2>Predicciones evaluadas</h2>
+      <p class="sub">"Pronóstico" es el resultado al que el sistema le dio más probabilidad.</p>
+      <div class="table-wrap" id="trk-table"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Apuestas en papel (experimento, sin dinero)</h2>
+      <p class="sub">Se registran solo para medir si el modelo encuentra valor. CLV positivo = conseguimos mejor cuota que la de cierre,
+        la señal más rápida de una ventaja real.</p>
+      <div class="table-wrap" id="trk-bets"></div>
+    </div>
+  </section>
+
+  <!-- RENDIMIENTO -->
+  <section class="view" id="v-rendimiento">
+    <div class="view-head">
+      <h1>¿Qué tan fiable es?</h1>
+      <p id="bt-intro">Evaluación sobre todos los partidos de 2026 de 38 ligas. Los pesos se ajustaron con datos de 2016-2025,
+        así que estos partidos son "examen" para el modelo.</p>
+    </div>
+    <div class="grid g3" id="bt-tiles"></div>
+    <div class="grid g2" style="margin-top:16px">
+      <div class="card">
+        <h2>Calibración</h2>
+        <p class="sub">Si el sistema dice 30%, ¿pasa 30% de las veces? Cuanto más cerca de la diagonal, mejor.</p>
+        <div class="chart tall"><canvas id="ch-calib"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>¿Se puede ganar apostando?</h2>
+        <p class="sub">Ganancia acumulada apostando 1 unidad cada vez que el sistema "ve valor" (cuotas de cierre Bet365).</p>
+        <div class="chart tall"><canvas id="ch-betting"></canvas></div>
+      </div>
+    </div>
+    <div class="grid g2" style="margin-top:16px">
+      <div class="card">
+        <h2>Pérdida por tramo de cuota (modelo solo)</h2>
+        <p class="sub">Rendimiento por unidad apostada. Las cuotas altas (sorpresas) son las que más pierden: por eso v2 no apuesta sobre 4,0.</p>
+        <div class="chart"><canvas id="ch-buckets"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Lectura</h2>
+        <div id="bt-reading" class="stack" style="font-size:14px;color:var(--text-2)"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Por liga</h2>
+      <p class="sub">Acierto y log loss (error probabilístico: menor es mejor) del modelo solo, del mercado y de la probabilidad oficial.</p>
+      <div class="table-wrap" id="bt-leagues"></div>
+    </div>
+  </section>
+
+  <!-- SIMULADOR -->
+  <section class="view" id="v-simulador">
+    <div class="view-head">
+      <h1>Simulador de partido</h1>
+      <p>Elige liga y equipos para ver qué espera el modelo. Si ingresas las cuotas de una casa, el sistema las combina con el
+        modelo y te dice si ve valor (casi siempre dirá que no).</p>
+    </div>
+    <div class="card">
+      <form class="sim" id="sim-form">
+        <div class="fields">
+          <label>Liga<select id="sim-league" required></select></label>
+          <label>Local<select id="sim-home" required></select></label>
+          <label>Visita<select id="sim-away" required></select></label>
+        </div>
+        <div class="fields">
+          <label>Cuota local (opcional)<input id="sim-o1" type="number" step="0.01" min="1.01" placeholder="ej. 2.10"></label>
+          <label>Cuota empate<input id="sim-o2" type="number" step="0.01" min="1.01" placeholder="ej. 3.40"></label>
+          <label>Cuota visita<input id="sim-o3" type="number" step="0.01" min="1.01" placeholder="ej. 3.60"></label>
+        </div>
+        <button class="primary" type="submit">Calcular probabilidades</button>
+      </form>
+    </div>
+    <div id="sim-out" style="margin-top:16px"></div>
+  </section>
+
+  <!-- CÓMO FUNCIONA -->
+  <section class="view" id="v-como-funciona">
+    <div class="view-head">
+      <h1>Cómo funciona</h1>
+      <p>Explicado sin tecnicismos. Los detalles y todas las decisiones están en <code>docs/</code> del repositorio.</p>
+    </div>
+    <div class="card">
+      <h2 style="margin-bottom:14px">De los datos a una probabilidad</h2>
+      <div class="steps">
+        <div class="step"><h3>Datos</h3><p>Más de 170.000 partidos desde 2012: resultados, tiros y cuotas de 38 ligas
+          (football-data.co.uk) y datos diarios de Chile, Argentina y Brasil (API-Football).</p></div>
+        <div class="step"><h3>Fuerza de cada equipo</h3><p><b>Elo</b> sube o baja un puntaje según cada resultado.
+          <b>Dixon-Coles</b> estima cuántos goles marca y recibe cada equipo, dando más peso a lo reciente.</p></div>
+        <div class="step"><h3>Combinar con el mercado</h3><p>Las cuotas contienen información que el modelo no ve (lesiones,
+          alineaciones). Se les quita el margen de la casa y se combinan con el modelo con pesos aprendidos de datos pasados.</p></div>
+        <div class="step"><h3>Verificar</h3><p>Cada predicción se guarda antes del partido y se compara después.
+          Nada se ajusta mirando los partidos con que se evalúa.</p></div>
+      </div>
+    </div>
+    <div class="grid g2" style="margin-top:16px">
+      <div class="card">
+        <h2 style="margin-bottom:12px">Glosario</h2>
+        <dl class="gloss">
+          <dt>Probabilidad</dt><dd>Qué tan seguido esperamos que ocurra algo. 60% = de 10 partidos así, el local gana unos 6.</dd>
+          <dt>Cuota</dt><dd>Lo que paga la casa por unidad apostada. Cuota 2,50 ≈ 40% de probabilidad (1 / 2,50), antes de quitar el margen.</dd>
+          <dt>Margen</dt><dd>La comisión escondida de la casa: las probabilidades de sus cuotas suman más de 100% (normalmente 103-108%).</dd>
+          <dt>Valor (EV)</dt><dd>Probabilidad × cuota − 1. Positivo significa que, a la larga, la apuesta debería ganar. Solo si nuestra probabilidad es mejor que la de la casa.</dd>
+          <dt>Calibración</dt><dd>Que las probabilidades signifiquen lo que dicen: de todos los "70%", deberían cumplirse cerca de 7 de cada 10.</dd>
+          <dt>Log loss</dt><dd>Nota de error de las probabilidades (menor es mejor). Castiga mucho estar muy seguro y equivocarse. Es la métrica principal, más justa que el % de acierto.</dd>
+          <dt>CLV</dt><dd>Si la cuota que tomamos es mejor que la del cierre (justo antes del partido). Es la señal más rápida de una ventaja real.</dd>
+          <dt>Combinada</dt><dd>Varias selecciones en un solo boleto: se gana solo si TODAS se cumplen. La cuota se multiplica, pero también el margen de la casa.</dd>
+          <dt>Cuota justa</dt><dd>1 / probabilidad del sistema. Si la casa paga más que la cuota justa, hay valor; si paga menos, la apuesta pierde a la larga.</dd>
+          <dt>Walk-forward</dt><dd>Probar el modelo como si viviéramos en el pasado: para predecir cada semana solo usa partidos anteriores.</dd>
+        </dl>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <h2 style="margin-bottom:12px">Qué significa la "probabilidad oficial"</h2>
+          <ul class="clean">
+            <li><b>Modelo + mercado</b>: liga con modelo validado y cuotas disponibles. Es la más fiable.</li>
+            <li><b>Modelo</b>: no hay cuotas todavía; solo Elo + Dixon-Coles (un poco menos precisa).</li>
+            <li><b>Mercado</b>: liga sin modelo validado (ej. Chile); se muestran las cuotas sin margen.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h2 style="margin-bottom:12px">Límites que conviene conocer</h2>
+          <ul class="clean">
+            <li>No sabe de lesiones, alineaciones, rotaciones ni motivación. El mercado sí.</li>
+            <li>El empate casi nunca es el resultado más probable, así que el "pronóstico" rara vez es empate.</li>
+            <li>Acertar ~50% es lo normal en fútbol con tres resultados posibles; incluso las casas rondan esa cifra.</li>
+            <li>En 38 ligas evaluadas, ninguna mostró una ventaja estadísticamente sólida para apostar.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer id="footer">Futbol ML · uso educativo · no es consejo de apuestas</footer>
+<script src="/static/app.js"></script>
+<script src="/static/combos.js"></script>
+</body>
+</html>
