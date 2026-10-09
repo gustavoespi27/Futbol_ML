@@ -170,11 +170,12 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
     ref_book = next((b for b in REFERENCE_BOOKS if b in books), None) or next(iter(books), None)
     p_mkt_over = _market_over(odds)
     ctx = {"ref": ref, "league": code, "league_name": names.get(code, code), "home": home, "away": away,
-           "kickoff": kickoff, "market_book": ref_book}
+           "kickoff": kickoff, "market_book": ref_book, "home_id": home_id, "away_id": away_id}
     if code in params:
         pred = predictor(code)
         if home_id is None:
             home_id, away_id = pred.find_team(home).id, pred.find_team(away).id
+            ctx["home_id"], ctx["away_id"] = home_id, away_id
         pr = pred.probabilities(home_id, away_id, books[ref_book] if ref_book else None)
         # Modelo propio: ML (historial de equipos) si hay predicción; si no, Elo + Dixon-Coles.
         # Con cuotas manda la combinación validada con el mercado (el ML recibe peso ~0 frente al mercado).
@@ -381,6 +382,7 @@ def combo(legs: list[dict], group_odds: dict | None = None) -> dict:
             book = group_odds.get(ref)
             book_src = "tuya" if book else None
         groups.append({"ref": ref, "match": f"{ctx['home']} vs {ctx['away']}", "league_name": ctx["league_name"],
+                       "league": ctx["league"], "home_id": ctx.get("home_id"), "away_id": ctx.get("away_id"),
                        "kickoff": ctx.get("kickoff"), "keys": keys, "label": combos.label(keys), "p": _f(p),
                        "fair": _f(1 / p, 2) if p > 0 else None, "odds": _f(book, 2), "odds_source": book_src,
                        "impossible": p == 0, "same_match": len(keys) > 1})
@@ -416,6 +418,7 @@ def _candidates(matches: list[dict]) -> list[dict]:
                 out.append({"match": int(m["ref"][2:]), "ref": m["ref"], "key": o["key"], "label": o["label"],
                             "p": o["p"], "odds": float(o["odds"]), "book": o["book"], "estimated": o["estimated"],
                             "fair": o["fair"], "verdict": o.get("verdict"), "home": m["home"], "away": m["away"],
+                            "home_id": m.get("home_id"), "away_id": m.get("away_id"), "league": m["league"],
                             "league_name": m["league_name"],
                             "kickoff": m["kickoff"], "source": m["source"]})
     return out
@@ -432,7 +435,8 @@ def current_suggestions(matches: list[dict] | None = None) -> dict:
     labels = {"1": "Gana local", "X": "Empate", "2": "Gana visita"}
     enrich = lambda o: {**o, "p": o["p_fair"], "ev": o["edge"], "label": labels[o["key"]],  # noqa: E731
                         "ref": f"m:{o['match']}", **{k: info[f"m:{o['match']}"][k]
-                                                     for k in ("home", "away", "league_name", "kickoff")}}
+                                                     for k in ("home", "away", "league_name", "kickoff",
+                                                               "home_id", "away_id", "league")}}
     singles = [enrich(o) for o in pro.pick(opps)]
     near = [enrich({**o, "match": mid}) for mid, os_ in opps.items() for o in os_ if not o["bet"]
             and o["odds"] <= pro.MAX_ODDS and o["p_fair"] >= 0.25]
@@ -493,7 +497,8 @@ def tracking_data() -> dict:
                         "ll_official_same": _f(matches.loc[mk.index, "ll_final"].mean()) if len(mk) else None})
         for r in matches.to_dict("records"):
             rows.append({"kickoff": r["kickoff"], "league": r["league"], "league_name": names.get(r["league"]),
-                         "home": r["home"], "away": r["away"], "score": r["score"], "y": int(r["y"]),
+                         "home": r["home"], "away": r["away"], "home_id": r["home_id"], "away_id": r["away_id"],
+                         "score": r["score"], "y": int(r["y"]),
                          "pick": r["pick"], "hit": bool(r["hit"]), "p_official": _probs(r["p_official"]),
                          "p_market": _probs(r["p_market"]), "version": r["model_version"],
                          "close_kind": r["close_kind"]})
@@ -630,6 +635,7 @@ def predict(code: str, home: str, away: str, odds: list[float] | None) -> dict:
     full = sim_context(code, h.name, a.name, odds)
     ctx = public(full)
     out = {"league": code, "league_name": r["league_name"], "home": h.name, "away": a.name,
+           "home_id": h.id, "away_id": a.id,
            "p_model": _probs(r["p_model"]), "p_elo": _probs(r["p_elo"]), "p_dc": _probs(r["p_dc"]),
            "xg": [_f(m["xg_home"], 2), _f(m["xg_away"], 2)], "confidence": r["confidence"], "status": r["status"],
            "source": ctx["source"], "p_official": ctx["p_official"], "btts": ctx["btts"],

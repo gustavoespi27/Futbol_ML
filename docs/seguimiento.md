@@ -1,6 +1,6 @@
 # Seguimiento prospectivo (elo_dc_v3)
 
-*Actualizado 2026-10-09 05:55 UTC por `scripts/daily.py`. Predicciones registradas antes de cada partido; sin dinero real.*
+*Actualizado 2026-10-09 06:14 UTC por `scripts/daily.py`. Predicciones registradas antes de cada partido; sin dinero real.*
 
 Partidos evaluados: **3** · pendientes de resultado: **50** · apuestas en papel: **2**
 

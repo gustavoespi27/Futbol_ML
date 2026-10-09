@@ -1,0 +1,32 @@
+# Id de API-Football de las ligas que solo vienen de football-data.co.uk (para su logo:
+# https://media.api-sports.io/football/leagues/<id>.png). Las de config/settings.yaml usan su api_football_id.
+leagues:
+  E1: 40      # Championship
+  E2: 41      # League One
+  E3: 42      # League Two
+  EC: 43      # National League
+  SC0: 179    # Scottish Premiership
+  SC1: 180    # Scottish Championship
+  SC2: 183    # Scottish League One
+  SC3: 184    # Scottish League Two
+  D2: 79      # 2. Bundesliga
+  I2: 136     # Serie B
+  SP2: 141    # Segunda División
+  F2: 62      # Ligue 2
+  N1: 88      # Eredivisie
+  B1: 144     # Jupiler Pro League
+  G1: 197     # Super League Grecia
+  AUT: 218    # Bundesliga Austria
+  CHN: 169    # Super League China
+  DNK: 119    # Superliga Dinamarca
+  FIN: 244    # Veikkausliiga
+  IRL: 357    # Premier Division Irlanda
+  JPN: 98     # J1 League
+  MEX: 262    # Liga MX
+  NOR: 103    # Eliteserien
+  POL: 106    # Ekstraklasa
+  ROU: 283    # Superliga Rumania
+  RUS: 235    # Premier League Rusia
+  SWE: 113    # Allsvenskan
+  SWZ: 207    # Super League Suiza
+  USA: 253    # MLS

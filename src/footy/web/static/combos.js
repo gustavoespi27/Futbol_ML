@@ -75,13 +75,14 @@ async function renderCombos() {
   const list = await api("/api/upcoming");
   const leagues = ["Todas", ...new Set(list.map((m) => m.league_name))];
   const draw = () => {
-    $("#cb-filter").innerHTML = leagues.map((l) => `<button class="chip ${l === cbLeague ? "on" : ""}" data-l="${esc(l)}">${esc(l)}</button>`).join("");
+    const code = Object.fromEntries(list.map((m) => [m.league_name, m.league]));
+    $("#cb-filter").innerHTML = leagues.map((l) => leagueChip(code[l], l, l === cbLeague)).join("");
     const shown = list.filter((m) => cbLeague === "Todas" || m.league_name === cbLeague);
     $("#cb-matches").innerHTML = shown.length ? shown.map((m) => `
       <details class="mx" data-ref="${esc(m.ref)}" ${m.ref === openRef ? "open" : ""}>
         <summary>
-          <div style="display:flex;justify-content:space-between;color:var(--text-2);font-size:12.5px"><span>${esc(m.league_name)}</span><span>${fmtDate(m.kickoff)}</span></div>
-          <div class="teams"><div class="t">${esc(m.home)}</div><div class="vs">vs</div><div class="t r">${esc(m.away)}</div></div>
+          <div style="display:flex;justify-content:space-between;color:var(--text-2);font-size:12.5px"><span class="lg">${leagueLogo(m.league, 16)}${esc(m.league_name)}</span><span>${fmtDate(m.kickoff)}</span></div>
+          ${teamsRow(m)}
           ${probBar(m.p_official)}
           <div style="color:var(--muted);font-size:12px">Toca para ver todas las opciones · ${esc(m.source)}</div>
         </summary>
@@ -123,8 +124,7 @@ async function refreshTicket() {
     return;
   }
   if (seq !== ticketSeq) return;
-  let stake = 1000;
-  try { stake = Number(localStorage.getItem("stake")) || 1000; } catch (e) { /* */ }
+  const stake = getStake();
 
   const legsHtml = r.groups.map((g) => {
     const single = !g.same_match;
@@ -132,7 +132,8 @@ async function refreshTicket() {
     const value = own ?? (single ? g.odds : "");
     const removes = g.keys.map((k) => `<button class="x" title="Quitar ${esc(k)}" data-ref="${esc(g.ref)}" data-key="${k}">×</button>`).join("");
     return `<div class="leg">
-      <div><b>${esc(g.label)}</b><div class="m">${esc(g.match)} · ${esc(g.league_name)}</div></div>
+      <div><b>${esc(g.label)}</b><div class="m">${(() => { const [h, a] = g.match.split(" vs "); return matchTag({ home: h, away: a, home_id: g.home_id, away_id: g.away_id }, 16); })()}
+        <div>${leagueLogo(g.league, 12)} ${esc(g.league_name)}</div></div></div>
       <div style="text-align:right"><b class="num">${pct(g.p, 1)}</b></div>
       <div class="tags">
         ${g.impossible ? '<span class="pill bad">imposible</span>' : ""}
@@ -163,11 +164,10 @@ async function refreshTicket() {
       <div class="big-p num">${pct(r.p, 1)}</div>
       <div style="color:var(--muted);font-size:12.5px;margin-top:4px">${r.p > 0 ? `≈ 1 de cada ${Math.max(1, Math.round(1 / r.p))} veces` : "imposible: hay selecciones contradictorias"}</div></div>
     <div class="kv">
-      <div><span>Cuota de la casa</span><b class="num">${odds ? num(odds) : "–"}</b></div>
-      <div><span>Cuota justa (sistema)</span><b class="num">${num(r.fair_odds)}</b></div>
-      <div><span>Monto</span><input id="t-stake" type="number" min="1" step="100" value="${stake}" style="padding:4px 8px"></div>
-      <div><span>Ganancia si aciertas</span><b class="num">${odds ? Math.round(stake * odds - stake).toLocaleString("es-CL") : "–"}</b></div>
+      <div><span>Cuota combinada${odds ? "" : " (justa)"}</span><b class="num">${num(odds || r.fair_odds)}</b></div>
+      <div><span>Monto a apostar ($)</span><input id="t-stake" type="number" min="1" step="any" value="${stake}" style="padding:4px 8px"></div>
     </div>
+    <div id="t-payout"></div>
     ${verdict}
     ${hist ? `<p class="sub" style="margin:0">En 2026, las combinadas de ${hist.legs} ${hist.legs === 1 ? "selección" : "partidos"} con las opciones más probables
       se acertaron el ${pct(hist.hit)} de las veces (el sistema esperaba ${pct(hist.p_mean)}) y rindieron ${signed(hist.yield)} por unidad.</p>` : ""}`;
@@ -185,7 +185,13 @@ async function refreshTicket() {
       saveTicket(); refreshTicket();
     };
   });
-  $("#t-stake").onchange = (e) => { try { localStorage.setItem("stake", e.target.value); } catch (er) { /* */ } refreshTicket(); };
+  const drawPay = () => {
+    const st = parseFloat($("#t-stake").value) || 0;
+    $("#t-payout").innerHTML = payoutBox(st, odds || r.fair_odds, r.p,
+      odds ? "" : "Calculado con la cuota justa del sistema: ingresa la cuota de tu casa en cada selección para el retorno real.");
+  };
+  $("#t-stake").oninput = (e) => { setStake(e.target.value); drawPay(); };
+  drawPay();
 }
 
 /* ---------- histórico ---------- */

@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from footy.web import service
+from footy.web import logos, service
 
 STATIC = Path(__file__).with_name("static")
 _cache: dict[str, tuple[float, object]] = {}
@@ -139,6 +139,21 @@ def refresh():
     service.clear_caches()
     threading.Thread(target=_prewarm, daemon=True).start()
     return {"ok": True}
+
+
+@app.get("/logo/{kind}/{key}")
+def logo(kind: str, key: str):
+    """Logo de un equipo (/logo/team/<team_id>) o liga (/logo/league/<código>), con caché local."""
+    if kind == "team" and key.isdigit():
+        api_id = logos.team_api_id(int(key))
+    elif kind == "league":
+        api_id = logos.league_api_id(key)
+    else:
+        raise HTTPException(404)
+    path = logos.get(kind, api_id) if api_id else None
+    if path is None:
+        raise HTTPException(404)
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=604800"})
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")

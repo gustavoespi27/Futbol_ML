@@ -34,8 +34,8 @@ function drawCurrent(d) {
   $("#sg-singles").innerHTML = d.singles.length ? d.singles.map((s) => `
     <article class="card sg-card green">
       <div class="meta" style="display:flex;justify-content:space-between;color:var(--text-2);font-size:12.5px">
-        <span>${esc(s.league_name)}</span><span>${fmtDate(s.kickoff)}</span></div>
-      <div><div style="color:var(--text-2);font-size:13.5px">${esc(s.home)} vs ${esc(s.away)}</div>
+        <span class="lg">${leagueLogo(s.league, 16)}${esc(s.league_name)}</span><span>${fmtDate(s.kickoff)}</span></div>
+      <div><div style="color:var(--text-2);font-size:13.5px">${matchTag(s, 22)}</div>
         <div class="sel">${esc(s.label)}</div></div>
       <div class="reco">${vchip({ level: "green", label: "Apostar", reason: "Cumple la regla de valor con riesgo acotado" })}
         <span class="pill ${RISK_PILL[s.risk]}">riesgo ${s.risk}</span>
@@ -68,7 +68,7 @@ function drawCurrent(d) {
   const minOdds = (c) => c.min_odds ?? (1 + r.min_edge) / c.p;
   $("#sg-closest").innerHTML = d.closest.length ? `<table><thead><tr><th>Partido</th><th>Selección</th><th class="r">Prob.</th>
     <th class="r">Cuota</th><th class="r">Valor</th><th class="r">Cuota mínima</th><th></th></tr></thead><tbody>${d.closest.map((c) => `<tr>
-    <td>${esc(c.home)} vs ${esc(c.away)}<div style="color:var(--muted);font-size:12px">${fmtDate(c.kickoff)}</div></td>
+    <td><div class="mt">${matchTag(c, 18)}</div><div style="color:var(--muted);font-size:12px">${leagueLogo(c.league, 12)} ${fmtDate(c.kickoff)}</div></td>
     <td>${esc(c.label)}</td><td class="r">${pct(c.p)}</td><td class="r">${num(c.odds)}</td>
     <td class="r">${vchip(c.verdict, signed(c.ev))}</td><td class="r"><b>${num(minOdds(c))}</b></td>
     <td class="r"><button class="add" data-ref="${esc(c.ref)}" data-keys="${c.key}">+</button></td></tr>`).join("")}</tbody></table>`
@@ -76,7 +76,7 @@ function drawCurrent(d) {
 
   $("#sg-safest").innerHTML = d.safest.length ? `<table><thead><tr><th>Partido</th><th>Selección</th><th class="r">Prob.</th>
     <th class="r">Cuota</th><th class="r">Valor</th><th></th></tr></thead><tbody>${d.safest.map((c) => `<tr>
-    <td>${esc(c.home)} vs ${esc(c.away)}</td><td>${esc(c.label)}</td><td class="r"><b>${pct(c.p)}</b></td><td class="r">${num(c.odds)}</td>
+    <td><div class="mt">${matchTag(c, 18)}</div></td><td>${esc(c.label)}</td><td class="r"><b>${pct(c.p)}</b></td><td class="r">${num(c.odds)}</td>
     <td class="r">${vchip(c.verdict, signed(c.ev))}</td>
     <td class="r"><button class="add" data-ref="${esc(c.ref)}" data-keys="${c.key}">+</button></td></tr>`).join("")}</tbody></table>`
     : `<div class="empty">Ningún partido con una opción de 70% o más y cuota disponible.</div>`;
@@ -143,7 +143,7 @@ function drawLedger(L) {
   const SELN = { H: "Local", D: "Empate", A: "Visita" };
   $("#sg-record").innerHTML = L.items && L.items.length ? `<table><thead><tr><th>Partido</th><th>Apuesta</th><th class="r">Cuota</th>
     <th class="r">Ventaja</th><th class="r">Monto</th><th class="r">CLV</th><th>Estado</th></tr></thead><tbody>${L.items.map((it) => `<tr>
-    <td>${esc(it.partido)}${it.score ? ` <b>${esc(it.score)}</b>` : ""}<div style="color:var(--muted);font-size:12px">${esc(it.league)} · ${fmtDate(it.kickoff)}</div></td>
+    <td><div class="mt">${matchTag(it, 18)}${it.score ? ` <b>${esc(it.score)}</b>` : ""}</div><div style="color:var(--muted);font-size:12px">${leagueLogo(it.league, 12)} ${fmtDate(it.kickoff)}</div></td>
     <td>${SELN[it.sel]} <span style="color:var(--muted)">(${esc(it.book)})</span></td><td class="r">${num(it.odds)}</td>
     <td class="r">${signed(it.edge)}</td><td class="r">${pct(it.stake, 1)}</td>
     <td class="r">${it.clv == null ? "–" : `<span style="color:${it.clv > 0 ? "var(--good)" : "var(--bad)"}">${signed(it.clv)}</span>`}</td>

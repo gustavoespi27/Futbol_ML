@@ -153,8 +153,8 @@ section.view.active { display: block; }
 .match { display: grid; gap: 14px; }
 .match .meta { display: flex; justify-content: space-between; gap: 8px; color: var(--text-2); font-size: 12.5px; }
 .teams { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; }
-.teams .t { font-weight: 650; font-size: 15.5px; }
-.teams .t.r { text-align: right; }
+.teams .t { font-weight: 650; font-size: 15.5px; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.teams .t.r { text-align: right; justify-content: flex-end; }
 .teams .vs { color: var(--muted); font-size: 12px; }
 .kv { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .kv div { background: var(--surface-2); border-radius: 10px; padding: 8px 10px; }
@@ -285,3 +285,25 @@ table.sem td { padding: 6px 5px; }
 table.sem td.m { min-width: 190px; cursor: pointer; }
 table.sem td.m:hover b { color: var(--accent); }
 .sg-card.green { box-shadow: inset 0 4px 0 var(--good), var(--shadow); }
+
+/* --- calculadora de apuesta --- */
+.kv.payout { grid-template-columns: repeat(2, 1fr); }
+.kv.payout b { font-size: 17px; }
+
+/* --- escudos y logos --- */
+.tlogo, .llogo { object-fit: contain; flex: none; vertical-align: middle; }
+.tlogo.fb, .llogo.fb {
+  display: inline-grid; place-items: center; border-radius: 50%; color: #fff; font-weight: 700; font-size: 10px;
+  letter-spacing: -0.02em; background: hsl(var(--h) 52% 42%); line-height: 1;
+}
+.team { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; }
+.vs-s { color: var(--muted); font-size: 12px; margin: 0 2px; }
+.mt { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-weight: 550; }
+.meta .lg, span.lg { display: inline-flex; align-items: center; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; }
+.chip .llogo { margin-left: -2px; }
+.chip.on .llogo { background: #fff; border-radius: 4px; padding: 1px; }
+:root[data-theme="dark"] .tlogo:not(.fb), :root[data-theme="dark"] .llogo:not(.fb) { filter: drop-shadow(0 0 1px rgba(255,255,255,.55)); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tlogo:not(.fb), :root:not([data-theme="light"]) .llogo:not(.fb) { filter: drop-shadow(0 0 1px rgba(255,255,255,.55)); }
+}

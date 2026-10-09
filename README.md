@@ -25,11 +25,15 @@ python scripts/serve.py          # abre http://127.0.0.1:8000
 |---|---|
 | Panel (inicio) | Pantalla principal del **apostador profesional**: su cartera en vivo (bankroll simulado, CLV real, apuestas abiertas y liquidadas), las apuestas de hoy con monto según tu bankroll, su historial 2012-2026, **semáforo** de todos los próximos partidos (local, empate, visita, más/menos 2,5, ambos marcan) con la mejor opción de cada uno, las más cercanas a tener valor, las de alta probabilidad, el historial real de sugerencias y la fiabilidad de las probabilidades |
 | Próximos partidos | Probabilidades 1X2, cuotas de la casa (Bet365/Pinnacle), cuota justa, ganancia por 1.000 apostados, goles esperados, modelo vs mercado y aviso si los datos de la liga están atrasados |
-| Combinadas | Constructor de combinadas: opciones de cada partido con probabilidad, cuota de la casa, cuota justa y valor; variantes más probables del mismo partido; boleto para agregar y quitar selecciones con la probabilidad de acertarlo, cuota combinada y ganancia. Incluye el histórico 2026 de combinadas |
+| Combinadas | Constructor de combinadas: opciones de cada partido con probabilidad, cuota de la casa, cuota justa y valor; variantes más probables del mismo partido; boleto para agregar y quitar selecciones con la probabilidad de acertarlo, cuota combinada y **calculadora de la apuesta** (monto → lo que recibes si aciertas, ganancia neta, lo que pierdes y ganancia esperada). Incluye el histórico 2026 de combinadas |
 | Resultados | Predicciones registradas antes de cada partido vs resultado real, y apuestas en papel con CLV |
 | ¿Qué tan fiable es? | Evaluación 2026 en 38 ligas (1X2 y más/menos de 2,5 goles): calibración, simulación de apuestas, tabla por liga e histórico de la regla de apuestas sugeridas (bankroll, por nivel de riesgo) |
-| Simulador | Cualquier partido de una liga con modelo, con cuotas opcionales; sus opciones se pueden agregar a la combinada |
+| Simulador | Cualquier partido de una liga con modelo, con cuotas y monto opcionales: calcula para local, empate y visita lo que recibes si aciertas, la ganancia neta, lo que pierdes y la ganancia esperada; sus opciones se pueden agregar a la combinada |
 | Cómo funciona | Explicación sin tecnicismos y glosario |
+
+Escudos de equipos y logos de ligas en todas las vistas: imágenes públicas de API-Football (no consumen cuota)
+servidas por `/logo/team/<id>` y `/logo/league/<código>` con caché local en `data/cache/logos/`; los ids de liga que
+no están en `settings.yaml` van en `config/logos.yaml`. Si un equipo no tiene logo se muestran sus iniciales.
 
 La API JSON está documentada en http://127.0.0.1:8000/api/docs. La tarea diaria refresca el dashboard si está abierto.
 

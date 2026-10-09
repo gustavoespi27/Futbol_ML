@@ -207,7 +207,8 @@ def evaluate(conn: sqlite3.Connection,
     Si todavía no hay cuotas de cierre se usa el último snapshot pre-partido (columna close_kind)."""
     q = ",".join("?" * len(versions))
     preds = pd.read_sql_query(
-        f"""SELECT p.*, m.kickoff_utc, m.home_goals, m.away_goals, th.name AS home, ta.name AS away
+        f"""SELECT p.*, m.kickoff_utc, m.home_goals, m.away_goals, th.name AS home, ta.name AS away,
+                   m.home_team_id AS home_id, m.away_team_id AS away_id
             FROM predictions p JOIN matches m ON m.id = p.match_id
             JOIN teams th ON th.id = m.home_team_id JOIN teams ta ON ta.id = m.away_team_id
             WHERE m.status = 'finished' AND p.created_at < m.kickoff_utc AND p.model_version IN ({q})""",
@@ -225,6 +226,7 @@ def evaluate(conn: sqlite3.Connection,
         p_off = extra.get("p_final", p_model)                    # probabilidad oficial: con mercado si lo hubo
         rec = {"match_id": r["match_id"], "model_version": r["model_version"], "league": extra["league"],
                "kickoff": r["kickoff_utc"], "home": r["home"], "away": r["away"],
+               "home_id": int(r["home_id"]), "away_id": int(r["away_id"]),
                "partido": f"{r['home']} vs {r['away']}", "score": f"{r['home_goals']}-{r['away_goals']}", "y": y,
                "p_model": p_model, "p_official": p_off, "p_market": extra.get("p_market"),
                "pick": int(np.argmax(p_off)), "hit": int(np.argmax(p_off)) == y,

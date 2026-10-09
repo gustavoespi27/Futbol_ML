@@ -48,6 +48,7 @@ def _closing(conn, match_id: int, kickoff: str) -> dict | None:
 def record(conn: sqlite3.Connection) -> dict:
     df = pd.read_sql_query(
         """SELECT b.*, m.kickoff_utc, m.status, m.home_goals, m.away_goals, c.code AS league,
+                  m.home_team_id AS home_id, m.away_team_id AS away_id,
                   th.name AS home, ta.name AS away
            FROM pro_bets b JOIN matches m ON m.id = b.match_id JOIN competitions c ON c.id = m.competition_id
            JOIN teams th ON th.id = m.home_team_id JOIN teams ta ON ta.id = m.away_team_id
@@ -58,6 +59,7 @@ def record(conn: sqlite3.Connection) -> dict:
     bank, items, settled = START_BANK, [], []
     for r in df.itertuples():
         item = {"match_id": r.match_id, "partido": f"{r.home} vs {r.away}", "league": r.league,
+                "home": r.home, "away": r.away, "home_id": int(r.home_id), "away_id": int(r.away_id),
                 "kickoff": r.kickoff_utc,
                 "sel": r.selection, "book": r.book, "odds": r.odds, "p_fair": r.p_fair, "edge": r.edge,
                 "stake": r.stake, "created_at": r.created_at, "status": "abierta", "profit": None, "clv": None}

@@ -50,7 +50,7 @@
     </div>
     <div class="filters" style="margin-top:14px">
       <label style="flex-direction:row;align-items:center;display:flex;gap:10px">Tu bankroll
-        <input id="sg-bank" type="number" min="1000" step="1000" style="width:160px"></label>
+        <input id="sg-bank" type="number" min="1" step="any" style="width:160px"></label>
       <span style="color:var(--muted);font-size:13px">Monto sugerido: ¼ de Kelly, máximo 2% por apuesta y 10% por día.</span>
     </div>
     <div class="grid g4" id="home-tiles"></div>
@@ -284,6 +284,9 @@
           <label>Cuota local (opcional)<input id="sim-o1" type="number" step="0.01" min="1.01" placeholder="ej. 2.10"></label>
           <label>Cuota empate<input id="sim-o2" type="number" step="0.01" min="1.01" placeholder="ej. 3.40"></label>
           <label>Cuota visita<input id="sim-o3" type="number" step="0.01" min="1.01" placeholder="ej. 3.60"></label>
+        </div>
+        <div class="fields">
+          <label>Monto a apostar ($)<input id="sim-stake" type="number" min="1" step="any" placeholder="ej. 5000"></label>
         </div>
         <button class="primary" type="submit">Calcular probabilidades</button>
       </form>

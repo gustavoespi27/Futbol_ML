@@ -12,6 +12,45 @@ const fmtDate = (iso, withTime = true) => new Intl.DateTimeFormat("es-CL", withT
   : { day: "numeric", month: "short", year: "numeric" }).format(new Date(iso.length === 10 ? iso + "T12:00:00" : iso));
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 
+/* ---------- escudos y logos ---------- */
+// Logo servido por /logo (caché local de API-Football). Si no existe, iniciales con un color propio del equipo.
+function initials(name) {
+  const w = String(name || "?").replace(/[^\p{L}\p{N} ]/gu, " ").split(/\s+/).filter((x) => x.length > 1 || /\d/.test(x));
+  return ((w[0] || "?")[0] + (w.length > 1 ? w[w.length - 1][0] : (w[0] || "").slice(1, 2))).toUpperCase();
+}
+function hueOf(name) {
+  let h = 0;
+  for (const ch of String(name)) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  return h;
+}
+function logoFallback(img) {
+  const s = document.createElement("span");
+  s.className = img.className + " fb";
+  s.textContent = img.dataset.ini || "";
+  s.style.setProperty("--h", img.dataset.h || "210");
+  if (!img.dataset.ini) s.style.display = "none";            // logo de liga sin respaldo: se oculta
+  img.replaceWith(s);
+}
+function teamLogo(id, name, size = 22) {
+  const ini = initials(name), h = hueOf(name);
+  if (!id) return `<span class="tlogo fb" style="--h:${h};width:${size}px;height:${size}px">${esc(ini)}</span>`;
+  return `<img class="tlogo" src="/logo/team/${id}" alt="" width="${size}" height="${size}" loading="lazy"
+    data-ini="${esc(ini)}" data-h="${h}" style="width:${size}px;height:${size}px" onerror="logoFallback(this)">`;
+}
+function leagueLogo(code, size = 16) {
+  if (!code) return "";
+  return `<img class="llogo" src="/logo/league/${encodeURIComponent(code)}" alt="" width="${size}" height="${size}"
+    loading="lazy" style="width:${size}px;height:${size}px" onerror="logoFallback(this)">`;
+}
+// Equipo con su escudo, en línea.
+const teamTag = (id, name, size = 20) => `<span class="team">${teamLogo(id, name, size)}<span>${esc(name)}</span></span>`;
+const matchTag = (o, size = 20) => `${teamTag(o.home_id, o.home, size)} <span class="vs-s">vs</span> ${teamTag(o.away_id, o.away, size)}`;
+// Fila grande local – visita para tarjetas.
+const teamsRow = (o) => `<div class="teams"><div class="t">${teamLogo(o.home_id, o.home, 34)}<span>${esc(o.home)}</span></div>
+  <div class="vs">vs</div><div class="t r"><span>${esc(o.away)}</span>${teamLogo(o.away_id, o.away, 34)}</div></div>`;
+const leagueChip = (code, name, on, extra = "") =>
+  `<button class="chip ${on ? "on" : ""}" data-l="${esc(name)}">${code ? leagueLogo(code, 16) : ""}${esc(name)}${extra}</button>`;
+
 const cache = {};
 async function api(path, opts) {
   if (!opts && cache[path]) return cache[path];
@@ -100,6 +139,33 @@ function stat(label, value, hint = "") {
 }
 const SOURCE_PILL = { "modelo + mercado": "good", modelo: "", mercado: "warn", "sin datos": "", error: "bad" };
 
+/* ---------- calculadora de apuesta ---------- */
+const clp = (x) => (x == null || isNaN(x) ? "–" : (x < 0 ? "−$" : "$") + Math.round(Math.abs(x)).toLocaleString("es-CL"));
+function getStake() {
+  try { return Number(localStorage.getItem("stake")) || 5000; } catch (e) { return 5000; }
+}
+function setStake(v) {
+  try { localStorage.setItem("stake", String(v)); } catch (e) { /* sin storage */ }
+}
+// Resultado de apostar `stake` a `odds` con probabilidad `p` de acertar (según el sistema).
+function payout(stake, odds, p) {
+  const ret = stake * odds;
+  return { ret, net: ret - stake, lose: -stake, expected: p == null ? null : stake * (p * odds - 1), p };
+}
+function payoutBox(stake, odds, p, note = "") {
+  if (!odds || !stake) return `<div class="callout"><div>Ingresa un monto y una cuota para simular la apuesta.</div></div>`;
+  const r = payout(stake, odds, p);
+  const expColor = r.expected == null ? "var(--text)" : r.expected >= 0 ? "var(--good)" : "var(--bad)";
+  return `<div class="kv payout">
+      <div><span>Si aciertas, recibes</span><b class="num">${clp(r.ret)}</b></div>
+      <div><span>Ganancia neta</span><b class="num" style="color:var(--good)">+${clp(r.net)}</b></div>
+      <div><span>Si fallas, pierdes</span><b class="num" style="color:var(--bad)">${clp(r.lose)}</b></div>
+      <div><span>Ganancia esperada</span><b class="num" style="color:${expColor}">${r.expected == null ? "–" : (r.expected >= 0 ? "+" : "") + clp(r.expected)}</b></div>
+    </div>
+    <p class="sub" style="margin:8px 0 0">${p != null ? `Acierta ${pct(p, 1)} de las veces según el sistema. La ganancia esperada es lo que ganarías (o perderías) en promedio
+      por apuesta si la repitieras muchas veces: ${clp(stake)} × (${pct(p, 1)} × ${num(odds)} − 1).` : ""} ${note}</p>`;
+}
+
 /* ---------- semáforo ---------- */
 function vchip(v, text) {
   v = v || { level: "none", label: "Sin cuota", reason: "" };
@@ -118,7 +184,8 @@ async function renderSemaphore() {
   const list = await api("/api/upcoming");
   const leagues = ["Todas", ...new Set(list.map((m) => m.league_name))];
   const draw = () => {
-    $("#sem-filter").innerHTML = leagues.map((l) => `<button class="chip ${l === semLeague ? "on" : ""}" data-l="${esc(l)}">${esc(l)}</button>`).join("");
+    const code = Object.fromEntries(list.map((m) => [m.league_name, m.league]));
+    $("#sem-filter").innerHTML = leagues.map((l) => leagueChip(code[l], l, l === semLeague)).join("");
     const shown = list.filter((m) => semLeague === "Todas" || m.league_name === semLeague);
     $("#semaforo").innerHTML = shown.length ? `<table class="sem"><thead><tr><th>Partido</th>${SEM_COLS.map(([, n]) => `<th style="text-align:center">${n}</th>`).join("")}
       <th>Mejor opción</th></tr></thead><tbody>${shown.map(semRow).join("")}</tbody></table>`
@@ -135,8 +202,8 @@ function bestOption(m) {
 function semRow(m) {
   const ops = Object.fromEntries((m.options || []).map((o) => [o.key, o]));
   const best = bestOption(m);
-  return `<tr><td class="m" onclick="goToCombos('${esc(m.ref)}')"><b>${esc(m.home)}</b> vs <b>${esc(m.away)}</b>
-    <div style="color:var(--muted);font-size:12px">${esc(m.league_name)} · ${fmtDate(m.kickoff)}${m.stale ? " · ⚠ datos atrasados" : ""}</div></td>
+  return `<tr><td class="m" onclick="goToCombos('${esc(m.ref)}')"><div class="mt">${matchTag(m, 22)}</div>
+    <div style="color:var(--muted);font-size:12px">${leagueLogo(m.league, 13)} ${esc(m.league_name)} · ${fmtDate(m.kickoff)}${m.stale ? " · ⚠ datos atrasados" : ""}</div></td>
     ${SEM_COLS.map(([k]) => `<td>${vcell(ops[k])}</td>`).join("")}
     <td>${best ? `${vchip(best.verdict)}<div style="font-size:12.5px;margin-top:4px">${esc(best.label)} a ${num(best.odds)}</div>`
       : '<span style="color:var(--muted);font-size:12.5px">sin cuotas aún</span>'}</td></tr>`;
@@ -196,8 +263,8 @@ async function renderMatches() {
   const list = await api("/api/upcoming");
   const leagues = ["Todas", ...new Set(list.map((m) => m.league_name))];
   const draw = () => {
-    $("#league-filter").innerHTML = leagues.map((l) => `<button class="chip ${l === leagueFilter ? "on" : ""}" data-l="${esc(l)}">${esc(l)}${
-      l === "Todas" ? ` (${list.length})` : ""}</button>`).join("");
+    const code = Object.fromEntries(list.map((m) => [m.league_name, m.league]));
+    $("#league-filter").innerHTML = leagues.map((l) => leagueChip(code[l], l, l === leagueFilter, l === "Todas" ? ` (${list.length})` : "")).join("");
     const shown = list.filter((m) => leagueFilter === "Todas" || m.league_name === leagueFilter);
     $("#matches").innerHTML = shown.length ? shown.map(matchCard).join("")
       : `<div class="card empty" style="grid-column:1/-1">No hay partidos programados en los próximos 7 días para las ligas seguidas
@@ -259,8 +326,8 @@ function matchCard(m) {
       <div class="row"><span>Mercado</span>${m.p_market.map((x) => `<span class="num">${pct(x)}</span>`).join("")}</div></div>`;
   }
   return `<article class="card match">
-    <div class="meta"><span>${esc(m.league_name)}</span><span>${fmtDate(m.kickoff)}</span></div>
-    <div class="teams"><div class="t">${esc(m.home)}</div><div class="vs">vs</div><div class="t r">${esc(m.away)}</div></div>
+    <div class="meta"><span class="lg">${leagueLogo(m.league, 16)}${esc(m.league_name)}</span><span>${fmtDate(m.kickoff)}</span></div>
+    ${teamsRow(m)}
     <div>${probBar(p)}</div>
     <div class="reco"><span class="pill ${SOURCE_PILL[m.source] ?? ""}">${esc(m.source)}</span>
       ${fav != null ? `<span>Más probable: <b style="color:var(--text)">${fav === 1 ? "empate" : fav === 0 ? esc(m.home) : esc(m.away)}</b></span>` : ""}</div>
@@ -290,7 +357,7 @@ async function renderTracking() {
   $("#trk-table").innerHTML = d.matches.length ? `<table>
     <thead><tr><th>Fecha</th><th>Liga</th><th>Partido</th><th>Probabilidades</th><th>Pronóstico</th><th class="r">Resultado</th><th></th><th>Versión</th></tr></thead>
     <tbody>${d.matches.map((m) => `<tr>
-      <td>${fmtDate(m.kickoff)}</td><td>${esc(m.league)}</td><td>${esc(m.home)} – ${esc(m.away)}</td>
+      <td>${fmtDate(m.kickoff)}</td><td title="${esc(m.league_name || m.league)}">${leagueLogo(m.league, 18) || esc(m.league)}</td><td>${matchTag(m, 18)}</td>
       <td>${miniBar(m.p_official)} <span class="num" style="color:var(--muted);font-size:12px">${m.p_official.map((x) => pct(x)).join(" · ")}</span></td>
       <td>${SEL[m.pick]} <span class="num" style="color:var(--muted)">(${pct(m.p_official[m.pick])})</span></td>
       <td class="r"><b>${esc(m.score)}</b></td>
@@ -391,7 +458,7 @@ async function renderBacktest() {
   $("#bt-leagues").innerHTML = `<table>
     <thead><tr><th>Liga</th><th class="r">Partidos</th><th class="r">Acierto modelo</th><th class="r">Acierto mercado</th><th class="r">Acierto oficial</th>
       <th class="r">Log loss modelo</th><th class="r">Log loss mercado</th><th class="r">Log loss oficial</th><th>Estado</th></tr></thead>
-    <tbody>${d.per_league.map((r) => `<tr><td>${esc(r.name)} <span style="color:var(--muted)">${esc(r.code)}</span></td><td class="r">${r.n}</td>
+    <tbody>${d.per_league.map((r) => `<tr><td><span class="team">${leagueLogo(r.code, 18)}<span>${esc(r.name)}</span></span> <span style="color:var(--muted)">${esc(r.code)}</span></td><td class="r">${r.n}</td>
       <td class="r">${pct(r.acc_model, 1)}</td><td class="r">${pct(r.acc_market, 1)}</td><td class="r">${pct(r.acc_official, 1)}</td>
       ${["ll_model", "ll_market", "ll_official"].map((k) => `<td class="r" ${r[k] === best(r) ? 'style="font-weight:650;color:var(--text)"' : 'style="color:var(--text-2)"'}>${num(r[k], 3)}</td>`).join("")}
       <td><span class="pill ${r.status.startsWith("pasó") ? "warn" : ""}" title="${esc(r.status)}">${r.status.startsWith("pasó") ? "en observación" : "sin ventaja"}</span></td></tr>`).join("")}</tbody></table>`;
@@ -429,6 +496,26 @@ async function renderML() {
 
 /* ---------- SIMULADOR ---------- */
 async function renderSimulator() {
+  $("#sim-stake").value = getStake();
+  // El envío se registra primero (si no, un clic temprano recargaría la página) y el botón espera a los equipos.
+  const submitBtn = $("#sim-form button");
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Cargando equipos…";
+  $("#sim-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector("button"); btn.disabled = true;
+    const odds = ["#sim-o1", "#sim-o2", "#sim-o3"].map((s) => parseFloat($(s).value));
+    const st = parseFloat($("#sim-stake").value);
+    if (st > 0) setStake(st);
+    const body = { league: sel.value, home: $("#sim-home").value, away: $("#sim-away").value,
+      odds: odds.every((o) => o > 1) ? odds : null };
+    try {
+      if (body.home === body.away) throw new Error("Elige dos equipos distintos.");
+      renderSimResult(await api("/api/predict", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
+    } catch (err) {
+      $("#sim-out").innerHTML = `<div class="callout warn">${esc(err.message)}</div>`;
+    } finally { btn.disabled = false; }
+  });
   const leagues = await api("/api/leagues");
   const sel = $("#sim-league");
   sel.innerHTML = leagues.map((l) => `<option value="${esc(l.code)}">${esc(l.name)}</option>`).join("");
@@ -442,19 +529,8 @@ async function renderSimulator() {
   };
   sel.addEventListener("change", loadTeams);
   await loadTeams();
-  $("#sim-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const btn = e.target.querySelector("button"); btn.disabled = true;
-    const odds = ["#sim-o1", "#sim-o2", "#sim-o3"].map((s) => parseFloat($(s).value));
-    const body = { league: sel.value, home: $("#sim-home").value, away: $("#sim-away").value,
-      odds: odds.every((o) => o > 1) ? odds : null };
-    try {
-      if (body.home === body.away) throw new Error("Elige dos equipos distintos.");
-      renderSimResult(await api("/api/predict", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
-    } catch (err) {
-      $("#sim-out").innerHTML = `<div class="callout warn">${esc(err.message)}</div>`;
-    } finally { btn.disabled = false; }
-  });
+  submitBtn.disabled = false;
+  submitBtn.textContent = "Calcular probabilidades";
 }
 function renderSimResult(r) {
   const p = r.p_official;
@@ -470,10 +546,16 @@ function renderSimResult(r) {
         : `<span class="pill">No apostar</span> ${esc(rec.text)}`}</div></div>`;
   }
   const ou = Object.entries(r.over_under).filter(([k]) => ["1.5", "2.5", "3.5"].includes(k));
+  const simOdds = r.betting ? r.betting.odds : p.map((x) => 1 / x);
+  const simulator = `<div class="card"><h2>Simula tu apuesta</h2>
+      <p class="sub">${r.betting ? "Con las cuotas que ingresaste." : "Sin cuotas ingresadas se usa la cuota justa del sistema (ganancia esperada 0); ingresa las de tu casa para el cálculo real."}</p>
+      <div class="filters"><label style="flex-direction:row;align-items:center;display:flex;gap:10px">Monto
+        <input id="sim-stake2" type="number" min="1" step="any" value="${getStake()}" style="width:150px"></label></div>
+      <div class="table-wrap" id="sim-payouts"></div></div>`;
   $("#sim-out").innerHTML = `<div class="stack">
     <div class="card match">
-      <div class="meta"><span>${esc(r.league_name)}</span><span class="pill ${SOURCE_PILL[r.source]}">${esc(r.source)}</span></div>
-      <div class="teams"><div class="t">${esc(r.home)}</div><div class="vs">vs</div><div class="t r">${esc(r.away)}</div></div>
+      <div class="meta"><span class="lg">${leagueLogo(r.league, 16)}${esc(r.league_name)}</span><span class="pill ${SOURCE_PILL[r.source]}">${esc(r.source)}</span></div>
+      ${teamsRow(r)}
       ${probBar(p)}
       <div class="legend"><span><i style="background:var(--home)"></i>Local ${pct(p[0], 1)}</span><span><i style="background:var(--draw)"></i>Empate ${pct(p[1], 1)}</span><span><i style="background:var(--away)"></i>Visita ${pct(p[2], 1)}</span></div>
       <div class="kv">
@@ -491,12 +573,26 @@ function renderSimResult(r) {
         <tbody>${ou.map(([k, v]) => `<tr><td>${k.replace(".", ",")} goles</td><td class="r">${pct(v, 1)}</td><td class="r">${pct(1 - v, 1)}</td></tr>`).join("")}</tbody></table>
         <p class="sub" style="margin:12px 0 0">Confianza "${esc(r.confidence.level)}": ${r.confidence.min_recent_matches} partidos recientes del equipo con menos datos; los dos submodelos difieren en hasta ${pct(r.confidence.elo_dc_max_diff, 1)}.</p></div>
     </div>
+    ${simulator}
     ${betting}
     <div class="card"><h2>Opciones para combinar</h2>
       <p class="sub">Agrega selecciones con <b>+</b>; quedan en tu boleto de la pestaña <a href="#combinadas">Combinadas</a>${'<span data-ticket-count></span>'}.</p>
       <div class="stack">${suggestionsBlock(r)}${optionsTable(r)}</div></div>
   </div>`;
   syncAddButtons();
+  const drawSim = () => {
+    const st = parseFloat($("#sim-stake2").value) || 0;
+    $("#sim-payouts").innerHTML = `<table><thead><tr><th>Apuesta</th><th class="r">Cuota</th><th class="r">Probabilidad</th>
+      <th class="r">Si aciertas, recibes</th><th class="r">Ganancia neta</th><th class="r">Si fallas</th><th class="r">Ganancia esperada</th></tr></thead>
+      <tbody>${SEL.map((n, i) => {
+        const x = payout(st, simOdds[i], p[i]);
+        return `<tr><td>${n}</td><td class="r">${num(simOdds[i])}</td><td class="r">${pct(p[i], 1)}</td><td class="r"><b>${clp(x.ret)}</b></td>
+          <td class="r" style="color:var(--good)">+${clp(x.net)}</td><td class="r" style="color:var(--bad)">${clp(x.lose)}</td>
+          <td class="r" style="color:${x.expected >= 0 ? "var(--good)" : "var(--bad)"}"><b>${x.expected >= 0 ? "+" : ""}${clp(x.expected)}</b></td></tr>`;
+      }).join("")}</tbody></table>`;
+  };
+  $("#sim-stake2").oninput = (e) => { setStake(e.target.value); drawSim(); };
+  drawSim();
 }
 
 // combos.js se carga después de este archivo: se enruta cuando ambos están listos.
