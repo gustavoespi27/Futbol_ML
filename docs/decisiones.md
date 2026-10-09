@@ -212,3 +212,20 @@ datos atrasados más de 12 días.
 **Aclaración sobre esas ligas:** I1, P1 y T1 (junto con SWE) pasaron el criterio pre-registrado del análisis 03,
 pero **no son significativas** tras corregir por 38 comparaciones; en 2026 el ensamble no mejora al mercado en
 ninguna. Están en observación, no son "las más fiables para apostar".
+
+## 2026-10-09 — Apuestas sugeridas (regla fija de riesgo/recompensa)
+
+**Regla, fijada antes de mirar resultados** (`footy/betting/suggestions.py`): valor esperado p × cuota − 1 ≥ +3%,
+cuota real entre 1,30 y 4,0 (análisis 01: las cuotas largas son las que más pierden), probabilidad ≥ 25%, una
+selección por partido. Orden por crecimiento esperado del bankroll (Kelly); monto = ¼ de Kelly con tope de 2,5%.
+Riesgo según la probabilidad: bajo ≥ 60%, medio 45-60%, alto < 45%. Dobles: combinaciones de las mejores simples.
+
+**Resultado en 2026** (fuera de muestra, cierre Bet365): 154 apuestas, acierto 36,4% (el sistema esperaba 41,8%),
+−5,0% por unidad (IC95% [−26%; +16%]); bankroll 100 → 93,3 con el monto sugerido (peor caída 20%). Dobles: 71,
++7,4% (IC95% [−59%; +74%]). Por riesgo ninguna franja es positiva. **No hay ventaja demostrada** y los umbrales NO
+se ajustaron a 2026 para no maquillar el resultado. Las apuestas elegidas por "valor" se aciertan menos de lo
+esperado (maldición del ganador: cuando una casa paga más que el consenso, a menudo hay información que el modelo
+no ve).
+
+**Medición prospectiva:** la tarea diaria registra las sugerencias antes de cada partido (tabla `suggestions`, una
+vez por selección) y el dashboard muestra su resultado real. Es la prueba que decide si la regla sirve.

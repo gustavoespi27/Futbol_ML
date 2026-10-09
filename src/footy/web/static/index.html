@@ -20,6 +20,7 @@
     <nav id="nav">
       <a href="#inicio">Inicio</a>
       <a href="#partidos">Próximos partidos</a>
+      <a href="#sugeridas">Apuestas sugeridas</a>
       <a href="#combinadas">Combinadas<span data-ticket-count></span></a>
       <a href="#resultados">Resultados</a>
       <a href="#rendimiento">¿Qué tan fiable es?</a>
@@ -73,6 +74,65 @@
     </div>
     <div class="filters" id="league-filter"></div>
     <div class="matches" id="matches"><div class="loading">Cargando partidos…</div></div>
+  </section>
+
+  <!-- APUESTAS SUGERIDAS -->
+  <section class="view" id="v-sugeridas">
+    <div class="view-head">
+      <h1>Apuestas sugeridas</h1>
+      <p>Las selecciones con la mejor relación riesgo/recompensa según el sistema: solo se sugiere una apuesta si la cuota
+        paga más de lo que vale (valor esperado de al menos +3%), con cuotas entre 1,30 y 4,0 y al menos 25% de probabilidad.
+        Se ordenan por crecimiento esperado del bankroll y el monto sugerido es una fracción pequeña de Kelly.</p>
+    </div>
+    <div class="callout warn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <div id="sg-warning"><b>Sin ventaja demostrada.</b> Esta regla se fijó antes de mirar resultados y en 2026 no ganó dinero.
+        Úsala como experimento con montos que puedas perder; cada sugerencia se registra antes del partido para medirla.</div>
+    </div>
+    <div class="filters" style="margin-top:16px">
+      <label style="flex-direction:row;align-items:center;display:flex;gap:10px">Tu bankroll
+        <input id="sg-bank" type="number" min="1000" step="1000" style="width:160px"></label>
+      <span style="color:var(--muted);font-size:13px">El monto sugerido se calcula sobre este total (nunca más de 2,5% por apuesta).</span>
+    </div>
+    <h2 style="margin:8px 0 12px">Sugeridas para los próximos partidos</h2>
+    <div class="matches" id="sg-singles"><div class="loading">Calculando…</div></div>
+    <div id="sg-doubles-wrap" style="margin-top:20px"></div>
+    <div class="grid g2" style="margin-top:16px">
+      <div class="card">
+        <h2>Las más cercanas a tener valor</h2>
+        <p class="sub">No cumplen la regla con la cuota actual. Si tu casa paga al menos la "cuota mínima", pasarían a ser sugeridas.</p>
+        <div class="table-wrap" id="sg-closest"></div>
+      </div>
+      <div class="card">
+        <h2>Alta probabilidad</h2>
+        <p class="sub">Lo más probable de cada partido (70% o más). Se aciertan seguido, pero la cuota casi siempre paga menos de lo que valen: a la larga pierden.</p>
+        <div class="table-wrap" id="sg-safest"></div>
+      </div>
+    </div>
+    <div class="view-head" style="margin:36px 0 16px">
+      <h2 style="font-size:22px">¿Cómo le habría ido a esta regla?</h2>
+      <p id="sg-hist-intro">Misma regla aplicada a los partidos de 2026, que el modelo no vio al entrenar (cuotas de cierre Bet365).</p>
+    </div>
+    <div class="grid g4" id="sg-tiles"></div>
+    <div class="grid g2" style="margin-top:16px">
+      <div class="card">
+        <h2>Bankroll apostando el monto sugerido</h2>
+        <p class="sub">Partiendo de 100, con ¼ de Kelly y tope de 2,5% por apuesta.</p>
+        <div class="chart tall"><canvas id="ch-sg-bank"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Por nivel de riesgo</h2>
+        <p class="sub">Riesgo según la probabilidad de la selección: bajo ≥ 60%, medio 45-60%, alto &lt; 45%.</p>
+        <div class="table-wrap" id="sg-risk"></div>
+        <div id="sg-reading" class="stack" style="font-size:14px;color:var(--text-2);margin-top:14px"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Historial real de sugerencias</h2>
+      <p class="sub">Sugerencias registradas por la tarea diaria antes de cada partido, y su resultado.</p>
+      <div class="grid g4" id="sg-record-tiles" style="margin-bottom:12px"></div>
+      <div class="table-wrap" id="sg-record"></div>
+    </div>
   </section>
 
   <!-- COMBINADAS -->
@@ -238,6 +298,7 @@
           <dt>CLV</dt><dd>Si la cuota que tomamos es mejor que la del cierre (justo antes del partido). Es la señal más rápida de una ventaja real.</dd>
           <dt>Combinada</dt><dd>Varias selecciones en un solo boleto: se gana solo si TODAS se cumplen. La cuota se multiplica, pero también el margen de la casa.</dd>
           <dt>Cuota justa</dt><dd>1 / probabilidad del sistema. Si la casa paga más que la cuota justa, hay valor; si paga menos, la apuesta pierde a la larga.</dd>
+          <dt>Criterio de Kelly</dt><dd>Fórmula para decidir cuánto apostar según la ventaja y la cuota. Se usa ¼ de Kelly con tope de 2,5% del bankroll: crece más lento pero aguanta mejor las rachas malas.</dd>
           <dt>Walk-forward</dt><dd>Probar el modelo como si viviéramos en el pasado: para predecir cada semana solo usa partidos anteriores.</dd>
         </dl>
       </div>
@@ -266,5 +327,6 @@
 <footer id="footer">Futbol ML · uso educativo · no es consejo de apuestas</footer>
 <script src="/static/app.js"></script>
 <script src="/static/combos.js"></script>
+<script src="/static/suggestions.js"></script>
 </body>
 </html>

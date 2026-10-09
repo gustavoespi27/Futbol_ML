@@ -252,3 +252,9 @@ details.mx .body { padding: 14px 18px 18px; display: grid; gap: 16px; }
 .odds-row span:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
 .odds-row b { color: var(--text); font-weight: 600; }
 .stale { font-size: 12px; color: var(--warn); }
+
+/* --- apuestas sugeridas --- */
+.sg-card { display: grid; gap: 12px; }
+.sg-card .sel { font-size: 19px; font-weight: 650; letter-spacing: -0.01em; }
+.sg-card .kv { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 400px) { .sg-card .kv { grid-template-columns: repeat(2, 1fr); } }

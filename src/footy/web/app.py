@@ -121,6 +121,11 @@ def combo_history():
     return cached("combo_history", 3600, service.combo_history)
 
 
+@app.get("/api/suggestions")
+def suggestions():
+    return cached("suggestions", 300, service.suggestions_data)
+
+
 @app.post("/api/refresh")
 def refresh():
     """Vacía los cachés (después de correr scripts/daily.py)."""

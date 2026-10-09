@@ -149,3 +149,21 @@ CREATE TABLE IF NOT EXISTS api_requests (
     results         INTEGER,
     errors          TEXT
 );
+
+-- Apuestas sugeridas (footy.betting.suggestions), registradas antes del partido para medir su resultado real.
+-- Una fila por pierna; las de una doble comparten group_id.
+CREATE TABLE IF NOT EXISTS suggestions (
+    id              INTEGER PRIMARY KEY,
+    created_at      TEXT NOT NULL,
+    group_id        TEXT NOT NULL,
+    kind            TEXT NOT NULL CHECK (kind IN ('simple', 'doble')),
+    match_id        INTEGER NOT NULL REFERENCES matches(id),
+    selection       TEXT NOT NULL,
+    p               REAL NOT NULL,
+    odds            REAL NOT NULL,
+    book            TEXT,
+    stake           REAL NOT NULL,
+    model_version   TEXT NOT NULL,
+    UNIQUE (group_id, match_id, selection)
+);
+CREATE INDEX IF NOT EXISTS ix_suggestions_match ON suggestions (match_id);

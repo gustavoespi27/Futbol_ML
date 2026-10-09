@@ -37,7 +37,7 @@ $("#theme").addEventListener("click", () => {
 });
 
 /* ---------- navegación ---------- */
-const views = { inicio: renderHome, partidos: renderMatches, combinadas: () => renderCombos(), resultados: renderTracking,
+const views = { inicio: renderHome, partidos: renderMatches, combinadas: () => renderCombos(), sugeridas: () => renderSuggestions(), resultados: renderTracking,
   rendimiento: renderBacktest, simulador: renderSimulator, "como-funciona": () => {} };
 const rendered = new Set();
 function route() {

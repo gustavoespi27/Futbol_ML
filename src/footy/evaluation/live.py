@@ -79,7 +79,7 @@ def combo_backtest(max_legs: int = 4) -> dict:
     """Igual que _combo_backtest, guardado en disco mientras no cambien los parámetros de las ligas."""
     from footy.leagues import PARAMS_PATH
 
-    key = f"{PARAMS_PATH.stat().st_mtime_ns}|{max_legs}"
+    key = f"{PARAMS_PATH.stat().st_mtime_ns}|{max_legs}|v2"
     if CACHE_PATH.exists():
         cached = json.loads(CACHE_PATH.read_text(encoding="utf-8"))
         if cached.get("_key") == key:
@@ -112,13 +112,14 @@ def _combo_backtest(max_legs: int = 4) -> dict:
             if odds is None or np.isnan(odds):
                 continue
             p = combos.prob(M, [k])
-            legs.append((r.week, i, k, p, float(odds), combos.pattern_hits(h, a, [k]), p * odds - 1, r.max_odds))
+            legs.append((r.week, i, k, p, float(odds), combos.pattern_hits(h, a, [k]), p * odds - 1, r.max_odds,
+                         r.kickoff_utc[:10]))
         sug = combos.suggestions(M, top=1)
         if sug:
             same_game.append((sug[0]["p"], combos.pattern_hits(h, a, sug[0]["keys"])))
         pattern_rows.append([r.code] + [v for keys in pairs for v in (combos.prob(M, keys),
                                                                       combos.pattern_hits(h, a, keys))])
-    L = pd.DataFrame(legs, columns=["week", "match", "key", "p", "odds", "hit", "ev", "max_odds"])
+    L = pd.DataFrame(legs, columns=["week", "match", "key", "p", "odds", "hit", "ev", "max_odds", "date"])
 
     strategies = {}
     calib_pts = []
@@ -152,7 +153,54 @@ def _combo_backtest(max_legs: int = 4) -> dict:
     return {"n_matches": len(rows), "n_ou": int(rows.b365_over.notna().sum()),
             "from": rows.kickoff_utc.min()[:10], "to": rows.kickoff_utc.max()[:10],
             "strategies": strategies, "calibration": _bins(calib_pts), "same_game_calibration": _bins(same_game),
-            "patterns": _patterns(pattern_rows, pairs)}
+            "patterns": _patterns(pattern_rows, pairs), "suggestions": _suggestion_backtest(L)}
+
+
+def _suggestion_backtest(L: pd.DataFrame) -> dict:
+    """La regla de "apuestas sugeridas" (footy.betting.suggestions) aplicada a 2026, en orden cronológico."""
+    from footy.betting import suggestions as sg
+
+    singles = pd.DataFrame(sg.pick_singles(L.to_dict("records"))).sort_values(["date", "match"])
+    out = {"rules": sg.RULES}
+    if singles.empty:
+        return out
+    flat = np.where(singles.hit, singles.odds - 1, -1.0)
+    bank, curve, peak, max_dd = 100.0, [], 100.0, 0.0
+    for r, (_, row) in zip(flat, singles.iterrows()):
+        bank *= 1 + row.stake * r
+        peak = max(peak, bank)
+        max_dd = max(max_dd, 1 - bank / peak)
+        curve.append((row.date, round(bank, 2)))
+    step = max(1, len(curve) // 150)
+    by_risk = []
+    for lvl in ("bajo", "medio", "alto"):
+        m = (singles.risk == lvl).to_numpy()
+        if m.sum():
+            by_risk.append({"risk": lvl, "n": int(m.sum()), "hit": round(float(singles.hit[m].mean()), 4),
+                            "p_mean": round(float(singles.p[m].mean()), 4), "yield": round(float(flat[m].mean()), 4),
+                            "ci": _ci(flat[m])})
+    by_key = singles.assign(profit=flat).groupby("key").agg(n=("hit", "size"), hit=("hit", "mean"),
+                                                             yield_=("profit", "mean")).reset_index()
+    doubles = []
+    for _, wk in singles.groupby("week"):
+        wk = wk.sort_values("growth", ascending=False)
+        for j in range(0, len(wk) - 1, 2):
+            a, b = wk.iloc[j], wk.iloc[j + 1]
+            doubles.append(a.odds * b.odds - 1 if a.hit and b.hit else -1.0)
+    doubles = np.array(doubles)
+    out.update({
+        "n": len(singles), "hit": round(float(singles.hit.mean()), 4), "p_mean": round(float(singles.p.mean()), 4),
+        "odds_mean": round(float(singles.odds.mean()), 2), "ev_mean": round(float(singles.ev.mean()), 4),
+        "yield": round(float(flat.mean()), 4), "ci": _ci(flat), "profit_units": round(float(flat.sum()), 1),
+        "kelly_final": round(bank, 2), "kelly_max_dd": round(max_dd, 4),
+        "curve": [{"d": d, "b": b} for d, b in curve[::step]] + [{"d": curve[-1][0], "b": curve[-1][1]}],
+        "by_risk": by_risk,
+        "by_key": [{"key": r.key, "n": int(r.n), "hit": round(float(r.hit), 4), "yield": round(float(r.yield_), 4)}
+                   for r in by_key.itertuples()],
+        "doubles": {"n": len(doubles), "yield": round(float(doubles.mean()), 4) if len(doubles) else None,
+                    "hit": round(float((doubles > -1).mean()), 4) if len(doubles) else None, "ci": _ci(doubles)},
+    })
+    return out
 
 
 def _bins(points, edges=(0, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1.01), min_n=30) -> list[dict]:

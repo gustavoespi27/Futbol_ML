@@ -2,7 +2,7 @@
 
 1. API-Football: calendario, cuotas pre-partido y detalles (Chile, Argentina, Brasil).
 2. football-data.co.uk: resultados y cuotas de cierre de la temporada en curso (todas las ligas).
-3. Seguimiento: predicciones de los próximos partidos, registradas antes del kickoff.
+3. Seguimiento: predicciones de los próximos partidos y apuestas sugeridas, registradas antes del kickoff.
 4. Informe docs/seguimiento.md y, si el dashboard está abierto, refresco de sus cachés.
 
 Cada paso es independiente: si uno falla, los demás se ejecutan igual (queda en logs/daily.log).
@@ -21,6 +21,7 @@ from footy.ingest import football_data as fd
 from footy.ingest.api_football import ApiFootball
 from footy.ingest.collect import run_daily
 from footy.prediction import tracking
+from footy.web import service
 
 log = logging.getLogger("daily")
 
@@ -54,6 +55,7 @@ def main() -> int:
         ("football_data", lambda: update_current_season(conn)),
         ("tracking", lambda: log.info("Seguimiento: %s", tracking.register(conn, tracking.fetch_fixtures()))),
         ("tracking_api", lambda: log.info("Seguimiento API: %s", tracking.register_scheduled(conn))),
+        ("suggestions", lambda: log.info("Sugerencias: %s", service.register_suggestions(conn))),
         ("report", lambda: (config.PROJECT_ROOT / "docs" / "seguimiento.md").write_text(
             tracking.report(conn), encoding="utf-8", newline="\n")),
     ]

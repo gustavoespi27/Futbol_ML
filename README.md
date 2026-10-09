@@ -20,6 +20,7 @@ python scripts/serve.py          # abre http://127.0.0.1:8000
 |---|---|
 | Inicio | Acierto fuera de muestra, calibración por nivel de confianza y estado del sistema |
 | Próximos partidos | Probabilidades 1X2, cuotas de la casa (Bet365/Pinnacle), cuota justa, ganancia por 1.000 apostados, goles esperados, modelo vs mercado y aviso si los datos de la liga están atrasados |
+| Apuestas sugeridas | Selecciones con la mejor relación riesgo/recompensa según una regla fija (valor ≥ +3%, cuota 1,30–4,0, probabilidad ≥ 25%), ordenadas por crecimiento esperado del bankroll (Kelly), con nivel de riesgo, monto sugerido según tu bankroll (¼ de Kelly, máx. 2,5%) y ganancia si acierta; dobles sugeridas, las más cercanas a tener valor (con la cuota mínima necesaria), las de alta probabilidad, el histórico 2026 de la regla y el registro real de sugerencias |
 | Combinadas | Constructor de combinadas: opciones de cada partido con probabilidad, cuota de la casa, cuota justa y valor; variantes más probables del mismo partido; boleto para agregar y quitar selecciones con la probabilidad de acertarlo, cuota combinada y ganancia. Incluye el histórico 2026 de combinadas |
 | Resultados | Predicciones registradas antes de cada partido vs resultado real, y apuestas en papel con CLV |
 | ¿Qué tan fiable es? | Evaluación 2026 en 38 ligas (1X2 y más/menos de 2,5 goles): calibración, simulación de apuestas y tabla por liga |
@@ -52,6 +53,11 @@ La API JSON está documentada en http://127.0.0.1:8000/api/docs. La tarea diaria
 
 8.608 partidos de 1X2 en 38 ligas y 5.302 con cuotas O/U en 22 ligas. Cuando el sistema da 60-70% al resultado más
 probable, ocurre el 65%; cuando da 70% o más, el 77%.
+
+Apuestas sugeridas: la regla aplicada a 2026 hizo 154 apuestas con −5,0% por unidad (IC95% −26% a +16%); con el
+monto sugerido el bankroll pasó de 100 a 93,3 (peor caída 20%). Las elegidas por tener valor se acertaron 36,4% cuando
+el sistema esperaba 41,8%: **no hay ventaja demostrada**, por eso cada sugerencia se registra antes del partido y se
+mide en el dashboard.
 
 Combinadas: el porcentaje que muestra el sistema se cumple (dice 25% → se acertó 26%). Combinar las selecciones
 más probables pierde más con cada pierna (−6% simple, −10% doble, −17% triple, −23% cuádruple, todas significativas);
@@ -86,8 +92,8 @@ src/footy/
   models/        Elo + logit ordinal, Dixon-Coles, ensamble log-lineal
   markets/       matriz de marcadores → 1X2, O/U, ambos marcan; selecciones y combinadas
   evaluation/    métricas, walk-forward, evaluación 2026 (live.py)
-  betting/       quitar margen, EV, backtest
-  prediction/    predictor por liga y seguimiento prospectivo
+  betting/       quitar margen, EV, backtest, apuestas sugeridas (suggestions.py)
+  prediction/    predictor por liga, seguimiento prospectivo y registro de sugerencias
   web/           dashboard (FastAPI + HTML/JS estático con Chart.js)
 scripts/         puntos de entrada (ver tabla)
 tests/
@@ -98,7 +104,7 @@ tests/
 | Script | Qué hace |
 |---|---|
 | `scripts/serve.py` | Dashboard web local en http://127.0.0.1:8000 (también `dashboard.bat`) |
-| `scripts/daily.py` | Tarea diaria: API-Football, football-data, predicciones de seguimiento, informe [docs/seguimiento.md](docs/seguimiento.md) y refresco del dashboard |
+| `scripts/daily.py` | Tarea diaria: API-Football, football-data, predicciones de seguimiento, registro de apuestas sugeridas, informe [docs/seguimiento.md](docs/seguimiento.md) y refresco del dashboard |
 | `scripts/register_task.ps1` | Registra la tarea diaria en el Programador de tareas de Windows (10:00 y 17:30) |
 | `scripts/update_football_data.py [CÓDIGOS]` | Descarga/actualiza resultados, estadísticas y cuotas de cierre de football-data.co.uk |
 | `scripts/collect_daily.py` | Solo la recolección de API-Football |

@@ -329,6 +329,61 @@ def combo_history() -> dict:
     return live.combo_backtest()
 
 
+# --- apuestas sugeridas -------------------------------------------------------
+
+def _candidates(matches: list[dict]) -> list[dict]:
+    now = repo.utc_now()
+    out = []
+    for m in matches:
+        if not m.get("options") or not m["ref"].startswith("m:") or (m.get("kickoff") or "") <= now:
+            continue
+        for o in m["options"]:
+            if o.get("odds"):
+                out.append({"match": int(m["ref"][2:]), "ref": m["ref"], "key": o["key"], "label": o["label"],
+                            "p": o["p"], "odds": float(o["odds"]), "book": o["book"], "estimated": o["estimated"],
+                            "fair": o["fair"], "home": m["home"], "away": m["away"], "league_name": m["league_name"],
+                            "kickoff": m["kickoff"], "source": m["source"]})
+    return out
+
+
+def current_suggestions(matches: list[dict] | None = None) -> dict:
+    from footy.betting import suggestions as sg
+
+    cands = _candidates(matches if matches is not None else upcoming(7))
+    singles = sg.pick_singles(cands)
+    safest: dict = {}
+    for c in cands:                                   # alta probabilidad (aunque el valor sea negativo)
+        if not c["estimated"] and c["p"] >= 0.70 and c["odds"] >= 1.15:
+            if c["match"] not in safest or c["p"] > safest[c["match"]]["p"]:
+                safest[c["match"]] = {**c, "ev": c["p"] * c["odds"] - 1}
+    chosen = {(x["match"], x["key"]) for x in singles}
+    near = [{**c, "ev": c["p"] * c["odds"] - 1, "risk": sg.risk_level(c["p"])} for c in cands
+            if not c["estimated"] and sg.MIN_ODDS <= c["odds"] <= sg.MAX_ODDS and c["p"] >= sg.MIN_P
+            and (c["match"], c["key"]) not in chosen]
+    closest: dict = {}
+    for c in sorted(near, key=lambda c: -c["ev"]):
+        closest.setdefault(c["match"], c)
+    return {"rules": sg.RULES, "singles": singles, "doubles": sg.pick_doubles(singles),
+            "closest": list(closest.values())[:6],
+            "safest": sorted(safest.values(), key=lambda c: -c["p"])[:8],
+            "n_matches_with_odds": len({c["match"] for c in cands})}
+
+
+def suggestions_data() -> dict:
+    from footy.prediction import suggested
+
+    return {**current_suggestions(), "history": live.combo_backtest().get("suggestions", {}),
+            "record": suggested.record(connect())}
+
+
+def register_suggestions(conn=None) -> dict:
+    """Guarda las sugerencias actuales (antes del partido) para medirlas después. Lo llama scripts/daily.py."""
+    from footy.prediction import suggested
+
+    cur = current_suggestions()
+    return suggested.register(conn or connect(), cur["singles"], cur["doubles"], tracking.MODEL_VERSION)
+
+
 # --- seguimiento -----------------------------------------------------------
 
 def tracking_data() -> dict:
