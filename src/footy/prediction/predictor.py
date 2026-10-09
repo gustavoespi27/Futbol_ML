@@ -97,6 +97,14 @@ class LeaguePredictor:
             out["betting"] = self._betting(np.array(odds, dtype=float), p_elo, p_dc, p_model)
         return out
 
+    def components(self, home: int, away: int) -> dict:
+        """Piezas de Elo y Dixon-Coles con los mismos nombres que las columnas walk-forward (variables del ML)."""
+        p_elo = self.logit.predict(np.array([self._elo_diff(home, away)]))[0]
+        lam, mu = self.dc.expected_goals(np.array([home]), np.array([away]))
+        p_dc = outcome_probs(lam, mu, self.dc.rho)[0]
+        return {"Elo_pH": p_elo[0], "Elo_pD": p_elo[1], "Elo_pA": p_elo[2], "Dixon-Coles_pH": p_dc[0],
+                "Dixon-Coles_pD": p_dc[1], "Dixon-Coles_pA": p_dc[2], "lam": float(lam[0]), "mu": float(mu[0])}
+
     def probabilities(self, home: int, away: int, market_odds: np.ndarray | None = None) -> dict:
         """Probabilidades del modelo y, si hay cuotas de referencia, combinadas con el mercado."""
         p_elo = self.logit.predict(np.array([self._elo_diff(home, away)]))

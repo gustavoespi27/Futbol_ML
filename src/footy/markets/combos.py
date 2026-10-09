@@ -46,14 +46,21 @@ def label(keys: list[str]) -> str:
 
 
 def fit_matrix(lam: float, mu: float, rho: float = 0.0, p1x2=None, p_over25: float | None = None,
-               iters: int = 30) -> np.ndarray:
-    """Matriz de marcadores con marginales 1X2 (y Over 2,5) iguales a las dadas (ajuste proporcional iterativo)."""
+               iters: int = 30, p_btts: float | None = None) -> np.ndarray:
+    """Matriz de marcadores con marginales 1X2, Over 2,5 (y ambos marcan) iguales a las dadas
+    (ajuste proporcional iterativo)."""
     m = score_matrix(lam, mu, rho)
-    if p1x2 is None and p_over25 is None:
+    if p1x2 is None and p_over25 is None and p_btts is None:
         return m
     res = [SELECTIONS[k][2] for k in "1X2"]
     tot = [_T > 2.5, _T < 2.5]
+    btts = [SELECTIONS["BTTS_Y"][2], SELECTIONS["BTTS_N"][2]]
     for _ in range(iters):
+        if p_btts is not None:
+            for mask, target in zip(btts, (p_btts, 1 - p_btts)):
+                s = m[mask].sum()
+                if s > 0:
+                    m[mask] *= target / s
         if p1x2 is not None:
             for mask, target in zip(res, p1x2):
                 s = m[mask].sum()

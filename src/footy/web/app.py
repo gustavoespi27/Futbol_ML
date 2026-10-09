@@ -20,6 +20,7 @@ def _prewarm():
     """Calcula en segundo plano lo más pesado (evaluación 2026, combinadas, próximos partidos)
     para que la primera visita sea rápida."""
     for key, ttl, fn in (("backtest", 3600, service.backtest), ("combo_history", 3600, service.combo_history),
+                         ("ml", 3600, service.ml_report),
                          ("upcoming7", 300, lambda: service.upcoming(7))):
         try:
             cached(key, ttl, fn)
@@ -119,6 +120,11 @@ def combo(body: ComboIn):
 @app.get("/api/combos/history")
 def combo_history():
     return cached("combo_history", 3600, service.combo_history)
+
+
+@app.get("/api/ml")
+def ml_report():
+    return cached("ml", 3600, service.ml_report)
 
 
 @app.get("/api/suggestions")

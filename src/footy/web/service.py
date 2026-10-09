@@ -145,9 +145,26 @@ def _option_odds(odds: dict) -> dict[str, dict]:
     return out
 
 
+def _ml_row(match_id: int | None) -> dict | None:
+    """Predicción del modelo de machine learning para un partido programado (None si no hay)."""
+    if match_id is None:
+        return None
+    try:
+        from footy.prediction import ml_predict
+
+        df = ml_predict.upcoming()
+    except Exception:  # noqa: BLE001 - sin modelos entrenados el dashboard sigue con Elo + Dixon-Coles
+        return None
+    if df.empty or match_id not in df.index:
+        return None
+    r = df.loc[match_id]
+    return None if np.isnan(r.ml_H) else r.to_dict()
+
+
 def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | None, odds: dict,
                    home_id: int | None = None, away_id: int | None = None) -> dict:
     params, names = load_params(), league_names()
+    mlr = _ml_row(int(ref[2:])) if ref.startswith("m:") else None
     books = _books_1x2(odds)
     ref_book = next((b for b in REFERENCE_BOOKS if b in books), None) or next(iter(books), None)
     p_mkt_over = _market_over(odds)
@@ -158,13 +175,22 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
         if home_id is None:
             home_id, away_id = pred.find_team(home).id, pred.find_team(away).id
         pr = pred.probabilities(home_id, away_id, books[ref_book] if ref_book else None)
-        p_off = pr.get("p_final", pr["p_model"])
+        # Modelo propio: ML (historial de equipos) si hay predicción; si no, Elo + Dixon-Coles.
+        # Con cuotas manda la combinación validada con el mercado (el ML recibe peso ~0 frente al mercado).
+        p_model = np.array([mlr["ml_H"], mlr["ml_D"], mlr["ml_A"]]) if mlr else pr["p_model"]
+        p_off = pr["p_final"] if ref_book else p_model
         p_dc_over = float(combos.over_prob(pr["lam"], pr["mu"], pred.dc.rho)[0])
-        p_over = float(combos.calibrate_over(np.array([p_dc_over]),
-                                             None if p_mkt_over is None else np.array([p_mkt_over]),
-                                             params[code].get("ou"))[0])
-        M = combos.fit_matrix(pr["lam"], pr["mu"], pred.dc.rho, p_off, p_over)
-        ctx.update({"source": "modelo + mercado" if ref_book else "modelo", "p_model": _probs(pr["p_model"]),
+        if p_mkt_over is None and mlr:
+            p_over = float(mlr["ml_over25"])
+        else:
+            p_over = float(combos.calibrate_over(np.array([p_dc_over]),
+                                                 None if p_mkt_over is None else np.array([p_mkt_over]),
+                                                 params[code].get("ou"))[0])
+        M = combos.fit_matrix(pr["lam"], pr["mu"], pred.dc.rho, p_off, p_over,
+                              p_btts=float(mlr["ml_btts"]) if mlr else None)
+        ctx.update({"source": "modelo + mercado" if ref_book else ("ML" if mlr else "modelo"),
+                    "p_model": _probs(p_model), "model_name": "ML historial" if mlr else "Elo + Dixon-Coles",
+                    "form": _form(mlr),
                     "p_market": _probs(pr.get("p_market")), "xg": [_f(pr["lam"], 2), _f(pr["mu"], 2)]})
         ctx["recommendation"] = _paper_bet(params[code], p_off, books) if ref_book else {
             "bet": False, "text": "Sin cuotas: no se puede evaluar valor."}
@@ -172,6 +198,9 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
         p_off = proportional(books[ref_book][None, :])[0]
         lam, mu = combos.implied_goals(p_off, p_mkt_over)
         M = combos.fit_matrix(lam, mu, 0.0, p_off, p_mkt_over)
+        if mlr:
+            ctx.update({"p_model": _probs([mlr["ml_H"], mlr["ml_D"], mlr["ml_A"]]), "model_name": "ML historial",
+                        "form": _form(mlr)})
         ctx.update({"source": "mercado", "p_market": _probs(p_off), "xg": [_f(lam, 2), _f(mu, 2)],
                     "recommendation": {"bet": False, "text": "Sin modelo validado en esta liga: se muestra la "
                                                               "probabilidad del mercado."}})
@@ -197,6 +226,14 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
                 "odds_1x2": {b: [round(float(x), 2) for x in v] for b, v in books.items() if b in DISPLAY_BOOKS},
                 "_M": M})
     return ctx
+
+
+def _form(r: dict | None) -> dict | None:
+    """Forma reciente que usa el ML (para mostrarla): puntos por partido últimos 5, goles a favor/en contra (10)."""
+    if not r:
+        return None
+    return {k: (None if r.get(k) is None or np.isnan(r[k]) else round(float(r[k]), 2))
+            for k in ("form_h", "form_a", "gf_h", "ga_h", "gf_a", "ga_a", "h2h_n", "h2h_pts")}
 
 
 def _top_scores(M: np.ndarray, n: int = 3) -> list:
@@ -326,6 +363,11 @@ def combo(legs: list[dict], group_odds: dict | None = None) -> dict:
     return {"groups": groups, "legs": n, "p": _f(p_total), "fair_odds": _f(fair_total, 2) if fair_total else None,
             "book_odds": _f(book_total, 2) if (n and book_total) else None,
             "ev": _f(p_total * book_total - 1) if (n and book_total) else None, "history": hist}
+
+
+def ml_report() -> dict:
+    path = config.path("processed") / "ml" / "report.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
 
 
 def combo_history() -> dict:

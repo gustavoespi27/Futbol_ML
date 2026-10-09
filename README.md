@@ -44,7 +44,10 @@ monto de ¼ de Kelly y tope de 2,5% del bankroll. Las dobles sugeridas combinan 
 
 ### Cómo se calculan las probabilidades
 
-1. **Modelo:** Elo + Dixon-Coles (goles y tiros) por liga, con hiperparámetros elegidos en validación 2016-2021.
+1. **Modelo propio:** machine learning (gradient boosting) con 88 variables del historial de los equipos —forma,
+   goles, tiros, localía, temporada, rachas, descanso, enfrentamientos directos, contexto de liga— más las
+   predicciones de Elo y Dixon-Coles. Entrenado con 140 mil partidos (2014-2025). Se usa cuando no hay cuotas, para
+   comparar modelo vs mercado y para "ambos marcan". Elo + Dixon-Coles quedan como respaldo.
 2. **Probabilidad oficial:** combinación con el mercado sin margen, con pesos ≥ 0 ajustados con 2016-2025.
    Sin cuotas se usa el modelo solo; en ligas sin modelo validado (Chile), el mercado.
 3. **Más/menos de 2,5 goles:** Dixon-Coles calibrado y combinado con las cuotas O/U cuando existen.
@@ -62,9 +65,14 @@ monto de ¼ de Kelly y tope de 2,5% del bankroll. Las dobles sugeridas combinan 
 | 1X2 – modelo solo | 48,8% | 1,0237 |
 | Más/menos de 2,5 – oficial | 57,5% | 0,6743 |
 | Más/menos de 2,5 – mercado | 57,8% | 0,6742 |
-| Más/menos de 2,5 – modelo solo | 55,7% | 0,6821 |
+| Más/menos de 2,5 – Dixon-Coles | 55,7% | 0,6821 |
+| 1X2 – ML historial de equipos | 49,2% | 1,0227 |
+| Más/menos de 2,5 – ML | 56,3% | 0,6797 |
+| Ambos marcan – ML (frecuencia histórica: 0,6870) | 55,7% | 0,6831 |
 
-8.608 partidos de 1X2 en 38 ligas y 5.302 con cuotas O/U en 22 ligas. Cuando el sistema da 60-70% al resultado más
+8.608 partidos de 1X2 en 38 ligas y 5.302 con cuotas O/U en 22 ligas. El ML mejora a Elo + Dixon-Coles en las
+tres tareas, pero no alcanza al mercado: combinado con él recibe peso 0, y apostar con sus probabilidades pierde
+(−10,3% en 5.043 apuestas). Detalle en [docs/analisis/05_ml.md](docs/analisis/05_ml.md). Cuando el sistema da 60-70% al resultado más
 probable, ocurre el 65%; cuando da 70% o más, el 77%.
 
 Apuestas sugeridas: la regla aplicada a 2026 hizo 154 apuestas con −5,0% por unidad (IC95% −26% a +16%); con el
@@ -102,11 +110,12 @@ docs/            decisiones, análisis 01-04 y seguimiento prospectivo
 src/footy/
   ingest/        football-data.co.uk y API-Football
   db/            esquema SQLite, enlace de equipos y partidos entre fuentes
-  models/        Elo + logit ordinal, Dixon-Coles, ensamble log-lineal
+  features/      variables del historial de los equipos para el ML (history.py)
+  models/        Elo + logit ordinal, Dixon-Coles, ensamble log-lineal, machine learning (ml.py)
   markets/       matriz de marcadores → 1X2, O/U, ambos marcan; selecciones y combinadas
   evaluation/    métricas, walk-forward, evaluación 2026 (live.py)
   betting/       quitar margen, EV, backtest, apuestas sugeridas (suggestions.py)
-  prediction/    predictor por liga, seguimiento prospectivo y registro de sugerencias
+  prediction/    predictor por liga, predicciones ML, seguimiento prospectivo y registro de sugerencias
   web/           dashboard (FastAPI + HTML/JS estático con Chart.js)
 scripts/         puntos de entrada (ver tabla)
 tests/
@@ -117,7 +126,7 @@ tests/
 | Script | Qué hace |
 |---|---|
 | `scripts/serve.py` | Dashboard web local en http://127.0.0.1:8000 (también `dashboard.bat`) |
-| `scripts/daily.py` | Tarea diaria: API-Football, football-data, predicciones de seguimiento, registro de apuestas sugeridas, informe [docs/seguimiento.md](docs/seguimiento.md) y refresco del dashboard |
+| `scripts/daily.py` | Tarea diaria: API-Football, football-data, predicciones ML, predicciones de seguimiento, registro de apuestas sugeridas, informe [docs/seguimiento.md](docs/seguimiento.md) y refresco del dashboard |
 | `scripts/register_task.ps1` | Registra la tarea diaria en el Programador de tareas de Windows (10:00 y 17:30) |
 | `scripts/update_football_data.py [CÓDIGOS]` | Descarga/actualiza resultados, estadísticas y cuotas de cierre de football-data.co.uk |
 | `scripts/collect_daily.py` | Solo la recolección de API-Football |
@@ -129,6 +138,7 @@ tests/
 | `scripts/evaluate_models.py` | Análisis 02: Elo y Dixon-Coles vs mercado (walk-forward) en ARG/BRA |
 | `scripts/screen_leagues.py` | Análisis 03: el mismo pipeline en 38 ligas, con criterio pre-registrado |
 | `scripts/evaluate_shots.py` | Análisis 04: Dixon-Coles entrenado con tiros además de goles |
+| `scripts/train_ml.py [--eval]` | Análisis 05: entrena los modelos de ML (1X2, más/menos 2,5, ambos marcan) y los evalúa en 2026 (`artifacts/ml/`, ~15 min) |
 | `scripts/build_league_models.py` | Ajusta pesos, umbrales y calibración O/U por liga (2016-2025) en `config/league_models.json` |
 | `scripts/predict.py --league E0 --home X --away Y [--odds L E V]` | Predicción de un partido en consola |
 
@@ -146,5 +156,6 @@ pytest
 ruff check src scripts tests
 ```
 
-La primera vez hay que poblar la base (`scripts/update_football_data.py`, luego los análisis 03-04 y
-`scripts/build_league_models.py`); después basta la tarea diaria.
+La primera vez hay que poblar la base (`scripts/update_football_data.py`, luego los análisis 03-04,
+`scripts/build_league_models.py` y `scripts/train_ml.py`); después basta la tarea diaria. Los modelos de ML se
+guardan en `artifacts/ml/` (no versionado) y conviene reentrenarlos cada temporada.

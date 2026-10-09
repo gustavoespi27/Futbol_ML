@@ -241,3 +241,24 @@ la regla (valor ≥ +3%, cuota 1,30-4,0, probabilidad ≥ 25%, cuota real); **ro
 < 25%, la cuota > 4,0 o el valor < −5%; **amarillo "Neutral"** en el resto (precio cercano al justo o cuota < 1,30).
 Las tarjetas de partido y las tablas de combinadas usan el mismo veredicto, reemplazando la regla antigua de
 "apuestas en papel" en la recomendación visible. El verde no implica ventaja demostrada (ver entrada anterior).
+
+## 2026-10-09 — Análisis 05: machine learning sobre el historial de los equipos
+
+Detalle: [analisis/05_ml.md](analisis/05_ml.md). Gradient boosting (scikit-learn) con 88 variables del historial
+(`footy/features/history.py`, calculadas solo con partidos anteriores) + liga + Elo/DC walk-forward; 1X2, más de 2,5 y
+ambos marcan. Train 2014-07 → 2023, hiperparámetros y mezcla con el mercado en 2024-25, modelo final con 2014-2025,
+evaluación única en 2026.
+
+**Error encontrado y corregido antes de usar resultados:** en la primera corrida las cuotas de cierre de Bet365 y
+las probabilidades de mercado se colaron como variables al unir tablas (aparecieron como las más importantes): fuga
+de información. Ahora las variables salen de una lista blanca por prefijo y un test (`tests/test_ml_features.py`)
+verifica que no entren cuotas, mercado ni estadísticas del propio partido. Los números de abajo son los corregidos.
+
+**Resultado 2026:** 1X2 log loss ML 1,0227 (Elo+DC 1,0237; mercado 1,0034); O/U 2,5 ML 0,6797 (DC 0,6821; mercado
+0,6742); ambos marcan ML 0,6831 (frecuencia histórica 0,6870). El ML mejora a los modelos anteriores, pero poco; al
+combinarlo con el mercado recibe peso 0. Apostar con sus probabilidades: 5.043 apuestas, −10,3% (IC95% [−14%; −7%]).
+
+**Decisión:** el ML reemplaza a Elo + Dixon-Coles como modelo propio (partidos sin cuotas, comparación con el
+mercado, "ambos marcan" en la matriz de marcadores). Con cuotas, la probabilidad oficial y las sugerencias no cambian
+(siguen ancladas al mercado). El historial público ya está en las cuotas: para buscar ventaja harían falta datos
+que el mercado no refleje todavía (alineaciones confirmadas, lesiones, cuotas tempranas para medir CLV).

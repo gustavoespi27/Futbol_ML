@@ -239,11 +239,23 @@ function matchCard(m) {
     oddsHtml = `<div class="compare"><div class="odds-row"><span>Cuota justa</span>${p.map((x) => `<span>${num(1 / x)}</span>`).join("")}</div>
       <div style="color:var(--muted)">Cuotas de la casa: aún no publicadas o no recolectadas.</div></div>`;
   }
+  let form = "";
+  if (m.form && m.form.form_h != null) {
+    const f = m.form;
+    form = `<div class="compare">
+      <div class="odds-row"><span>Forma (últ. 5)</span><span>${num(f.form_h, 1)} pts</span><span></span><span>${num(f.form_a, 1)} pts</span></div>
+      <div class="odds-row"><span>Goles (últ. 10)</span><span>${num(f.gf_h, 1)}–${num(f.ga_h, 1)}</span><span></span><span>${num(f.gf_a, 1)}–${num(f.ga_a, 1)}</span></div>
+      ${f.h2h_n ? `<div style="color:var(--muted)">Últimos ${f.h2h_n} enfrentamientos: ${esc(m.home)} sumó ${num(f.h2h_pts, 1)} pts por partido</div>` : ""}</div>`;
+  }
+  let mlOnly = "";
+  if (m.p_model && !m.p_market && m.model_name === "ML historial") {
+    mlOnly = `<div class="reco"><span class="pill">pronóstico ML</span> sin cuotas aún: probabilidades del modelo entrenado con el historial de los equipos</div>`;
+  }
   let compare = "";
   if (m.p_model && m.p_market) {
     compare = `<div class="compare">
       <div class="row"><span></span><span>Local</span><span>Empate</span><span>Visita</span></div>
-      <div class="row"><span>Modelo</span>${m.p_model.map((x) => `<span class="num">${pct(x)}</span>`).join("")}</div>
+      <div class="row"><span>${esc(m.model_name === "ML historial" ? "ML" : "Modelo")}</span>${m.p_model.map((x) => `<span class="num">${pct(x)}</span>`).join("")}</div>
       <div class="row"><span>Mercado</span>${m.p_market.map((x) => `<span class="num">${pct(x)}</span>`).join("")}</div></div>`;
   }
   return `<article class="card match">
@@ -256,7 +268,7 @@ function matchCard(m) {
       const op = m.options.find((x) => x.key === k);
       return op ? vchip(op.verdict, `${k === "1" ? "Local" : k === "X" ? "Empate" : "Visita"} ${pct(op.p)}`) : "";
     }).join("")}</div>` : ""}
-    ${oddsHtml}${extra}${compare}
+    ${oddsHtml}${extra}${form}${compare}${mlOnly}
     ${m.stale ? `<div class="stale">⚠ Datos de la liga hasta ${fmtDate(m.data_through, false)}: faltan fechas recientes (la fuente se atrasó).</div>` : ""}
     <div class="reco">${reco}</div>
     ${m.options && m.options.length ? `<button class="chip" style="justify-self:start" onclick="goToCombos('${esc(m.ref)}')">Ver todas las opciones y combinar →</button>` : ""}
@@ -297,6 +309,7 @@ async function renderTracking() {
 /* ---------- RENDIMIENTO ---------- */
 async function renderBacktest() {
   renderRuleHistory().catch((e) => showError("v-rendimiento", e));
+  renderML().catch((e) => showError("v-rendimiento", e));
   const d = await api("/api/backtest");
   const s = d.summary, bm = d.betting.model_only, bo = d.betting.official_v2;
   $("#bt-intro").textContent = `Evaluación sobre ${s.n.toLocaleString("es-CL")} partidos de ${s.leagues} ligas (${fmtDate(s.from, false)} – ${fmtDate(s.to, false)}). ` +
@@ -382,6 +395,36 @@ async function renderBacktest() {
       <td class="r">${pct(r.acc_model, 1)}</td><td class="r">${pct(r.acc_market, 1)}</td><td class="r">${pct(r.acc_official, 1)}</td>
       ${["ll_model", "ll_market", "ll_official"].map((k) => `<td class="r" ${r[k] === best(r) ? 'style="font-weight:650;color:var(--text)"' : 'style="color:var(--text-2)"'}>${num(r[k], 3)}</td>`).join("")}
       <td><span class="pill ${r.status.startsWith("pasó") ? "warn" : ""}" title="${esc(r.status)}">${r.status.startsWith("pasó") ? "en observación" : "sin ventaja"}</span></td></tr>`).join("")}</tbody></table>`;
+}
+
+/* ---------- MACHINE LEARNING (análisis 05) ---------- */
+async function renderML() {
+  const r = await api("/api/ml");
+  if (!r || !r.x12) { $("#ml-block").innerHTML = `<div class="empty">Aún no hay modelos entrenados (python scripts/train_ml.py).</div>`; return; }
+  const row = (label, x, best) => `<tr><td>${label}</td><td class="r" ${x.logloss === best ? 'style="font-weight:650;color:var(--text)"' : ""}>${num(x.logloss, 4)}</td><td class="r">${pct(x.acc, 1)}</td></tr>`;
+  const tbl = (title, block, items) => {
+    const best = Math.min(...items.map(([k]) => block[k].logloss));
+    return `<div><h3 style="margin-bottom:8px">${title}</h3><table><thead><tr><th>Fuente</th><th class="r">Log loss</th><th class="r">Acierto</th></tr></thead>
+      <tbody>${items.map(([k, l]) => row(l, block[k], best)).join("")}</tbody></table></div>`;
+  };
+  const b = r.bets.ml;
+  $("#ml-block").innerHTML = `
+    <div class="grid g3">
+      ${tbl(`Resultado 1X2 (${r.x12.n.toLocaleString("es-CL")} partidos)`, r.x12, [["elo_dc", "Elo + Dixon-Coles"], ["ml", "ML historial"], ["mercado", "Mercado"], ["ml_mercado", "ML + mercado"]])}
+      ${tbl(`Más/menos de 2,5 (${r.over25.n.toLocaleString("es-CL")})`, r.over25, [["dixon_coles", "Dixon-Coles"], ["ml", "ML historial"], ["mercado", "Mercado"], ["ml_mercado", "ML + mercado"]])}
+      ${tbl("Ambos marcan", r.btts, [["frecuencia_historica", "Frecuencia histórica"], ["ml", "ML historial"]])}
+    </div>
+    <div class="stack" style="font-size:14px;color:var(--text-2);margin-top:16px">
+      <p><b style="color:var(--text)">El ML mejora a los modelos anteriores, pero poco:</b> aprende de ${r.n_features} variables del historial de los equipos
+        (forma, tiros, localía, temporada, rachas, descanso, enfrentamientos directos) con ${r.n_train.toLocaleString("es-CL")} partidos.</p>
+      <p><b style="color:var(--text)">No alcanza al mercado:</b> al combinarlos, el ML recibe peso ${num(r.blend["1x2"][0], 2)} frente a
+        ${num(r.blend["1x2"][1], 2)} del mercado. Lo que dice el historial público de los equipos ya está en las cuotas.</p>
+      <p><b style="color:var(--text)">Apostar con el ML solo pierde:</b> ${b.n.toLocaleString("es-CL")} apuestas con la regla de sugerencias,
+        ${signed(b.yield)} por unidad (IC95% ${signed(b.ci[0], 0)} a ${signed(b.ci[1], 0)}). Por eso las apuestas sugeridas siguen usando la probabilidad oficial.</p>
+      <p>Para superar al mercado harían falta datos que el historial no tiene: alineaciones confirmadas, lesiones y cuotas tempranas.</p>
+    </div>
+    <div style="margin-top:12px"><h3 style="margin-bottom:6px">Variables que más pesan</h3>
+      <p class="sub" style="margin-bottom:6px">${r.importance.slice(0, 8).map((x) => `<code>${esc(x.feature)}</code>`).join(" · ")}</p></div>`;
 }
 
 /* ---------- SIMULADOR ---------- */

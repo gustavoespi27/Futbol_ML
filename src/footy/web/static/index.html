@@ -219,6 +219,11 @@
       </div>
     </div>
     <div class="card" style="margin-top:16px">
+      <h2>Machine learning con el historial de los equipos</h2>
+      <p class="sub">Gradient boosting entrenado con 2014-2025 y evaluado una sola vez en 2026 (log loss: menor es mejor).</p>
+      <div id="ml-block"><div class="loading">Cargando…</div></div>
+    </div>
+    <div class="card" style="margin-top:16px">
       <h2>Por liga</h2>
       <p class="sub">Acierto y log loss (error probabilístico: menor es mejor) del modelo solo, del mercado y de la probabilidad oficial.</p>
       <div class="table-wrap" id="bt-leagues"></div>
@@ -301,6 +306,7 @@
           <dt>Combinada</dt><dd>Varias selecciones en un solo boleto: se gana solo si TODAS se cumplen. La cuota se multiplica, pero también el margen de la casa.</dd>
           <dt>Cuota justa</dt><dd>1 / probabilidad del sistema. Si la casa paga más que la cuota justa, hay valor; si paga menos, la apuesta pierde a la larga.</dd>
           <dt>Criterio de Kelly</dt><dd>Fórmula para decidir cuánto apostar según la ventaja y la cuota. Se usa ¼ de Kelly con tope de 2,5% del bankroll: crece más lento pero aguanta mejor las rachas malas.</dd>
+          <dt>Machine learning</dt><dd>Un modelo (gradient boosting) que aprende de miles de partidos qué patrones del historial de los equipos —forma, goles, tiros, localía, descanso— anticipan el resultado.</dd>
           <dt>Walk-forward</dt><dd>Probar el modelo como si viviéramos en el pasado: para predecir cada semana solo usa partidos anteriores.</dd>
         </dl>
       </div>

@@ -20,7 +20,7 @@ from footy.db.connection import connect
 from footy.ingest import football_data as fd
 from footy.ingest.api_football import ApiFootball
 from footy.ingest.collect import run_daily
-from footy.prediction import tracking
+from footy.prediction import ml_predict, tracking
 from footy.web import service
 
 log = logging.getLogger("daily")
@@ -53,6 +53,7 @@ def main() -> int:
     steps = [
         ("api_football", lambda: log.info("Resumen API: %s", run_daily(conn, ApiFootball(conn)))),
         ("football_data", lambda: update_current_season(conn)),
+        ("ml", lambda: log.info("ML: %s partidos", len(ml_predict.upcoming(refresh=True)))),
         ("tracking", lambda: log.info("Seguimiento: %s", tracking.register(conn, tracking.fetch_fixtures()))),
         ("tracking_api", lambda: log.info("Seguimiento API: %s", tracking.register_scheduled(conn))),
         ("suggestions", lambda: log.info("Sugerencias: %s", service.register_suggestions(conn))),
