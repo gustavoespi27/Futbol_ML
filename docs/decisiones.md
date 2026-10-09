@@ -229,3 +229,15 @@ no ve).
 
 **Medición prospectiva:** la tarea diaria registra las sugerencias antes de cada partido (tabla `suggestions`, una
 vez por selección) y el dashboard muestra su resultado real. Es la prueba que decide si la regla sirve.
+
+## 2026-10-09 — Panel principal con semáforo
+
+El dashboard se reorganiza alrededor de un **panel de apuestas** (pestaña de inicio): apuestas sugeridas arriba,
+semáforo de todos los próximos partidos y, al final, la fiabilidad de las probabilidades. La pestaña separada de
+sugerencias desaparece; su histórico 2026 pasa a "¿Qué tan fiable es?".
+
+Semáforo por selección (`suggestions.verdict`), coherente con la regla de sugerencias: **verde "Apostar"** si cumple
+la regla (valor ≥ +3%, cuota 1,30-4,0, probabilidad ≥ 25%, cuota real); **rojo "No apostar"** si la probabilidad es
+< 25%, la cuota > 4,0 o el valor < −5%; **amarillo "Neutral"** en el resto (precio cercano al justo o cuota < 1,30).
+Las tarjetas de partido y las tablas de combinadas usan el mismo veredicto, reemplazando la regla antigua de
+"apuestas en papel" en la recomendación visible. El verde no implica ventaja demostrada (ver entrada anterior).

@@ -181,12 +181,15 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
         return ctx
     oo = _option_odds(odds)
     options = []
+    from footy.betting.suggestions import verdict
+
     for o in combos.options(M):
         bo = oo.get(o["key"])
         options.append({**o, "fair": _f(1 / o["p"], 2) if o["p"] > 0 else None,
                         "odds": bo["price"] if bo else None, "book": bo["book"] if bo else None,
                         "estimated": bo["estimated"] if bo else False,
-                        "ev": _f(o["p"] * bo["price"] - 1) if bo else None})
+                        "ev": _f(o["p"] * bo["price"] - 1) if bo else None,
+                        "verdict": verdict(o["p"], bo["price"] if bo else None, bo["estimated"] if bo else False)})
     ctx.update({"p_official": _probs([combos.prob(M, [k]) for k in "1X2"]),
                 "over25": _f(combos.prob(M, ["O2.5"])), "btts": _f(combos.prob(M, ["BTTS_Y"])),
                 "top_scores": _top_scores(M), "options": options,
@@ -341,7 +344,8 @@ def _candidates(matches: list[dict]) -> list[dict]:
             if o.get("odds"):
                 out.append({"match": int(m["ref"][2:]), "ref": m["ref"], "key": o["key"], "label": o["label"],
                             "p": o["p"], "odds": float(o["odds"]), "book": o["book"], "estimated": o["estimated"],
-                            "fair": o["fair"], "home": m["home"], "away": m["away"], "league_name": m["league_name"],
+                            "fair": o["fair"], "verdict": o.get("verdict"), "home": m["home"], "away": m["away"],
+                            "league_name": m["league_name"],
                             "kickoff": m["kickoff"], "source": m["source"]})
     return out
 

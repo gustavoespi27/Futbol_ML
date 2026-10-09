@@ -71,3 +71,32 @@ def pick_doubles(singles: list[dict], top: int = 3, pool: int = 6) -> list[dict]
         out.append({"legs": [a, b], "p": p, "odds": odds, "ev": p * odds - 1,
                     "stake": stake_fraction(p, odds), "growth": growth(p, odds), "risk": risk_level(p)})
     return sorted(out, key=lambda d: -d["growth"])[:top]
+
+
+BAD_EV = -0.05             # por debajo, la cuota paga claramente menos de lo que vale
+
+
+def _pct(x: float) -> str:
+    return f"{x * 100:+.1f}%".replace(".", ",")
+
+
+def verdict(p: float, odds: float | None = None, estimated: bool = False) -> dict:
+    """Semáforo de una selección:
+      verde  "Apostar"     cumple la regla (valor >= MIN_EV con riesgo acotado);
+      rojo   "No apostar"  probabilidad muy baja, cuota demasiado alta o valor claramente negativo;
+      amarillo "Neutral"   precio cercano al justo o cuota que paga muy poco.
+    Sin cuota de la casa solo se puede descartar por probabilidad baja (si no, "Sin cuota")."""
+    if p < MIN_P:
+        return {"level": "red", "label": "No apostar", "reason": f"Probabilidad muy baja ({p * 100:.0f}%)"}
+    if odds is None:
+        return {"level": "none", "label": "Sin cuota", "reason": "Falta la cuota de la casa para evaluar el retorno"}
+    ev = p * odds - 1
+    if not estimated and qualifies(p, odds):
+        return {"level": "green", "label": "Apostar", "reason": f"Paga {_pct(ev)} sobre lo que vale, riesgo acotado"}
+    if odds > MAX_ODDS:
+        return {"level": "red", "label": "No apostar", "reason": "Cuota muy alta: riesgo excesivo"}
+    if ev < BAD_EV:
+        return {"level": "red", "label": "No apostar", "reason": f"La cuota paga {_pct(ev)} respecto de lo que vale"}
+    if odds < MIN_ODDS:
+        return {"level": "yellow", "label": "Neutral", "reason": "Muy probable, pero paga muy poco"}
+    return {"level": "yellow", "label": "Neutral", "reason": f"Precio cercano al justo ({_pct(ev)})"}

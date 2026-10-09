@@ -58,3 +58,15 @@ def test_register_once_and_settle():
     rec = suggested.record(conn)
     assert rec["settled"] == 1 and rec["pending"] == 2                                # la doble espera el 2º partido
     assert rec["won"] == 1 and rec["units"] == pytest.approx(1.0)
+
+
+def test_verdict_traffic_light():
+    assert sg.verdict(0.55, 2.0)["level"] == "green"                  # +10% de valor, riesgo acotado
+    assert sg.verdict(0.55, 2.0, estimated=True)["level"] == "yellow"  # cuota estimada: no se sugiere
+    assert sg.verdict(0.20, 6.0)["level"] == "red"                    # probabilidad muy baja
+    assert sg.verdict(0.30, 4.5)["level"] == "red"                    # cuota demasiado alta
+    assert sg.verdict(0.40, 2.2)["level"] == "red"                    # valor -12%
+    assert sg.verdict(0.50, 1.98)["level"] == "yellow"                # precio justo
+    assert sg.verdict(0.85, 1.20)["level"] == "yellow"                # paga muy poco
+    assert sg.verdict(0.50)["level"] == "none"                        # sin cuota
+    assert sg.verdict(0.10)["level"] == "red"

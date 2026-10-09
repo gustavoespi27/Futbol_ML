@@ -51,17 +51,14 @@ function optionsTable(ctx) {
     const head = o.group !== group ? `<tr class="opt-group"><td colspan="6">${esc(o.group)}</td></tr>` : "";
     group = o.group;
     const odds = o.odds ? `${num(o.odds)}${o.estimated ? '<span title="Estimada desde el 1X2 de la misma casa" style="color:var(--muted)">*</span>' : ""}` : "–";
-    let val = "";
-    if (o.odds && o.ev != null) {
-      val = o.ev > 0 ? `<span class="pill good">${signed(o.ev)}</span>` : `<span style="color:var(--muted)">${signed(o.ev)}</span>`;
-    }
+    const val = vchip(o.verdict, o.odds && o.ev != null ? signed(o.ev) : "");
     return `${head}<tr><td>${esc(o.label)}</td><td class="r"><b>${pct(o.p, 1)}</b></td><td class="r">${odds}</td>
       <td class="r" style="color:var(--text-2)">${num(o.fair)}</td><td class="r">${val}</td>
       <td class="r"><button class="add" data-ref="${esc(ctx.ref)}" data-keys="${o.key}">+</button></td></tr>`;
   }).join("");
   const book = (ctx.options.find((o) => o.book) || {}).book;
   return `<div class="table-wrap"><table class="opt-table"><thead><tr><th>Selección</th><th class="r">Probabilidad</th>
-    <th class="r">Cuota ${book ? esc(book) : "casa"}</th><th class="r">Cuota justa</th><th class="r">Valor</th><th></th></tr></thead>
+    <th class="r">Cuota ${book ? esc(book) : "casa"}</th><th class="r">Cuota justa</th><th class="r">Semáforo · valor</th><th></th></tr></thead>
     <tbody>${rows}</tbody></table></div>`;
 }
 function suggestionsBlock(ctx) {

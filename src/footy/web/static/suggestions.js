@@ -18,20 +18,26 @@ async function renderSuggestions() {
     drawCurrent(d);
   };
   drawCurrent(d);
-  drawHistory(d.history || {});
   drawRecord(d.record || {});
+  return d;
+}
+
+async function renderRuleHistory() {
+  const d = await api("/api/suggestions");
+  drawHistory(d.history || {});
 }
 
 function drawCurrent(d) {
   const bank = getBank();
   const r = d.rules;
   $("#sg-singles").innerHTML = d.singles.length ? d.singles.map((s) => `
-    <article class="card sg-card">
+    <article class="card sg-card green">
       <div class="meta" style="display:flex;justify-content:space-between;color:var(--text-2);font-size:12.5px">
         <span>${esc(s.league_name)}</span><span>${fmtDate(s.kickoff)}</span></div>
       <div><div style="color:var(--text-2);font-size:13.5px">${esc(s.home)} vs ${esc(s.away)}</div>
         <div class="sel">${esc(s.label)}</div></div>
-      <div class="reco"><span class="pill ${RISK_PILL[s.risk]}">riesgo ${s.risk}</span>
+      <div class="reco">${vchip({ level: "green", label: "Apostar", reason: "Cumple la regla de valor con riesgo acotado" })}
+        <span class="pill ${RISK_PILL[s.risk]}">riesgo ${s.risk}</span>
         <span>cuota <b style="color:var(--text)">${num(s.odds)}</b> en ${esc(s.book)}</span></div>
       <div class="kv">
         <div><span>Probabilidad</span><b class="num">${pct(s.p, 1)}</b></div>
@@ -61,14 +67,14 @@ function drawCurrent(d) {
     <th class="r">Cuota</th><th class="r">Valor</th><th class="r">Cuota mínima</th><th></th></tr></thead><tbody>${d.closest.map((c) => `<tr>
     <td>${esc(c.home)} vs ${esc(c.away)}<div style="color:var(--muted);font-size:12px">${fmtDate(c.kickoff)}</div></td>
     <td>${esc(c.label)}</td><td class="r">${pct(c.p)}</td><td class="r">${num(c.odds)}</td>
-    <td class="r" style="color:var(--muted)">${signed(c.ev)}</td><td class="r"><b>${num(minOdds(c.p))}</b></td>
+    <td class="r">${vchip(c.verdict, signed(c.ev))}</td><td class="r"><b>${num(minOdds(c.p))}</b></td>
     <td class="r"><button class="add" data-ref="${esc(c.ref)}" data-keys="${c.key}">+</button></td></tr>`).join("")}</tbody></table>`
     : `<div class="empty">Sin partidos con cuotas en los próximos días.</div>`;
 
   $("#sg-safest").innerHTML = d.safest.length ? `<table><thead><tr><th>Partido</th><th>Selección</th><th class="r">Prob.</th>
     <th class="r">Cuota</th><th class="r">Valor</th><th></th></tr></thead><tbody>${d.safest.map((c) => `<tr>
     <td>${esc(c.home)} vs ${esc(c.away)}</td><td>${esc(c.label)}</td><td class="r"><b>${pct(c.p)}</b></td><td class="r">${num(c.odds)}</td>
-    <td class="r" style="color:var(--muted)">${signed(c.ev)}</td>
+    <td class="r">${vchip(c.verdict, signed(c.ev))}</td>
     <td class="r"><button class="add" data-ref="${esc(c.ref)}" data-keys="${c.key}">+</button></td></tr>`).join("")}</tbody></table>`
     : `<div class="empty">Ningún partido con una opción de 70% o más y cuota disponible.</div>`;
   syncAddButtons();

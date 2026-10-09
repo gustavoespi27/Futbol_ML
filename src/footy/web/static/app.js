@@ -37,12 +37,12 @@ $("#theme").addEventListener("click", () => {
 });
 
 /* ---------- navegación ---------- */
-const views = { inicio: renderHome, partidos: renderMatches, combinadas: () => renderCombos(), sugeridas: () => renderSuggestions(), resultados: renderTracking,
+const views = { inicio: renderHome, partidos: renderMatches, combinadas: () => renderCombos(), resultados: renderTracking,
   rendimiento: renderBacktest, simulador: renderSimulator, "como-funciona": () => {} };
 const rendered = new Set();
 function route() {
   const id = (location.hash || "#inicio").slice(1);
-  const key = id in views ? id : "inicio";
+  const key = id in views ? id : "inicio";             // "#sugeridas" (enlaces antiguos) cae en el panel
   document.querySelectorAll("section.view").forEach((s) => s.classList.toggle("active", s.id === "v-" + key));
   document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + key));
   if (!rendered.has(key) || key === "combinadas") {          // combinadas se redibuja: depende del boleto
@@ -100,6 +100,48 @@ function stat(label, value, hint = "") {
 }
 const SOURCE_PILL = { "modelo + mercado": "good", modelo: "", mercado: "warn", "sin datos": "", error: "bad" };
 
+/* ---------- semáforo ---------- */
+function vchip(v, text) {
+  v = v || { level: "none", label: "Sin cuota", reason: "" };
+  return `<span class="vchip ${v.level}" title="${esc(v.reason)}"><b>${esc(v.label)}</b>${text ? ` ${text}` : ""}</span>`;
+}
+function vcell(op) {
+  if (!op) return `<div class="vcell none">–</div>`;
+  const v = op.verdict || { level: "none", label: "Sin cuota", reason: "" };
+  return `<div class="vcell ${v.level}" title="${esc(op.label)}: ${esc(v.reason)}"><b>${pct(op.p)}</b>
+    <span>${op.odds ? num(op.odds) : "sin cuota"}</span><small>${esc(v.label)}</small></div>`;
+}
+const SEM_COLS = [["1", "Local"], ["X", "Empate"], ["2", "Visita"], ["O2.5", "Más 2,5"], ["U2.5", "Menos 2,5"], ["BTTS_Y", "Ambos marcan"]];
+const RANK = { green: 3, yellow: 2, none: 1, red: 0 };
+let semLeague = "Todas";
+async function renderSemaphore() {
+  const list = await api("/api/upcoming");
+  const leagues = ["Todas", ...new Set(list.map((m) => m.league_name))];
+  const draw = () => {
+    $("#sem-filter").innerHTML = leagues.map((l) => `<button class="chip ${l === semLeague ? "on" : ""}" data-l="${esc(l)}">${esc(l)}</button>`).join("");
+    const shown = list.filter((m) => semLeague === "Todas" || m.league_name === semLeague);
+    $("#semaforo").innerHTML = shown.length ? `<table class="sem"><thead><tr><th>Partido</th>${SEM_COLS.map(([, n]) => `<th style="text-align:center">${n}</th>`).join("")}
+      <th>Mejor opción</th></tr></thead><tbody>${shown.map(semRow).join("")}</tbody></table>`
+      : `<div class="empty">No hay partidos programados en los próximos 7 días.</div>`;
+  };
+  $("#sem-filter").onclick = (e) => { const b = e.target.closest("button"); if (b) { semLeague = b.dataset.l; draw(); } };
+  draw();
+  return list;
+}
+function bestOption(m) {
+  return (m.options || []).filter((o) => o.odds && !o.estimated && o.verdict)
+    .sort((a, b) => (RANK[b.verdict.level] - RANK[a.verdict.level]) || ((b.ev ?? -9) - (a.ev ?? -9)))[0];
+}
+function semRow(m) {
+  const ops = Object.fromEntries((m.options || []).map((o) => [o.key, o]));
+  const best = bestOption(m);
+  return `<tr><td class="m" onclick="goToCombos('${esc(m.ref)}')"><b>${esc(m.home)}</b> vs <b>${esc(m.away)}</b>
+    <div style="color:var(--muted);font-size:12px">${esc(m.league_name)} · ${fmtDate(m.kickoff)}${m.stale ? " · ⚠ datos atrasados" : ""}</div></td>
+    ${SEM_COLS.map(([k]) => `<td>${vcell(ops[k])}</td>`).join("")}
+    <td>${best ? `${vchip(best.verdict)}<div style="font-size:12.5px;margin-top:4px">${esc(best.label)} a ${num(best.odds)}</div>`
+      : '<span style="color:var(--muted);font-size:12.5px">sin cuotas aún</span>'}</td></tr>`;
+}
+
 /* ---------- INICIO ---------- */
 async function renderHome() {
   const o = await api("/api/overview");
@@ -115,13 +157,18 @@ async function renderHome() {
     ["Casas de apuestas", pct(b.acc_market, 1), "cuotas de cierre"],
   ].map(([l, v, h]) => `<div class="stat"><div class="label">${l}</div><div class="value num" style="font-size:22px">${v}</div><div class="hint">${h}</div></div>`).join("");
 
-  const evalTxt = t.evaluated ? `${pct(t.hit_rate)} de acierto` : "aún sin resultados";
+  const [sug, list] = await Promise.all([renderSuggestions(), renderSemaphore()]);
+  const counts = { green: 0, yellow: 0, red: 0 };
+  list.forEach((m) => (m.options || []).forEach((op) => { if (op.verdict && op.verdict.level in counts) counts[op.verdict.level] += 1; }));
+  const upd = o.last_daily_run ? new Date(o.last_daily_run) : null;
   $("#home-tiles").innerHTML = [
-    stat("Predicciones en seguimiento", (t.evaluated + t.pending).toLocaleString("es-CL"), `${t.evaluated} evaluadas · ${evalTxt}`),
-    stat("Ligas con modelo validado", o.n_leagues_model, "más Chile con probabilidades de mercado"),
-    stat("Recomendación por defecto", "No apostar", "sin ventaja demostrada frente al mercado"),
-    stat("Última actualización", o.last_daily_run ? new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "short" }).format(new Date(o.last_daily_run)) : "–",
-      o.last_daily_run ? `a las ${new Intl.DateTimeFormat("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(o.last_daily_run))} · modelo ${o.model_version}` : ""),
+    `<div class="card stat" style="box-shadow:inset 0 4px 0 var(--good),var(--shadow)"><div class="label">Apuestas sugeridas</div>
+      <div class="value num" style="color:var(--good)">${sug.singles.length}</div><div class="hint">en ${sug.n_matches_with_odds} partidos con cuotas</div></div>`,
+    stat("Opciones en el semáforo", `<span style="color:var(--good)">${counts.green}</span> · <span style="color:var(--warn)">${counts.yellow}</span> · <span style="color:var(--bad)">${counts.red}</span>`,
+      "verde · amarillo · rojo"),
+    stat("Partidos próximos", list.length, `${t.evaluated + t.pending} predicciones en seguimiento`),
+    stat("Última actualización", upd ? new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "short" }).format(upd) : "–",
+      upd ? `a las ${new Intl.DateTimeFormat("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false }).format(upd)} · modelo ${o.model_version}` : ""),
   ].join("");
 
   chart("ch-confidence", () => ({
@@ -166,9 +213,11 @@ function matchCard(m) {
   const p = m.p_official;
   const fav = p ? p.indexOf(Math.max(...p)) : null;
   const r = m.recommendation || {};
-  const reco = r.bet
-    ? `<span class="pill warn">Valor marginal</span> ${SEL[r.sel]} a ${num(r.odds)} (${esc(r.book)}, EV ${signed(r.ev)}) · solo en papel`
-    : `<span class="pill">No apostar</span> ${esc(r.text || "")}`;
+  // Recomendación = la mejor opción del partido según el semáforo (misma regla que el panel).
+  const best = bestOption(m);
+  const reco = best
+    ? `${vchip(best.verdict)} <span>Mejor opción: <b style="color:var(--text)">${esc(best.label)}</b> a ${num(best.odds)} · ${esc(best.verdict.reason)}</span>`
+    : `${vchip({ level: "none", label: "Sin cuota", reason: "" })} <span>${esc(r.text || "Aún no hay cuotas para evaluar el retorno.")}</span>`;
   let extra = "";
   if (m.xg) {
     extra = `<div class="kv">
@@ -203,6 +252,10 @@ function matchCard(m) {
     <div>${probBar(p)}</div>
     <div class="reco"><span class="pill ${SOURCE_PILL[m.source] ?? ""}">${esc(m.source)}</span>
       ${fav != null ? `<span>Más probable: <b style="color:var(--text)">${fav === 1 ? "empate" : fav === 0 ? esc(m.home) : esc(m.away)}</b></span>` : ""}</div>
+    ${m.options && m.options.length ? `<div class="sem-legend">${["1", "X", "2"].map((k) => {
+      const op = m.options.find((x) => x.key === k);
+      return op ? vchip(op.verdict, `${k === "1" ? "Local" : k === "X" ? "Empate" : "Visita"} ${pct(op.p)}`) : "";
+    }).join("")}</div>` : ""}
     ${oddsHtml}${extra}${compare}
     ${m.stale ? `<div class="stale">⚠ Datos de la liga hasta ${fmtDate(m.data_through, false)}: faltan fechas recientes (la fuente se atrasó).</div>` : ""}
     <div class="reco">${reco}</div>
@@ -243,6 +296,7 @@ async function renderTracking() {
 
 /* ---------- RENDIMIENTO ---------- */
 async function renderBacktest() {
+  renderRuleHistory().catch((e) => showError("v-rendimiento", e));
   const d = await api("/api/backtest");
   const s = d.summary, bm = d.betting.model_only, bo = d.betting.official_v2;
   $("#bt-intro").textContent = `Evaluación sobre ${s.n.toLocaleString("es-CL")} partidos de ${s.leagues} ligas (${fmtDate(s.from, false)} – ${fmtDate(s.to, false)}). ` +

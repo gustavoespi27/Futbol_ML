@@ -258,3 +258,30 @@ details.mx .body { padding: 14px 18px 18px; display: grid; gap: 16px; }
 .sg-card .sel { font-size: 19px; font-weight: 650; letter-spacing: -0.01em; }
 .sg-card .kv { grid-template-columns: repeat(3, 1fr); }
 @media (max-width: 400px) { .sg-card .kv { grid-template-columns: repeat(2, 1fr); } }
+
+/* --- semáforo --- */
+h2.sec { margin: 28px 0 12px; font-size: 20px; }
+.sec-row { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; margin: 28px 0 12px; }
+.sec-row h2.sec { margin: 0; }
+.sem-legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.vchip {
+  display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; padding: 4px 9px; font-size: 12.5px;
+  background: var(--surface-2); color: var(--text-2); border: 1px solid transparent; white-space: nowrap;
+}
+.vchip b { font-weight: 650; }
+.vchip.green { background: var(--good-bg); color: var(--good); border-color: color-mix(in srgb, var(--good) 35%, transparent); }
+.vchip.yellow { background: var(--warn-bg); color: var(--warn); border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+.vchip.red { background: var(--bad-bg); color: var(--bad); border-color: color-mix(in srgb, var(--bad) 30%, transparent); }
+.vchip.none { color: var(--muted); }
+.sem-legend .vchip { white-space: normal; }
+.vcell { display: grid; gap: 2px; justify-items: center; min-width: 84px; padding: 6px 4px; border-radius: 8px; font-size: 12.5px;
+  line-height: 1.25; background: var(--surface-2); color: var(--muted); }
+.vcell b { font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.vcell small { white-space: nowrap; font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; }
+.vcell.green { background: var(--good-bg); color: var(--good); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--good) 45%, transparent); }
+.vcell.yellow { background: var(--warn-bg); color: var(--warn); }
+.vcell.red { background: var(--bad-bg); color: var(--bad); }
+table.sem td { padding: 6px 5px; }
+table.sem td.m { min-width: 190px; cursor: pointer; }
+table.sem td.m:hover b { color: var(--accent); }
+.sg-card.green { box-shadow: inset 0 4px 0 var(--good), var(--shadow); }

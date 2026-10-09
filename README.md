@@ -18,16 +18,29 @@ python scripts/serve.py          # abre http://127.0.0.1:8000
 
 | Sección | Qué muestra |
 |---|---|
-| Inicio | Acierto fuera de muestra, calibración por nivel de confianza y estado del sistema |
+| Panel (inicio) | Pantalla principal: apuestas sugeridas con monto según tu bankroll, **semáforo** de todos los próximos partidos (local, empate, visita, más/menos 2,5, ambos marcan) con la mejor opción de cada uno, las más cercanas a tener valor, las de alta probabilidad, el historial real de sugerencias y la fiabilidad de las probabilidades |
 | Próximos partidos | Probabilidades 1X2, cuotas de la casa (Bet365/Pinnacle), cuota justa, ganancia por 1.000 apostados, goles esperados, modelo vs mercado y aviso si los datos de la liga están atrasados |
-| Apuestas sugeridas | Selecciones con la mejor relación riesgo/recompensa según una regla fija (valor ≥ +3%, cuota 1,30–4,0, probabilidad ≥ 25%), ordenadas por crecimiento esperado del bankroll (Kelly), con nivel de riesgo, monto sugerido según tu bankroll (¼ de Kelly, máx. 2,5%) y ganancia si acierta; dobles sugeridas, las más cercanas a tener valor (con la cuota mínima necesaria), las de alta probabilidad, el histórico 2026 de la regla y el registro real de sugerencias |
 | Combinadas | Constructor de combinadas: opciones de cada partido con probabilidad, cuota de la casa, cuota justa y valor; variantes más probables del mismo partido; boleto para agregar y quitar selecciones con la probabilidad de acertarlo, cuota combinada y ganancia. Incluye el histórico 2026 de combinadas |
 | Resultados | Predicciones registradas antes de cada partido vs resultado real, y apuestas en papel con CLV |
-| ¿Qué tan fiable es? | Evaluación 2026 en 38 ligas (1X2 y más/menos de 2,5 goles): calibración, simulación de apuestas y tabla por liga |
+| ¿Qué tan fiable es? | Evaluación 2026 en 38 ligas (1X2 y más/menos de 2,5 goles): calibración, simulación de apuestas, tabla por liga e histórico de la regla de apuestas sugeridas (bankroll, por nivel de riesgo) |
 | Simulador | Cualquier partido de una liga con modelo, con cuotas opcionales; sus opciones se pueden agregar a la combinada |
 | Cómo funciona | Explicación sin tecnicismos y glosario |
 
 La API JSON está documentada en http://127.0.0.1:8000/api/docs. La tarea diaria refresca el dashboard si está abierto.
+
+### Semáforo y apuestas sugeridas
+
+Cada opción con cuota de la casa recibe un color (`footy/betting/suggestions.py`, `verdict`):
+
+| Color | Etiqueta | Cuándo |
+|---|---|---|
+| Verde | **Apostar** | Paga al menos +3% sobre lo que vale (probabilidad × cuota − 1 ≥ 3%), cuota real entre 1,30 y 4,0 y probabilidad ≥ 25% |
+| Amarillo | **Neutral** | Precio cercano al justo (entre −5% y +3%) o muy probable pero con cuota menor a 1,30 |
+| Rojo | **No apostar** | Probabilidad < 25%, cuota > 4,0 o paga más de 5% menos de lo que vale |
+| Gris | Sin cuota | Aún no hay cuota de la casa (solo se puede descartar por probabilidad baja) |
+
+Las verdes son las apuestas sugeridas: una por partido, ordenadas por crecimiento esperado del bankroll (Kelly), con
+monto de ¼ de Kelly y tope de 2,5% del bankroll. Las dobles sugeridas combinan las mejores simples.
 
 ### Cómo se calculan las probabilidades
 
