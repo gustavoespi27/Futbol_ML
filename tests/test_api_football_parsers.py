@@ -38,7 +38,7 @@ def test_scheduled_fixture_has_no_goals(conn):
 
 def test_untracked_league_is_ignored(conn):
     item = fixture_item()
-    item["league"]["id"] = 39
+    item["league"]["id"] = 99999                   # liga que no está en settings.yaml
     assert store_fixture(conn, item) is None
 
 
@@ -80,3 +80,25 @@ def test_odds_rows_parses_markets():
     got = {(r["market"], r["line"], r["selection"]): r["price"] for r in rows}
     assert got == {("1X2", 0.0, "H"): 2.10, ("1X2", 0.0, "D"): 3.30, ("1X2", 0.0, "A"): 3.60,
                    ("OU", 2.5, "OVER"): 2.05, ("OU", 2.5, "UNDER"): 1.80, ("BTTS", 0.0, "YES"): 1.95}
+
+
+def test_international_backfill_creates_national_teams_once(conn):
+    from footy.ingest.collect import backfill_pending
+
+    class FakeClient:
+        calls = 0
+
+        def get(self, endpoint, **params):
+            FakeClient.calls += 1
+            item = fixture_item()
+            item["league"] = {"id": params["league"], "season": params["season"], "round": "Group A"}
+            item["teams"] = {"home": {"id": 26, "name": "Argentina"}, "away": {"id": 2383, "name": "Chile"}}
+            return {"response": [item]}
+
+    done = backfill_pending(FakeClient(), conn, limit=2)
+    assert len(done) == 2 and FakeClient.calls == 2                   # respeta el límite por ejecución
+    country = conn.execute("SELECT DISTINCT t.country FROM teams t JOIN matches m ON t.id = m.home_team_id "
+                           "JOIN competitions c ON c.id = m.competition_id WHERE c.type = 'international'").fetchall()
+    assert [r[0] for r in country] == ["World"]                        # selecciones separadas de los clubes
+    backfill_pending(FakeClient(), conn, limit=2)
+    assert FakeClient.calls == 4                                       # las ya cargadas no se repiten

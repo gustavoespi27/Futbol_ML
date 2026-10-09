@@ -161,6 +161,9 @@ def _resolve_api_team(conn, team: dict, country: str, comp_type: str, comp_code:
         if match is not None:
             conn.execute("INSERT INTO team_aliases (source, alias, team_id) VALUES (?, ?, ?)", (SOURCE, alias, match))
             return match
+    if comp_type == "international":
+        # Selecciones nacionales: un equipo por nombre en el "país" World (no se mezclan con clubes).
+        return repo.resolve_team(conn, SOURCE, alias, team["name"], "World")
     if comp_type == "cup":
         # En copas internacionales el país del equipo no viene en el fixture: solo enlazamos
         # por id ya conocido; si es nuevo, se crea con país 'unknown' para revisión manual.

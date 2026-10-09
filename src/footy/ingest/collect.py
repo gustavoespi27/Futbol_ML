@@ -43,13 +43,15 @@ def collect_fixtures_by_date(client: ApiFootball, conn: sqlite3.Connection, date
 
 
 def collect_odds(client: ApiFootball, conn: sqlite3.Connection, horizon_hours: float,
-                 refresh_hours: float = 10) -> tuple[int, int]:
+                 refresh_hours: float | None = None) -> tuple[int, int]:
     """Un snapshot de cuotas por partido próximo de las ligas con collect_odds. Devuelve (partidos, filas).
     Los partidos con snapshot de hace menos de `refresh_hours` se saltan (presupuesto de 100 peticiones/día)."""
-    codes = [c for c, v in config.settings()["competitions"].items() if v.get("collect_odds")]
+    comps = config.settings()["competitions"]
+    codes = [c for c, v in comps.items() if v.get("collect_odds")]
+    refresh_hours = refresh_hours or config.settings()["api_football"].get("odds_refresh_hours", 10)
     now = datetime.now(timezone.utc)
     rows = conn.execute(
-        f"""SELECT m.id, ms.source_match_id FROM matches m
+        f"""SELECT m.id, ms.source_match_id, c.code FROM matches m
             JOIN competitions c ON c.id = m.competition_id
             JOIN match_sources ms ON ms.match_id = m.id AND ms.source = ?
             WHERE c.code IN ({",".join("?" * len(codes))})
@@ -60,6 +62,8 @@ def collect_odds(client: ApiFootball, conn: sqlite3.Connection, horizon_hours: f
          SOURCE, repo.to_iso(now - timedelta(hours=refresh_hours))),
     ).fetchall()
 
+    # Prioridad por competición (odds_priority) y, dentro de ella, los partidos más próximos primero.
+    rows = sorted(rows, key=lambda r: comps[r["code"]].get("odds_priority", 5))
     n_matches = n_rows = 0
     for r in rows:
         try:
@@ -117,6 +121,22 @@ def backfill_season(client: ApiFootball, conn: sqlite3.Connection, code: str, se
     return n
 
 
+def backfill_pending(client: ApiFootball, conn: sqlite3.Connection, limit: int) -> list[str]:
+    """Carga temporadas pendientes de config (api_football.backfill), hasta `limit` por ejecución."""
+    done = []
+    for code, season in config.settings()["api_football"].get("backfill", []):
+        if len(done) >= limit:
+            break
+        have = conn.execute(
+            """SELECT 1 FROM matches m JOIN competitions c ON c.id = m.competition_id
+               WHERE c.code = ? AND m.season = ? LIMIT 1""", (code, str(season))).fetchone()
+        if have:
+            continue
+        n = backfill_season(client, conn, code, season)
+        done.append(f"{code} {season}: {n}")
+    return done
+
+
 def run_daily(conn: sqlite3.Connection, client: ApiFootball) -> dict:
     cfg = config.settings()["api_football"]
     today = datetime.now(timezone.utc).date()
@@ -126,6 +146,7 @@ def run_daily(conn: sqlite3.Connection, client: ApiFootball) -> dict:
         # El calendario va primero porque las cuotas se piden por partido ya conocido.
         summary["fixtures"] = collect_fixtures_by_date(client, conn, dates)
         summary["odds_matches"], summary["odds_rows"] = collect_odds(client, conn, cfg["odds_horizon_hours"])
+        summary["backfill"] = backfill_pending(client, conn, cfg.get("backfill_per_run", 0))
         summary["details"] = collect_details(client, conn)
     except BudgetExhausted as e:
         log.info("Presupuesto agotado: %s", e)

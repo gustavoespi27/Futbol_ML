@@ -262,3 +262,28 @@ combinarlo con el mercado recibe peso 0. Apostar con sus probabilidades: 5.043 a
 mercado, "ambos marcan" en la matriz de marcadores). Con cuotas, la probabilidad oficial y las sugerencias no cambian
 (siguen ancladas al mercado). El historial público ya está en las cuotas: para buscar ventaja harían falta datos
 que el mercado no refleje todavía (alineaciones confirmadas, lesiones, cuotas tempranas para medir CLV).
+
+## 2026-10-09 — El sistema como apostador profesional (análisis 06) y nuevas competiciones
+
+**Cambio de enfoque.** Los modelos propios (Elo, Dixon-Coles, ML) no superan al mercado. Un profesional del value
+betting no intenta predecir mejor que el mercado: usa el precio de la casa sharp (Pinnacle) como probabilidad
+justa y apuesta en casas blandas cuando pagan más (line shopping), antes de que corrijan. Su indicador es el CLV.
+
+**Evidencia** (`scripts/pro_backtest.py`, cuotas tempranas de football-data, 22 ligas, 109 mil partidos): regla
+elegida con 2013-2021 entre 20 combinaciones (umbral 6%, cuota ≤ 4; selección inflada por elegir la mejor). Prueba
+2022-2026: 213 apuestas, CLV +5,3% con 77% de apuestas por encima del cierre; rendimiento +2,9% (IC95%
+[−17%; +23%]); bankroll ¼ Kelly 100 → 122. Sin Pinnacle (football-data dejó de publicarlo en 2025-26) la
+referencia Betfair dio CLV negativo: **sin Pinnacle no se apuesta**. Es la primera señal consistente del proyecto,
+pero la ganancia todavía no es significativa y en la práctica las casas limitan a los ganadores.
+
+**Implementación.** `footy/betting/pro.py` (precio justo, mejor cuota, regla, Kelly con topes de 2% por apuesta y
+10% diario); cartera en papel `pro_bets` (`footy/prediction/pro_ledger.py`), registrada por la tarea diaria antes
+del partido y liquidada con CLV contra Pinnacle; el Panel del dashboard pasa a ser el del apostador profesional; el
+semáforo de 1X2 usa esta regla (verde solo con Pinnacle; el valor según el modelo queda en amarillo).
+
+**Competiciones nuevas en API-Football:** Premier League, LaLiga, Bundesliga, Ligue 1 (ya tenían historial de
+football-data; alias de nombres agregados), Champions/Europa/Conference League y selecciones (Mundial, eliminatorias
+CONMEBOL/UEFA/CONCACAF, Nations League, Copa América, Eurocopa, amistosos; equipos con país "World"). Con 100
+peticiones diarias las cuotas se piden por prioridad (`odds_priority`) y una vez cada 10 horas por partido. El
+historial de selecciones accesible en el plan gratuito (2022-2024) se carga de a 3 temporadas por día. El ML no
+muestra pronósticos para competiciones que no vio al entrenar (selecciones y copas internacionales).

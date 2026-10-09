@@ -51,6 +51,9 @@ def compute(days_ahead: int = 10) -> pd.DataFrame:
     out[["ml_H", "ml_D", "ml_A"]] = models["1x2"].predict(up)
     out["ml_over25"] = models["over25"].predict(up)
     out["ml_btts"] = models["btts"].predict(up)
+    # Competiciones que el modelo no vio al entrenar (selecciones, copas internacionales): sin pronóstico ML.
+    unseen = ~up.comp.isin(models["1x2"].comps).to_numpy()
+    out.loc[unseen, ["ml_H", "ml_D", "ml_A", "ml_over25", "ml_btts"]] = np.nan
     out["form_h"], out["form_a"] = up.h_pts_5.to_numpy(), up.a_pts_5.to_numpy()
     out["gf_h"], out["ga_h"] = up.h_gf_10.to_numpy(), up.h_ga_10.to_numpy()
     out["gf_a"], out["ga_a"] = up.a_gf_10.to_numpy(), up.a_ga_10.to_numpy()

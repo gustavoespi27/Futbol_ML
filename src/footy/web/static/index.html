@@ -36,23 +36,26 @@
   <!-- INICIO: PANEL PRINCIPAL -->
   <section class="view" id="v-inicio">
     <div class="view-head">
-      <h1>Panel de apuestas</h1>
-      <p>Cada opción de los próximos partidos lleva un semáforo según su probabilidad y lo que paga la casa.
-        Las verdes son las apuestas sugeridas; el monto se calcula sobre tu bankroll.</p>
+      <h1>Apostador profesional</h1>
+      <p>El sistema apuesta como un profesional del value betting: toma el precio justo de <b>Pinnacle</b> (la casa más
+        eficiente del mundo), compara la cuota de todas las casas disponibles y solo apuesta cuando alguna paga
+        <b>al menos 6% más</b> de lo que vale el resultado, con cuota hasta 4,0. Monto: ¼ de Kelly. Su prueba de
+        ventaja es el <b>CLV</b>: conseguir mejor cuota que la del cierre.</p>
     </div>
-    <div class="sem-legend">
-      <span class="vchip green"><b>Apostar</b> paga más de lo que vale (valor ≥ +3%), cuota 1,30–4,0, probabilidad ≥ 25%</span>
+    <div class="grid g4" id="pro-tiles"></div>
+    <div class="sem-legend" style="margin-top:16px">
+      <span class="vchip green"><b>Apostar</b> la mejor cuota supera en ≥ 6% el precio justo de Pinnacle (cuota ≤ 4,0)</span>
       <span class="vchip yellow"><b>Neutral</b> precio cercano al justo o paga muy poco</span>
       <span class="vchip red"><b>No apostar</b> probabilidad muy baja, cuota muy alta o paga mucho menos de lo que vale</span>
     </div>
     <div class="filters" style="margin-top:14px">
       <label style="flex-direction:row;align-items:center;display:flex;gap:10px">Tu bankroll
         <input id="sg-bank" type="number" min="1000" step="1000" style="width:160px"></label>
-      <span style="color:var(--muted);font-size:13px">Monto sugerido: ¼ de Kelly, nunca más de 2,5% del bankroll por apuesta.</span>
+      <span style="color:var(--muted);font-size:13px">Monto sugerido: ¼ de Kelly, máximo 2% por apuesta y 10% por día.</span>
     </div>
     <div class="grid g4" id="home-tiles"></div>
 
-    <h2 class="sec">Apuestas sugeridas</h2>
+    <h2 class="sec">Apuestas de hoy</h2>
     <div class="matches" id="sg-singles"><div class="loading">Calculando…</div></div>
     <div id="sg-doubles-wrap" style="margin-top:16px"></div>
 
@@ -67,7 +70,7 @@
     <div class="grid g2" style="margin-top:16px">
       <div class="card">
         <h2>Las más cercanas a tener valor</h2>
-        <p class="sub">Si tu casa paga al menos la "cuota mínima", pasarían a verde.</p>
+        <p class="sub">Diferencia entre la mejor cuota y el precio justo de Pinnacle. Si alguna casa paga al menos la "cuota mínima", pasa a verde.</p>
         <div class="table-wrap" id="sg-closest"></div>
       </div>
       <div class="card">
@@ -78,10 +81,25 @@
     </div>
 
     <div class="card" style="margin-top:16px">
-      <h2>Historial real de sugerencias</h2>
-      <p class="sub">Sugerencias registradas por la tarea diaria antes de cada partido, y su resultado.</p>
+      <h2>Cartera del apostador (en vivo)</h2>
+      <p class="sub">Apuestas que el sistema registra antes de cada partido (dinero simulado, bankroll inicial 100) y su CLV contra Pinnacle.</p>
       <div class="grid g4" id="sg-record-tiles" style="margin-bottom:12px"></div>
       <div class="table-wrap" id="sg-record"></div>
+    </div>
+
+    <h2 class="sec">¿Cómo le habría ido? (2012-2026)</h2>
+    <div class="grid g2">
+      <div class="card">
+        <h2>Bankroll en el histórico</h2>
+        <p class="sub" id="pro-bt-sub">Misma regla sobre las cuotas tempranas de 22 ligas europeas.</p>
+        <div class="chart tall"><canvas id="ch-pro-bank"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Selección vs prueba</h2>
+        <p class="sub">La regla se eligió con 2013-2021; 2022 en adelante es la prueba.</p>
+        <div class="table-wrap" id="pro-bt-table"></div>
+        <div id="pro-bt-reading" class="stack" style="font-size:14px;color:var(--text-2);margin-top:14px"></div>
+      </div>
     </div>
 
     <h2 class="sec">¿Se puede confiar en estas probabilidades?</h2>
@@ -229,7 +247,7 @@
       <div class="table-wrap" id="bt-leagues"></div>
     </div>
     <div class="view-head" style="margin:36px 0 16px">
-      <h2 style="font-size:22px">¿Cómo le habría ido a la regla de apuestas sugeridas?</h2>
+      <h2 style="font-size:22px">Regla anterior: modelo propio contra Bet365</h2>
       <p id="sg-hist-intro">Misma regla aplicada a los partidos de 2026, que el modelo no vio al entrenar (cuotas de cierre Bet365).</p>
     </div>
     <div class="grid g4" id="sg-tiles"></div>
@@ -305,6 +323,8 @@
           <dt>CLV</dt><dd>Si la cuota que tomamos es mejor que la del cierre (justo antes del partido). Es la señal más rápida de una ventaja real.</dd>
           <dt>Combinada</dt><dd>Varias selecciones en un solo boleto: se gana solo si TODAS se cumplen. La cuota se multiplica, pero también el margen de la casa.</dd>
           <dt>Cuota justa</dt><dd>1 / probabilidad del sistema. Si la casa paga más que la cuota justa, hay valor; si paga menos, la apuesta pierde a la larga.</dd>
+          <dt>Casa sharp (Pinnacle)</dt><dd>La casa con el margen más bajo y que acepta a apostadores profesionales: sus cuotas son la mejor estimación de la probabilidad real. El sistema la usa como precio justo.</dd>
+          <dt>Line shopping</dt><dd>Comparar la misma apuesta en todas las casas y tomar la que paga más. Es lo primero que hace cualquier profesional.</dd>
           <dt>Criterio de Kelly</dt><dd>Fórmula para decidir cuánto apostar según la ventaja y la cuota. Se usa ¼ de Kelly con tope de 2,5% del bankroll: crece más lento pero aguanta mejor las rachas malas.</dd>
           <dt>Machine learning</dt><dd>Un modelo (gradient boosting) que aprende de miles de partidos qué patrones del historial de los equipos —forma, goles, tiros, localía, descanso— anticipan el resultado.</dd>
           <dt>Walk-forward</dt><dd>Probar el modelo como si viviéramos en el pasado: para predecir cada semana solo usa partidos anteriores.</dd>

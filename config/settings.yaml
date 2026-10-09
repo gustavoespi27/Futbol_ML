@@ -7,6 +7,8 @@ paths:
   database: data/db/football.sqlite
 
 # collect_odds: se guardan snapshots de cuotas (consume 1 petición por partido).
+# odds_priority: con 100 peticiones/día no alcanzan para todo; se piden primero las de menor número.
+# type: league | cup | international (selecciones nacionales; los equipos se crean con país "World").
 # I1, P1 y T1 también vienen de football-data.co.uk (histórico); API-Football agrega calendario, resultados
 # y cuotas pre-partido del día (football-data puede atrasarse varias semanas).
 # Las copas se recolectan solo como calendario (congestión, rotaciones).
@@ -17,12 +19,14 @@ competitions:
     type: league
     api_football_id: 265
     collect_odds: true
+    odds_priority: 1
   ARG:
     name: Liga Profesional Argentina
     country: Argentina
     type: league
     api_football_id: 128
     collect_odds: true
+    odds_priority: 1
   ARGC:
     name: Copa de la Liga Profesional (Argentina)
     country: Argentina
@@ -34,24 +38,133 @@ competitions:
     type: league
     api_football_id: 71
     collect_odds: true
+    odds_priority: 1
   I1:
     name: Serie A
     country: Italy
     type: league
     api_football_id: 135
     collect_odds: true
+    odds_priority: 1
   P1:
     name: Primeira Liga
     country: Portugal
     type: league
     api_football_id: 94
     collect_odds: true
+    odds_priority: 2
   T1:
     name: Süper Lig
     country: Turkey
     type: league
     api_football_id: 203
     collect_odds: true
+    odds_priority: 2
+  E0:
+    name: Premier League
+    country: England
+    type: league
+    api_football_id: 39
+    collect_odds: true
+    odds_priority: 1
+  SP1:
+    name: La Liga
+    country: Spain
+    type: league
+    api_football_id: 140
+    collect_odds: true
+    odds_priority: 1
+  D1:
+    name: Bundesliga
+    country: Germany
+    type: league
+    api_football_id: 78
+    collect_odds: true
+    odds_priority: 1
+  F1:
+    name: Ligue 1
+    country: France
+    type: league
+    api_football_id: 61
+    collect_odds: true
+    odds_priority: 1
+  UCL:
+    name: UEFA Champions League
+    country: Europe
+    type: cup
+    api_football_id: 2
+    collect_odds: true
+    odds_priority: 1
+  UEL:
+    name: UEFA Europa League
+    country: Europe
+    type: cup
+    api_football_id: 3
+    collect_odds: true
+    odds_priority: 2
+  UECL:
+    name: UEFA Conference League
+    country: Europe
+    type: cup
+    api_football_id: 848
+    collect_odds: true
+    odds_priority: 3
+  WC:
+    name: Copa del Mundo
+    country: World
+    type: international
+    api_football_id: 1
+    collect_odds: true
+    odds_priority: 1
+  WCQ_SA:
+    name: Eliminatorias Sudamericanas
+    country: World
+    type: international
+    api_football_id: 34
+    collect_odds: true
+    odds_priority: 1
+  WCQ_EU:
+    name: Eliminatorias Europeas
+    country: World
+    type: international
+    api_football_id: 32
+    collect_odds: true
+    odds_priority: 2
+  WCQ_NA:
+    name: Eliminatorias CONCACAF
+    country: World
+    type: international
+    api_football_id: 31
+    collect_odds: true
+    odds_priority: 3
+  UNL:
+    name: UEFA Nations League
+    country: World
+    type: international
+    api_football_id: 5
+    collect_odds: true
+    odds_priority: 2
+  COPA:
+    name: Copa América
+    country: World
+    type: international
+    api_football_id: 9
+    collect_odds: true
+    odds_priority: 1
+  EURO:
+    name: Eurocopa
+    country: World
+    type: international
+    api_football_id: 4
+    collect_odds: true
+    odds_priority: 1
+  FRIENDLY:
+    name: Amistosos internacionales
+    country: World
+    type: international
+    api_football_id: 10
+    collect_odds: true
+    odds_priority: 3
   LIB:
     name: Copa Libertadores
     country: South America
@@ -69,8 +182,21 @@ api_football:
   daily_limit: 100
   reserve: 5                 # peticiones que nunca se gastan (margen de seguridad)
   min_seconds_between: 6.5   # plan Free: 10 peticiones/minuto
-  odds_horizon_hours: 48     # snapshots de cuotas para partidos que empiezan dentro de este plazo
+  odds_horizon_hours: 36     # snapshots de cuotas para partidos que empiezan dentro de este plazo
+  odds_refresh_hours: 10     # no se vuelve a pedir la cuota de un partido antes de este plazo
   bookmakers_keep: []        # vacío = guardar todas las casas
+  # Historial a cargar una vez (plan Free: temporadas 2022-2024). La tarea diaria carga hasta
+  # backfill_per_run temporadas por ejecución, solo si sobra presupuesto después de cuotas y calendario.
+  backfill_per_run: 3
+  backfill:
+    - [WC, 2022]
+    - [EURO, 2024]
+    - [COPA, 2024]
+    - [UNL, 2022]
+    - [UNL, 2024]
+    - [FRIENDLY, 2022]
+    - [FRIENDLY, 2023]
+    - [FRIENDLY, 2024]
 
 betting:
   min_ev: 0.05          # EV relativo mínimo (p * cuota - 1); a calibrar en validación

@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 
 from footy import config
+from footy.betting import pro
 from footy.betting.devig import proportional
 from footy.db import repository as repo
 from footy.db.connection import connect
@@ -212,14 +213,25 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
     options = []
     from footy.betting.suggestions import verdict
 
+    pro_opps = {o["key"]: o for o in pro.evaluate(odds["1X2"])}
     for o in combos.options(M):
         bo = oo.get(o["key"])
+        po = pro_opps.get(o["key"])
+        if po:                       # 1X2 con Pinnacle: precio justo sharp y la mejor cuota entre casas
+            options.append({**o, "fair": _f(po["fair_odds"], 2), "odds": _f(po["odds"], 2), "book": po["book"],
+                            "estimated": False, "ev": _f(po["edge"]), "p_fair": _f(po["p_fair"]),
+                            "verdict": _pro_verdict(po)})
+            continue
+        v = verdict(o["p"], bo["price"] if bo else None, bo["estimated"] if bo else False)
+        if v["level"] == "green":    # sin referencia sharp el valor del modelo no está validado: nunca "Apostar"
+            v = {"level": "yellow", "label": "Neutral",
+                 "reason": "Valor según el modelo, sin referencia de Pinnacle (no validado)"}
         options.append({**o, "fair": _f(1 / o["p"], 2) if o["p"] > 0 else None,
                         "odds": bo["price"] if bo else None, "book": bo["book"] if bo else None,
                         "estimated": bo["estimated"] if bo else False,
-                        "ev": _f(o["p"] * bo["price"] - 1) if bo else None,
-                        "verdict": verdict(o["p"], bo["price"] if bo else None, bo["estimated"] if bo else False)})
-    ctx.update({"p_official": _probs([combos.prob(M, [k]) for k in "1X2"]),
+                        "ev": _f(o["p"] * bo["price"] - 1) if bo else None, "verdict": v})
+    ctx.update({"pro": list(pro_opps.values()), "has_sharp": bool(pro_opps),
+                "p_official": _probs([combos.prob(M, [k]) for k in "1X2"]),
                 "over25": _f(combos.prob(M, ["O2.5"])), "btts": _f(combos.prob(M, ["BTTS_Y"])),
                 "top_scores": _top_scores(M), "options": options,
                 "suggestions": [{**s, "fair": _f(1 / s["p"], 2)} for s in combos.suggestions(M)],
@@ -234,6 +246,23 @@ def _form(r: dict | None) -> dict | None:
         return None
     return {k: (None if r.get(k) is None or np.isnan(r[k]) else round(float(r[k]), 2))
             for k in ("form_h", "form_a", "gf_h", "ga_h", "gf_a", "ga_a", "h2h_n", "h2h_pts")}
+
+
+def _pro_verdict(po: dict) -> dict:
+    """Semáforo del apostador profesional para 1X2 (precio justo de Pinnacle vs la mejor cuota disponible)."""
+    e = f"{po['edge'] * 100:+.1f}%".replace(".", ",")
+    green = lambda r: {"level": "green", "label": "Apostar", "reason": r}  # noqa: E731
+    red = lambda r: {"level": "red", "label": "No apostar", "reason": r}  # noqa: E731
+    yellow = lambda r: {"level": "yellow", "label": "Neutral", "reason": r}  # noqa: E731
+    if po["bet"]:
+        return green(f"{po['book']} paga {e} sobre el precio justo de Pinnacle")
+    if po["p_fair"] < 0.25 and po["edge"] < pro.MIN_EDGE:
+        return red(f"Probabilidad baja ({po['p_fair']:.0%}) y sin valor ({e})")
+    if po["edge"] >= pro.MIN_EDGE:
+        return yellow(f"Valor {e} pero cuota > {pro.MAX_ODDS:g}: riesgo alto")
+    if po["edge"] < -0.05:
+        return red(f"La mejor cuota paga {e} respecto del precio justo")
+    return yellow(f"Cerca del precio justo ({e}); falta ≥ +6%")
 
 
 def _top_scores(M: np.ndarray, n: int = 3) -> list:
@@ -393,41 +422,55 @@ def _candidates(matches: list[dict]) -> list[dict]:
 
 
 def current_suggestions(matches: list[dict] | None = None) -> dict:
+    """Apuestas del apostador profesional (footy.betting.pro) para los próximos partidos."""
     from footy.betting import suggestions as sg
 
-    cands = _candidates(matches if matches is not None else upcoming(7))
-    singles = sg.pick_singles(cands)
+    matches = matches if matches is not None else upcoming(7)
+    now = repo.utc_now()
+    info = {m["ref"]: m for m in matches if m["ref"].startswith("m:") and (m.get("kickoff") or "") > now}
+    opps = {int(ref[2:]): m.get("pro") or [] for ref, m in info.items()}
+    labels = {"1": "Gana local", "X": "Empate", "2": "Gana visita"}
+    enrich = lambda o: {**o, "p": o["p_fair"], "ev": o["edge"], "label": labels[o["key"]],  # noqa: E731
+                        "ref": f"m:{o['match']}", **{k: info[f"m:{o['match']}"][k]
+                                                     for k in ("home", "away", "league_name", "kickoff")}}
+    singles = [enrich(o) for o in pro.pick(opps)]
+    near = [enrich({**o, "match": mid}) for mid, os_ in opps.items() for o in os_ if not o["bet"]
+            and o["odds"] <= pro.MAX_ODDS and o["p_fair"] >= 0.25]
+    closest_pro: dict = {}
+    for c in sorted(near, key=lambda c: -c["edge"]):
+        closest_pro.setdefault(c["match"], {**c, "verdict": _pro_verdict(c),
+                                            "min_odds": round((1 + pro.MIN_EDGE) / c["p_fair"], 2)})
+    cands = _candidates(matches)
     safest: dict = {}
     for c in cands:                                   # alta probabilidad (aunque el valor sea negativo)
         if not c["estimated"] and c["p"] >= 0.70 and c["odds"] >= 1.15:
             if c["match"] not in safest or c["p"] > safest[c["match"]]["p"]:
                 safest[c["match"]] = {**c, "ev": c["p"] * c["odds"] - 1}
-    chosen = {(x["match"], x["key"]) for x in singles}
-    near = [{**c, "ev": c["p"] * c["odds"] - 1, "risk": sg.risk_level(c["p"])} for c in cands
-            if not c["estimated"] and sg.MIN_ODDS <= c["odds"] <= sg.MAX_ODDS and c["p"] >= sg.MIN_P
-            and (c["match"], c["key"]) not in chosen]
-    closest: dict = {}
-    for c in sorted(near, key=lambda c: -c["ev"]):
-        closest.setdefault(c["match"], c)
-    return {"rules": sg.RULES, "singles": singles, "doubles": sg.pick_doubles(singles),
-            "closest": list(closest.values())[:6],
+    doubles = sg.pick_doubles([{**s, "p": s["p_fair"]} for s in singles])
+    for d in doubles:                    # en una doble el valor se multiplica pierna a pierna
+        d["ev"] = float(np.prod([1 + leg["edge"] for leg in d["legs"]]) - 1)
+        d["stake"] = min(pro.stake(d["p"], d["odds"]), pro.MAX_STAKE / 2)
+    return {"rules": pro.RULES, "singles": singles, "doubles": doubles,
+            "closest": list(closest_pro.values())[:6],
             "safest": sorted(safest.values(), key=lambda c: -c["p"])[:8],
-            "n_matches_with_odds": len({c["match"] for c in cands})}
+            "n_matches_with_odds": len({c["match"] for c in cands}),
+            "n_matches_sharp": sum(bool(v) for v in opps.values())}
 
 
 def suggestions_data() -> dict:
-    from footy.prediction import suggested
+    from footy.prediction import pro_ledger
 
+    path = config.path("processed") / "pro" / "backtest.json"
+    bt = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     return {**current_suggestions(), "history": live.combo_backtest().get("suggestions", {}),
-            "record": suggested.record(connect())}
+            "pro_backtest": bt, "ledger": pro_ledger.record(connect())}
 
 
 def register_suggestions(conn=None) -> dict:
-    """Guarda las sugerencias actuales (antes del partido) para medirlas después. Lo llama scripts/daily.py."""
-    from footy.prediction import suggested
+    """El apostador profesional coloca (en papel) sus apuestas antes del partido. Lo llama scripts/daily.py."""
+    from footy.prediction import pro_ledger
 
-    cur = current_suggestions()
-    return suggested.register(conn or connect(), cur["singles"], cur["doubles"], tracking.MODEL_VERSION)
+    return pro_ledger.place(conn or connect(), current_suggestions()["singles"])
 
 
 # --- seguimiento -----------------------------------------------------------

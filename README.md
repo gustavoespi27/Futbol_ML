@@ -4,9 +4,14 @@ Sistema probabilístico de predicción de partidos de fútbol con dashboard web 
 resultado (1X2, doble oportunidad, más/menos goles, ambos marcan, marcadores y combinadas), la compara con las cuotas
 de las casas de apuestas y mide públicamente si esas probabilidades se cumplen.
 
-**No garantiza rentabilidad.** La evaluación fuera de muestra muestra que el sistema iguala al mercado pero no lo
-supera; por eso la recomendación por defecto es **no apostar**. Su valor está en dar probabilidades honestas y bien
-calibradas.
+El sistema funciona como un **apostador profesional de value betting**: toma el precio justo de Pinnacle (la casa
+más eficiente), compara todas las casas disponibles y apuesta solo cuando alguna paga ≥ 6% más de lo que vale el
+resultado, con monto de ¼ de Kelly, y mide su ventaja con el CLV. En el histórico (2022-2026, fuera de la selección)
+el 77% de sus apuestas consiguió mejor cuota que el cierre (CLV medio +5,3%).
+
+**No garantiza rentabilidad.** La ganancia en dinero aún no es estadísticamente concluyente, las casas limitan a
+quienes ganan y la mayoría de los días no hay apuestas con valor. Los modelos propios (Elo, Dixon-Coles, ML) dan
+probabilidades bien calibradas pero no superan al mercado por sí solos.
 
 ## Dashboard
 
@@ -18,7 +23,7 @@ python scripts/serve.py          # abre http://127.0.0.1:8000
 
 | Sección | Qué muestra |
 |---|---|
-| Panel (inicio) | Pantalla principal: apuestas sugeridas con monto según tu bankroll, **semáforo** de todos los próximos partidos (local, empate, visita, más/menos 2,5, ambos marcan) con la mejor opción de cada uno, las más cercanas a tener valor, las de alta probabilidad, el historial real de sugerencias y la fiabilidad de las probabilidades |
+| Panel (inicio) | Pantalla principal del **apostador profesional**: su cartera en vivo (bankroll simulado, CLV real, apuestas abiertas y liquidadas), las apuestas de hoy con monto según tu bankroll, su historial 2012-2026, **semáforo** de todos los próximos partidos (local, empate, visita, más/menos 2,5, ambos marcan) con la mejor opción de cada uno, las más cercanas a tener valor, las de alta probabilidad, el historial real de sugerencias y la fiabilidad de las probabilidades |
 | Próximos partidos | Probabilidades 1X2, cuotas de la casa (Bet365/Pinnacle), cuota justa, ganancia por 1.000 apostados, goles esperados, modelo vs mercado y aviso si los datos de la liga están atrasados |
 | Combinadas | Constructor de combinadas: opciones de cada partido con probabilidad, cuota de la casa, cuota justa y valor; variantes más probables del mismo partido; boleto para agregar y quitar selecciones con la probabilidad de acertarlo, cuota combinada y ganancia. Incluye el histórico 2026 de combinadas |
 | Resultados | Predicciones registradas antes de cada partido vs resultado real, y apuestas en papel con CLV |
@@ -28,19 +33,28 @@ python scripts/serve.py          # abre http://127.0.0.1:8000
 
 La API JSON está documentada en http://127.0.0.1:8000/api/docs. La tarea diaria refresca el dashboard si está abierto.
 
-### Semáforo y apuestas sugeridas
+### El apostador profesional (`footy/betting/pro.py`)
 
-Cada opción con cuota de la casa recibe un color (`footy/betting/suggestions.py`, `verdict`):
+1. **Precio justo:** cuotas 1X2 de Pinnacle sin margen. Sin Pinnacle no apuesta (en el histórico, otras referencias
+   no dieron CLV positivo).
+2. **Line shopping:** la mejor cuota entre todas las casas disponibles (API-Football trae ~10: Bet365, Betano, 1xBet,
+   William Hill, Marathonbet, BetVictor…). No cuentan Pinnacle, exchanges ni agregados.
+3. **Regla:** apostar si mejor cuota × probabilidad justa − 1 ≥ 6% y cuota ≤ 4,0; una apuesta por partido (la de
+   mayor crecimiento esperado).
+4. **Monto:** ¼ de Kelly, máximo 2% del bankroll por apuesta y 10% por día.
+5. **Cartera:** la tarea diaria registra cada apuesta antes del partido (tabla `pro_bets`), la liquida y mide su CLV
+   contra Pinnacle al cierre.
 
-| Color | Etiqueta | Cuándo |
-|---|---|---|
-| Verde | **Apostar** | Paga al menos +3% sobre lo que vale (probabilidad × cuota − 1 ≥ 3%), cuota real entre 1,30 y 4,0 y probabilidad ≥ 25% |
-| Amarillo | **Neutral** | Precio cercano al justo (entre −5% y +3%) o muy probable pero con cuota menor a 1,30 |
-| Rojo | **No apostar** | Probabilidad < 25%, cuota > 4,0 o paga más de 5% menos de lo que vale |
-| Gris | Sin cuota | Aún no hay cuota de la casa (solo se puede descartar por probabilidad baja) |
+Regla elegida con 2013-2021 y probada en 2022-2026 sobre las cuotas tempranas de 22 ligas europeas
+([docs/analisis/06_profesional.md](docs/analisis/06_profesional.md)):
 
-Las verdes son las apuestas sugeridas: una por partido, ordenadas por crecimiento esperado del bankroll (Kelly), con
-monto de ¼ de Kelly y tope de 2,5% del bankroll. Las dobles sugeridas combinan las mejores simples.
+| Período | Apuestas | CLV medio | Le ganan al cierre | Rendimiento [IC95%] | Bankroll (inicio 100) |
+|---|---:|---:|---:|---|---:|
+| Selección 2013-2021 | 419 | +6,8% | 76% | +30,0% [+15%; +45%] | 354 |
+| Prueba 2022-2026 | 213 | +5,3% | 77% | +2,9% [−17%; +23%] | 122 |
+
+El semáforo usa la misma regla en 1X2 (verde = apostar). En otros mercados, o sin Pinnacle, el máximo es amarillo:
+el valor según el modelo propio no está validado.
 
 ### Cómo se calculan las probabilidades
 
@@ -90,7 +104,11 @@ las combinadas "con valor" salen positivas en 2026 pero sin significancia estad�
 - **football-data.co.uk:** 38 ligas desde 2012 con resultados, tiros y cuotas de cierre (1X2; O/U 2,5 en las 22
   ligas europeas). Se atrasa a veces varias semanas.
 - **API-Football (plan gratuito, 100 peticiones/día):** calendario, resultados y cuotas pre-partido (1X2, O/U, ambos
-  marcan) de Chile, Argentina, Brasil, Serie A, Primeira Liga y Süper Lig. Los equipos se enlazan con los de
+  marcan) de ~10 casas, incluida Pinnacle: Premier League, LaLiga, Bundesliga, Serie A, Ligue 1, Primeira Liga,
+  Süper Lig, Argentina, Brasil, Chile, Champions/Europa/Conference League y selecciones (Mundial, eliminatorias,
+  Nations League, Copa América, Eurocopa, amistosos). Las cuotas se piden por prioridad (`odds_priority`) porque el
+  presupuesto no alcanza para todo; el historial de selecciones 2022-2024 se carga de a poco
+  (`api_football.backfill`). Los equipos se enlazan con los de
   football-data por nombre (con alias en `config/team_aliases.yaml` y emparejamiento tolerante dentro de la liga).
 
 ## Principios
@@ -114,8 +132,8 @@ src/footy/
   models/        Elo + logit ordinal, Dixon-Coles, ensamble log-lineal, machine learning (ml.py)
   markets/       matriz de marcadores → 1X2, O/U, ambos marcan; selecciones y combinadas
   evaluation/    métricas, walk-forward, evaluación 2026 (live.py)
-  betting/       quitar margen, EV, backtest, apuestas sugeridas (suggestions.py)
-  prediction/    predictor por liga, predicciones ML, seguimiento prospectivo y registro de sugerencias
+  betting/       quitar margen, EV, backtest, apostador profesional (pro.py), semáforo (suggestions.py)
+  prediction/    predictor por liga, predicciones ML, seguimiento prospectivo, cartera del profesional (pro_ledger.py)
   web/           dashboard (FastAPI + HTML/JS estático con Chart.js)
 scripts/         puntos de entrada (ver tabla)
 tests/
@@ -126,7 +144,7 @@ tests/
 | Script | Qué hace |
 |---|---|
 | `scripts/serve.py` | Dashboard web local en http://127.0.0.1:8000 (también `dashboard.bat`) |
-| `scripts/daily.py` | Tarea diaria: API-Football, football-data, predicciones ML, predicciones de seguimiento, registro de apuestas sugeridas, informe [docs/seguimiento.md](docs/seguimiento.md) y refresco del dashboard |
+| `scripts/daily.py` | Tarea diaria: API-Football, football-data, predicciones ML, predicciones de seguimiento, apuestas del apostador profesional, informe [docs/seguimiento.md](docs/seguimiento.md) y refresco del dashboard |
 | `scripts/register_task.ps1` | Registra la tarea diaria en el Programador de tareas de Windows (10:00 y 17:30) |
 | `scripts/update_football_data.py [CÓDIGOS]` | Descarga/actualiza resultados, estadísticas y cuotas de cierre de football-data.co.uk |
 | `scripts/collect_daily.py` | Solo la recolección de API-Football |
@@ -138,6 +156,7 @@ tests/
 | `scripts/evaluate_models.py` | Análisis 02: Elo y Dixon-Coles vs mercado (walk-forward) en ARG/BRA |
 | `scripts/screen_leagues.py` | Análisis 03: el mismo pipeline en 38 ligas, con criterio pre-registrado |
 | `scripts/evaluate_shots.py` | Análisis 04: Dixon-Coles entrenado con tiros además de goles |
+| `scripts/pro_backtest.py` | Análisis 06: el apostador profesional en el histórico (cuotas tempranas vs Pinnacle, CLV) |
 | `scripts/train_ml.py [--eval]` | Análisis 05: entrena los modelos de ML (1X2, más/menos 2,5, ambos marcan) y los evalúa en 2026 (`artifacts/ml/`, ~15 min) |
 | `scripts/build_league_models.py` | Ajusta pesos, umbrales y calibración O/U por liga (2016-2025) en `config/league_models.json` |
 | `scripts/predict.py --league E0 --home X --away Y [--odds L E V]` | Predicción de un partido en consola |

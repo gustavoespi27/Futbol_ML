@@ -167,3 +167,18 @@ CREATE TABLE IF NOT EXISTS suggestions (
     UNIQUE (group_id, match_id, selection)
 );
 CREATE INDEX IF NOT EXISTS ix_suggestions_match ON suggestions (match_id);
+
+-- Cartera del apostador profesional (footy.betting.pro): apuestas en papel registradas antes del partido.
+-- Una por partido; el CLV se calcula al liquidar contra Pinnacle al cierre (o su último snapshot previo).
+CREATE TABLE IF NOT EXISTS pro_bets (
+    id              INTEGER PRIMARY KEY,
+    created_at      TEXT NOT NULL,
+    match_id        INTEGER NOT NULL UNIQUE REFERENCES matches(id),
+    selection       TEXT NOT NULL CHECK (selection IN ('H', 'D', 'A')),
+    book            TEXT NOT NULL,
+    odds            REAL NOT NULL,
+    p_fair          REAL NOT NULL,
+    pinnacle_odds   REAL NOT NULL,
+    edge            REAL NOT NULL,
+    stake           REAL NOT NULL          -- fracción del bankroll
+);

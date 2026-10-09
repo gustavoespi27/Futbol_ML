@@ -5,7 +5,7 @@ def test_settings_load_competitions():
     comps = config.settings()["competitions"]
     assert {"ARG", "BRA", "CHL"} <= comps.keys()
     for code, comp in comps.items():
-        assert comp["type"] in ("league", "cup"), code
+        assert comp["type"] in ("league", "cup", "international"), code
 
 
 def test_paths_are_inside_project():
