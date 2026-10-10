@@ -1,78 +1,88 @@
 /* Futbol ML — sistema visual de producto de datos deportivos (referencias: Sofascore, FotMob, FlashScore, Opta).
-   Tokens en :root; modo oscuro por preferencia del sistema o por data-theme. */
+   Tokens en :root (tema oscuro, el predeterminado); tema claro con data-theme="light". */
 
 :root {
-  color-scheme: light;
-  --bg: #eef2f8;
-  --bg-glow-1: rgba(37, 99, 235, .10);
-  --bg-glow-2: rgba(16, 185, 129, .08);
-  --sidebar: rgba(255, 255, 255, .72);
-  --surface: #ffffff;
-  --surface-hi: #ffffff;
-  --surface-2: #f3f6fb;
-  --surface-3: #e6ebf4;
-  --border: rgba(15, 23, 42, .09);
-  --border-hi: rgba(37, 99, 235, .22);
-  --grid: rgba(15, 23, 42, .06);
-  --text: #0b1222;
-  --text-2: #46536a;
-  --muted: #7b879c;
-  --accent: #2563eb;
-  --accent-2: #3b82f6;
-  --accent-soft: #e7eeff;
-  --home: #2563eb;
-  --draw: #94a3b8;
-  --away: #f97316;
-  --official: #2563eb;
-  --market: #f97316;
-  --model: #0d9488;
-  --ev-positive: #10b981;
-  --ev-glow: rgba(16, 185, 129, .25);
-  --good: #047857;
-  --good-bg: #e3f7ee;
-  --bad: #dc2626;
-  --bad-bg: #fdecec;
-  --warn: #b45309;
-  --warn-bg: #fff4e0;
-  --shadow: 0 1px 2px rgba(15, 23, 42, .05), 0 10px 28px -18px rgba(37, 99, 235, .28);
-  --shadow-lg: 0 24px 60px -24px rgba(15, 23, 42, .35), 0 2px 8px rgba(15, 23, 42, .06);
+  /* Tema oscuro: el predeterminado de la aplicación */
+  color-scheme: dark;
+  --bg: #080b11;
+  --bg-glow-1: rgba(59, 130, 246, .12);
+  --bg-glow-2: rgba(0, 229, 153, .06);
+  --sidebar: rgba(11, 15, 24, .72);
+  --surface: #0f1420;
+  --surface-hi: #121a29;
+  --surface-2: #141c2c;
+  --surface-3: #1a2438;
+  --border: rgba(255, 255, 255, .08);
+  --border-hi: rgba(96, 165, 250, .35);
+  --grid: rgba(255, 255, 255, .05);
+  --text: #e8edf7;
+  --text-2: #a3aec3;
+  --muted: #6b7890;
+  --accent: #3b82f6;
+  --accent-2: #60a5fa;
+  --accent-soft: rgba(59, 130, 246, .14);
+  --home: #3b82f6;
+  --draw: #56637a;
+  --away: #fb8c3c;
+  --official: #3b82f6;
+  --market: #fb8c3c;
+  --model: #2dd4bf;
+  --ev-positive: #00e599;
+  --ev-glow: rgba(0, 229, 153, .28);
+  --ev-text: #00e599;                 /* cifras de ganancia: neón en oscuro */
+  --good: #34e3a4;
+  --good-bg: rgba(16, 185, 129, .12);
+  --bad: #f87171;
+  --bad-bg: rgba(248, 113, 113, .12);
+  --warn: #fbbf24;
+  --warn-bg: rgba(251, 191, 36, .11);
+  --logo-bg: rgba(236, 241, 250, .94);
+  --shadow: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 12px 30px -18px rgba(0, 0, 0, .7);
+  --shadow-lg: 0 28px 70px -24px rgba(0, 0, 0, .85), 0 0 0 1px rgba(255, 255, 255, .06);
   --radius: 14px;
   --side-w: 236px;
   --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #080b11; --bg-glow-1: rgba(59, 130, 246, .12); --bg-glow-2: rgba(0, 229, 153, .06);
-    --sidebar: rgba(11, 15, 24, .72); --surface: #0f1420; --surface-hi: #131a2a; --surface-2: #161e30; --surface-3: #1d2740;
-    --border: rgba(255, 255, 255, .08); --border-hi: rgba(96, 165, 250, .35); --grid: rgba(255, 255, 255, .05);
-    --text: #e8edf7; --text-2: #a3aec3; --muted: #6b7890;
-    --accent: #3b82f6; --accent-2: #60a5fa; --accent-soft: rgba(59, 130, 246, .14);
-    --home: #3b82f6; --draw: #56637a; --away: #fb8c3c;
-    --official: #3b82f6; --market: #fb8c3c; --model: #2dd4bf;
-    --ev-positive: #00e599; --ev-glow: rgba(0, 229, 153, .22);
-    --good: #34e3a4; --good-bg: rgba(16, 185, 129, .12); --bad: #f87171; --bad-bg: rgba(248, 113, 113, .12);
-    --warn: #fbbf24; --warn-bg: rgba(251, 191, 36, .11);
-    --shadow: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 12px 30px -18px rgba(0, 0, 0, .7);
-    --shadow-lg: 0 28px 70px -24px rgba(0, 0, 0, .85), 0 0 0 1px rgba(255, 255, 255, .06);
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #080b11; --bg-glow-1: rgba(59, 130, 246, .12); --bg-glow-2: rgba(0, 229, 153, .06);
-  --sidebar: rgba(11, 15, 24, .72); --surface: #0f1420; --surface-hi: #131a2a; --surface-2: #161e30; --surface-3: #1d2740;
-  --border: rgba(255, 255, 255, .08); --border-hi: rgba(96, 165, 250, .35); --grid: rgba(255, 255, 255, .05);
-  --text: #e8edf7; --text-2: #a3aec3; --muted: #6b7890;
-  --accent: #3b82f6; --accent-2: #60a5fa; --accent-soft: rgba(59, 130, 246, .14);
-  --home: #3b82f6; --draw: #56637a; --away: #fb8c3c;
-  --official: #3b82f6; --market: #fb8c3c; --model: #2dd4bf;
-  --ev-positive: #00e599; --ev-glow: rgba(0, 229, 153, .22);
-  --good: #34e3a4; --good-bg: rgba(16, 185, 129, .12); --bad: #f87171; --bad-bg: rgba(248, 113, 113, .12);
-  --warn: #fbbf24; --warn-bg: rgba(251, 191, 36, .11);
-  --shadow: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 12px 30px -18px rgba(0, 0, 0, .7);
-  --shadow-lg: 0 28px 70px -24px rgba(0, 0, 0, .85), 0 0 0 1px rgba(255, 255, 255, .06);
+/* Tema claro suave (Slate/papiro): sin blanco puro, contraste cómodo para leer mucho rato */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #e2e8f0;
+  --bg-glow-1: rgba(59, 130, 246, .08);
+  --bg-glow-2: rgba(16, 185, 129, .06);
+  --sidebar: rgba(236, 241, 246, .78);
+  --surface: #f1f5f9;
+  --surface-hi: #f5f8fb;
+  --surface-2: #e8edf3;
+  --surface-3: #dbe2eb;
+  --border: rgba(30, 41, 59, .11);
+  --border-hi: rgba(37, 99, 235, .28);
+  --grid: rgba(30, 41, 59, .07);
+  --text: #1e293b;
+  --text-2: #475569;
+  --muted: #718096;
+  --accent: #2563eb;
+  --accent-2: #3b82f6;
+  --accent-soft: rgba(37, 99, 235, .10);
+  --home: #2563eb;
+  --draw: #94a3b8;
+  --away: #ea7a2e;
+  --official: #2563eb;
+  --market: #ea7a2e;
+  --model: #0d9488;
+  --ev-positive: #10b981;
+  --ev-glow: rgba(16, 185, 129, .25);
+  --ev-text: #047857;
+  --good: #047857;
+  --good-bg: rgba(16, 185, 129, .13);
+  --bad: #c53030;
+  --bad-bg: rgba(220, 38, 38, .10);
+  --warn: #a15c07;
+  --warn-bg: rgba(217, 119, 6, .12);
+  --logo-bg: #f8fafc;
+  --shadow: 0 1px 2px rgba(30, 41, 59, .06), 0 10px 28px -18px rgba(30, 41, 59, .25);
+  --shadow-lg: 0 24px 60px -24px rgba(30, 41, 59, .35), 0 2px 8px rgba(30, 41, 59, .06);
 }
 
 * { box-sizing: border-box; }
@@ -114,8 +124,13 @@ code { font: 12px var(--font-mono); background: var(--surface-2); padding: 1px 5
   display: flex; flex-direction: column; padding: 16px 12px 12px; gap: 18px;
 }
 .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px; color: var(--text); text-decoration: none !important; }
-.brand-mark { width: 30px; height: 30px; color: var(--accent); display: grid; place-items: center; }
-.brand-mark svg { width: 30px; height: 30px; }
+.brand-mark { width: 32px; height: 32px; display: grid; place-items: center; flex: none;
+  filter: drop-shadow(0 4px 10px rgba(59, 130, 246, .35)); }
+.brand-mark svg { width: 32px; height: 32px; }
+.brand-name { display: grid; gap: 1px; line-height: 1; }
+.brand-tag {
+  font: 700 8.5px/1 var(--font-mono); letter-spacing: .22em; color: var(--ev-text); padding-left: 1px;
+}
 .brand-txt { font-family: var(--font-display); font-size: 17px; font-weight: 800; letter-spacing: -0.03em; }
 .brand-txt b, .tb-mobile-brand b { color: var(--accent); font-weight: 800; margin-left: 1px; }
 .nav-label {
@@ -756,10 +771,8 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 
 /* ================= micro-interacciones ================= */
 /* Escudos en un disco claro con borde fino: se leen igual sobre fondo claro u oscuro */
-.tlogo:not(.fb) { border-radius: 50%; padding: 2px; background: var(--logo-bg, #fff);
+.tlogo:not(.fb) { border-radius: 50%; padding: 2px; background: var(--logo-bg);
   box-shadow: 0 0 0 1px var(--border), 0 1px 2px rgba(0, 0, 0, .08); }
-:root[data-theme="dark"] { --logo-bg: rgba(236, 241, 250, .94); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --logo-bg: rgba(236, 241, 250, .94); } }
 
 /* Tarjetas de partido: elevación sutil al pasar el cursor */
 .card.match, .sg-card, details.mx, .stat {
@@ -835,12 +848,10 @@ details.mx .opt-table .vchip { white-space: nowrap; }
   border: 1px solid color-mix(in srgb, var(--ev-positive) 35%, transparent);
 }
 .t-win > span { font-size: 12px; color: var(--text-2); font-weight: 600; }
-.t-win > b { font-size: 30px; font-weight: 700; color: var(--ev-positive); letter-spacing: -0.04em; line-height: 1.15;
+.t-win > b { font-size: 30px; font-weight: 700; color: var(--ev-text); letter-spacing: -0.04em; line-height: 1.15;
   text-shadow: 0 0 22px var(--ev-glow); }
 .t-win small { color: var(--muted); font-size: 12px; }
 .t-win small b { color: var(--text); font-size: 12px; }
-:root:not([data-theme="dark"]) .t-win > b { color: var(--good); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .t-win > b { color: var(--ev-positive); } }
 
 /* contador del boleto: late al agregar una selección */
 .badge.pulse { animation: badge-pulse .6s cubic-bezier(0.16, 1, 0.3, 1); }

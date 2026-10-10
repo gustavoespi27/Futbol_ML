@@ -60,18 +60,14 @@ async function api(path, opts) {
 }
 
 /* ---------- tema ---------- */
+// Oscuro por defecto; el claro solo si el usuario lo eligió (queda guardado). index.html lo aplica antes de pintar.
 function setTheme(t) {
-  if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
-  try { t ? localStorage.setItem("theme", t) : localStorage.removeItem("theme"); } catch (e) { /* sin storage */ }
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem("theme", t); } catch (e) { /* sin storage */ }
   redrawCharts();
 }
-try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) { /* */ }
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => redrawCharts());
 $("#theme").addEventListener("click", () => {
-  const dark = document.documentElement.dataset.theme
-    ? document.documentElement.dataset.theme === "dark"
-    : matchMedia("(prefers-color-scheme: dark)").matches;
-  setTheme(dark ? "light" : "dark");
+  setTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light");
 });
 
 /* ---------- navegación ---------- */
