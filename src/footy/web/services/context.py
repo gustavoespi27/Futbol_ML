@@ -318,9 +318,12 @@ def _upcoming(days: int) -> list[dict]:
     # Hasta el final del día `days - 1` desde hoy en hora local (hoy, mañana y pasado mañana con days=3).
     local_today = datetime.now(LOCAL_TZ).date()
     end = datetime.combine(local_today + timedelta(days=days), datetime.min.time(), LOCAL_TZ)
+    hidden = [c for c, v in config.settings()["competitions"].items() if v.get("history_only")]
     ids = [r[0] for r in conn.execute(
-        """SELECT m.id FROM matches m WHERE m.status = 'scheduled' AND m.kickoff_utc BETWEEN ? AND ?
-           ORDER BY m.kickoff_utc""", (repo.to_iso(now), repo.to_iso(end)))]
+        f"""SELECT m.id FROM matches m JOIN competitions c ON c.id = m.competition_id
+            WHERE m.status = 'scheduled' AND m.kickoff_utc BETWEEN ? AND ?
+              AND c.code NOT IN ({",".join("?" * len(hidden))})
+            ORDER BY m.kickoff_utc""", (repo.to_iso(now), repo.to_iso(end), *hidden))]
     through = data_through(conn)
     out = []
     for mid in ids:

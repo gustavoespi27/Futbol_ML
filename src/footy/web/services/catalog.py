@@ -37,6 +37,9 @@ def league_catalog(matches: list[dict]) -> list[dict]:
     cfg, comps = fd_leagues(), config.settings()["competitions"]
     info = {c: {"country": v["country"], "type": "league"} for g in ("main", "extra") for c, v in cfg[g].items()}
     info.update({c: {"country": v.get("country"), "type": v["type"]} for c, v in comps.items()})
+    for c, v in comps.items():                       # solo historial (copas nacionales): no se ofrecen en el buscador
+        if v.get("history_only"):
+            info.pop(c, None)
     counts: dict[str, int] = {}
     for m in matches:
         counts[m["league"]] = counts.get(m["league"], 0) + 1

@@ -203,6 +203,20 @@ def store_fixture(conn: sqlite3.Connection, item: dict) -> int | None:
     )
 
 
+INTERNATIONAL_REGIONS = {"Europe", "South America", "World"}
+
+
+def _country_league_codes(country: str) -> list[str]:
+    """Ligas del país (de API-Football o de football-data), para enlazar equipos que aparecen en copas nacionales."""
+    from footy.ingest.football_data import leagues as fd_leagues
+
+    fd = fd_leagues()
+    comps = config.settings()["competitions"]
+    codes = [c for c, v in comps.items() if v["type"] == "league" and v["country"] == country]
+    codes += [c for g in ("main", "extra") for c, v in fd[g].items() if v["country"] == country and c not in codes]
+    return codes
+
+
 def _resolve_api_team(conn, team: dict, country: str, comp_type: str, comp_code: str | None = None) -> int:
     alias = str(team["id"])
     known = conn.execute("SELECT 1 FROM team_aliases WHERE source = ? AND alias = ?", (SOURCE, alias)).fetchone()
@@ -218,6 +232,18 @@ def _resolve_api_team(conn, team: dict, country: str, comp_type: str, comp_code:
     if comp_type == "international":
         # Selecciones nacionales: un equipo por nombre en el "país" World (no se mezclan con clubes).
         return repo.resolve_team(conn, SOURCE, alias, team["name"], "World")
+    if comp_type == "cup" and country not in INTERNATIONAL_REGIONS:
+        # Copa nacional: los equipos son del país. Se enlazan con los de sus ligas (alias conocido, emparejamiento
+        # tolerante o mismo nombre) para no crear duplicados que después capturen los partidos de liga.
+        if not known:
+            canonical = repo._manual_aliases().get(SOURCE, {}).get(team["name"], team["name"])
+            for code in _country_league_codes(country):
+                match = repo.fuzzy_team_match(conn, canonical, code)
+                if match is not None:
+                    conn.execute("INSERT INTO team_aliases (source, alias, team_id) VALUES (?, ?, ?)",
+                                 (SOURCE, alias, match))
+                    return match
+        return repo.resolve_team(conn, SOURCE, alias, team["name"], country)
     if comp_type == "cup":
         # En copas internacionales el país del equipo no viene en el fixture: solo enlazamos
         # por id ya conocido; si es nuevo, se crea con país 'unknown' para revisión manual.

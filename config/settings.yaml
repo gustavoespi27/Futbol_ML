@@ -12,6 +12,7 @@ paths:
 # I1, P1 y T1 también vienen de football-data.co.uk (histórico); API-Football agrega calendario, resultados
 # y cuotas pre-partido del día (football-data puede atrasarse varias semanas).
 # Las copas se recolectan solo como calendario (congestión, rotaciones).
+# history_only: se guarda el partido (historial, descanso) pero no se muestra en el dashboard.
 competitions:
   CHL:
     name: Primera División de Chile
@@ -353,6 +354,58 @@ competitions:
     type: league
     api_football_id: 253
     collect_odds: false
+  # Copas nacionales: solo historial (descanso y partidos a mitad de semana); no se muestran en el dashboard
+  # porque no tienen modelo ni cuotas (history_only). IDs verificados con /leagues el 2026-10-10.
+  COPA_CHL:
+    name: Copa Chile
+    country: Chile
+    type: cup
+    api_football_id: 267
+    collect_odds: false
+    history_only: true
+  CDR:
+    name: Copa del Rey
+    country: Spain
+    type: cup
+    api_football_id: 143
+    collect_odds: false
+    history_only: true
+  FACUP:
+    name: FA Cup
+    country: England
+    type: cup
+    api_football_id: 45
+    collect_odds: false
+    history_only: true
+  DFBP:
+    name: DFB-Pokal
+    country: Germany
+    type: cup
+    api_football_id: 81
+    collect_odds: false
+    history_only: true
+  COPPA_IT:
+    name: Coppa Italia
+    country: Italy
+    type: cup
+    api_football_id: 137
+    collect_odds: false
+    history_only: true
+  CDF:
+    name: Coupe de France
+    country: France
+    type: cup
+    api_football_id: 66
+    collect_odds: false
+    history_only: true
+  COPA_BR:
+    name: Copa do Brasil
+    country: Brazil
+    type: cup
+    api_football_id: 73
+    collect_odds: false
+    history_only: true
+
 api_football:
   daily_limit: 100
   reserve: 5                 # peticiones que nunca se gastan (margen de seguridad)

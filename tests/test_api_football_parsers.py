@@ -102,3 +102,27 @@ def test_international_backfill_creates_national_teams_once(conn):
     assert [r[0] for r in country] == ["World"]                        # selecciones separadas de los clubes
     backfill_pending(FakeClient(), conn, limit=2)
     assert FakeClient.calls == 4                                       # las ya cargadas no se repiten
+
+
+def test_domestic_cup_links_league_teams_and_creates_new_ones_in_country(conn):
+    comp = repo.competition_id(conn, "SP1")
+    madrid = repo.resolve_team(conn, "football_data", "Real Madrid", "Real Madrid", "Spain")
+    betis = repo.resolve_team(conn, "football_data", "Betis", "Betis", "Spain")
+    repo.upsert_match(conn, source="football_data", source_match_id="1", competition_id=comp, season="2026",
+                      kickoff_utc=repo.utc_now()[:10] + "T00:00:00Z", home_team_id=madrid, away_team_id=betis,
+                      status="finished", home_goals=1, away_goals=0)
+    item = fixture_item(status="NS", home_goals=None, away_goals=None)
+    item["league"] = {"id": 143, "season": 2026, "round": "1st Round", "country": "Spain"}          # Copa del Rey
+    item["teams"] = {"home": {"id": 9001, "name": "Cultural Leonesa"}, "away": {"id": 541, "name": "Real Madrid CF"}}
+    mid = store_fixture(conn, item)
+    row = conn.execute("SELECT home_team_id, away_team_id FROM matches WHERE id = ?", (mid,)).fetchone()
+    assert row["away_team_id"] == madrid                               # mismo equipo que en la liga, no un duplicado
+    home = conn.execute("SELECT country FROM teams WHERE id = ?", (row["home_team_id"],)).fetchone()
+    assert home["country"] == "Spain"                                  # equipo nuevo con su país, no 'unknown'
+
+
+def test_history_only_cups_are_not_offered_in_the_league_search():
+    from footy.web.services.catalog import league_catalog
+
+    codes = {r["code"] for r in league_catalog([])}
+    assert {"E1", "JPN", "USA"} <= codes and not {"CDR", "FACUP", "COPA_CHL"} & codes
