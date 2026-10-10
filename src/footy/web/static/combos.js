@@ -101,7 +101,8 @@ async function renderCombos() {
         <div class="body">${suggestionsBlock(m)}${optionsTable(m)}
           <p class="sub" style="margin:0">* Doble oportunidad estimada desde el 1X2 de la misma casa. Valor = probabilidad × cuota − 1.</p></div>
       </details>`;
-    }).join("") : `<div class="card empty">No hay partidos programados en los próximos 3 días.</div>`;
+    }).join("") : "";
+    if (!shown.length) emptyMatches(box, isFiltered(cbSel, cbDate), reset);
     syncAddButtons();
     box.scrollTop = scroll;
     const focus = openRef || lastRef;
@@ -118,8 +119,12 @@ async function renderCombos() {
   };
   cbRedraw = draw;
   mountToTop($("#cb-matches"));
-  mountLeaguePicker($("#cb-filter"), { value: cbSel, onChange: (s) => { cbSel = s; draw(); } });
-  mountDateFilter($("#cb-date"), { list, value: cbDate, onChange: (s) => { cbDate = s; draw(); } });
+  const mount = () => {
+    mountLeaguePicker($("#cb-filter"), { value: cbSel, onChange: (s) => { cbSel = s; draw(); } });
+    mountDateFilter($("#cb-date"), { list, value: cbDate, onChange: (s) => { cbDate = s; draw(); } });
+  };
+  const reset = () => { cbSel = { type: "all" }; cbDate = { type: "all" }; mount(); draw(); };
+  mount();
   draw();
   renderComboHistory(await histP, list.length);
 }

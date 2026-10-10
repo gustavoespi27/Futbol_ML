@@ -91,6 +91,59 @@ function route() {
   window.scrollTo(0, 0);
 }
 window.addEventListener("hashchange", route);
+/* ---------- esqueletos de carga y estados vacíos ---------- */
+// Siluetas de lo que va a aparecer (filas de partido, tarjetas, tablas) mientras responde la API.
+const sk = (cls, style = "") => `<span class="skeleton ${cls}" ${style ? `style="${style}"` : ""}></span>`;
+const SKELETONS = {
+  kpi: () => `<div class="card skeleton-card" aria-hidden="true">${sk("skeleton-text", "width:55%")}
+    ${sk("skeleton-num")}${sk("skeleton-text", "width:75%")}</div>`,
+  rows: () => `<div class="sk-row">${sk("skeleton-text", "width:38px")}<div class="sk-teams">
+    <div>${sk("skeleton-circle")}${sk("skeleton-text", "width:60%")}</div><div>${sk("skeleton-circle")}${sk("skeleton-text", "width:48%")}</div></div>
+    ${sk("skeleton-cell")}${sk("skeleton-cell")}${sk("skeleton-cell")}${sk("skeleton-text sk-best")}</div>`,
+  semrows: () => `<div class="sk-row sk-sem"><div class="sk-teams"><div>${sk("skeleton-circle")}${sk("skeleton-text", "width:70%")}</div>
+    ${sk("skeleton-text", "width:45%")}</div>${Array(6).fill(sk("skeleton-cell")).join("")}${sk("skeleton-text sk-best")}</div>`,
+  cards: () => `<div class="card skeleton-card" aria-hidden="true"><div class="sk-split">${sk("skeleton-text", "width:34%")}${sk("skeleton-text", "width:22%")}</div>
+    <div class="sk-split"><div class="sk-team">${sk("skeleton-circle lg")}${sk("skeleton-text", "width:90px")}</div>
+    <div class="sk-team">${sk("skeleton-text", "width:90px")}${sk("skeleton-circle lg")}</div></div>${sk("skeleton-bar")}</div>`,
+  table: () => `<div class="sk-line">${sk("skeleton-text", "width:22%")}${sk("skeleton-text", "width:38%")}${sk("skeleton-text", "width:14%")}</div>`,
+  lines: () => sk("skeleton-text", "width:85%;margin:6px 0"),
+};
+function skeleton(kind, n) {
+  const one = SKELETONS[kind];
+  const body = Array.from({ length: n }, one).join("");
+  if (kind === "rows") return `<div class="lg-block skel-wrap" aria-busy="true"><div class="lg-head">${sk("skeleton-circle")}${sk("skeleton-text", "width:140px")}</div>${body}</div>`;
+  if (kind === "kpi" || kind === "cards") return body;
+  return `<div class="skel-wrap" aria-busy="true">${body}</div>`;
+}
+function paintSkeletons(root = document) {
+  root.querySelectorAll("[data-skel]").forEach((el) => {
+    const [kind, n] = el.dataset.skel.split(":");
+    el.innerHTML = skeleton(kind, Number(n) || 3);
+  });
+}
+const EMPTY_ICONS = {
+  calendar: '<rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M8 2.5v4M16 2.5v4M3 10h18"/><path d="m9.5 14.5 5 4M14.5 14.5l-5 4"/>',
+  search: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/><path d="M8.5 11h5"/>',
+  inbox: '<path d="M3 13.5 5.5 5h13L21 13.5V19a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19z"/><path d="M3 13.5h5l1.5 2.5h5l1.5-2.5h5"/>',
+};
+// Estado vacío: ícono, mensaje y, si se indica, un botón de acción (p. ej. restablecer filtros).
+function emptyState({ icon = "calendar", title, text = "", action = "" } = {}) {
+  return `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${EMPTY_ICONS[icon]}</svg>
+    <b>${title}</b>${text ? `<p>${text}</p>` : ""}${action ? `<button type="button" class="empty-action">${action}</button>` : ""}</div>`;
+}
+// Lista filtrada sin resultados: si hay filtros activos, ofrece volver a ver todos los partidos.
+function emptyMatches(box, filtered, reset) {
+  box.innerHTML = filtered
+    ? emptyState({ icon: "search", title: "Sin partidos para este filtro",
+      text: "Prueba con otra liga, equipo o día.", action: "Ver todos los partidos" })
+    : emptyState({ title: "No hay partidos programados en los próximos 3 días",
+      text: "Puede ser fecha FIFA. La tarea diaria agrega partidos y cuotas a medida que se publican." });
+  const b = box.querySelector(".empty-action");
+  if (b) b.onclick = reset;
+}
+const isFiltered = (sel, date) => (sel && sel.type !== "all") || (date && date.type !== "all");
+
 function showError(id, e) {
   const el = document.getElementById(id);
   el.insertAdjacentHTML("beforeend", `<div class="callout warn" style="margin-top:16px">No se pudieron cargar los datos: ${esc(e.message)}</div>`);
@@ -196,12 +249,16 @@ async function renderSemaphore() {
   const [list, catalog] = await Promise.all([api("/api/upcoming"), leagueCatalog()]);
   const draw = () => {
     const shown = list.filter((m) => leagueSelMatch(semSel, m, catalog) && dateSelMatch(semDate, m.kickoff));
-    $("#semaforo").innerHTML = shown.length ? `<table class="sem"><thead><tr><th>Partido</th>${SEM_COLS.map(([, n]) => `<th style="text-align:center">${n}</th>`).join("")}
-      <th>Mejor opción</th></tr></thead><tbody>${shown.map(semRow).join("")}</tbody></table>`
-      : `<div class="empty">No hay partidos programados en los próximos 3 días.</div>`;
+    if (!shown.length) return emptyMatches($("#semaforo"), isFiltered(semSel, semDate), reset);
+    $("#semaforo").innerHTML = `<table class="sem"><thead><tr><th>Partido</th>${SEM_COLS.map(([, n]) => `<th style="text-align:center">${n}</th>`).join("")}
+      <th>Mejor opción</th></tr></thead><tbody>${shown.map(semRow).join("")}</tbody></table>`;
   };
-  mountLeaguePicker($("#sem-filter"), { value: semSel, onChange: (s) => { semSel = s; draw(); } });
-  mountDateFilter($("#sem-date"), { list, value: semDate, onChange: (s) => { semDate = s; draw(); } });
+  const mount = () => {
+    mountLeaguePicker($("#sem-filter"), { value: semSel, onChange: (s) => { semSel = s; draw(); } });
+    mountDateFilter($("#sem-date"), { list, value: semDate, onChange: (s) => { semDate = s; draw(); } });
+  };
+  const reset = () => { semSel = { type: "all" }; semDate = { type: "all" }; mount(); draw(); };
+  mount();
   draw();
   return list;
 }
@@ -273,12 +330,15 @@ async function renderMatches() {
   const byRef = Object.fromEntries(list.map((m) => [m.ref, m]));
   const draw = () => {
     const shown = list.filter((m) => leagueSelMatch(matchSel, m, catalog) && dateSelMatch(matchDate, m.kickoff));
-    $("#matches").innerHTML = shown.length ? matchGroups(shown)
-      : `<div class="card empty">No hay partidos programados en los próximos 3 días para las ligas seguidas
-         (puede ser fecha FIFA). La tarea diaria agrega partidos y cuotas a medida que se publican.</div>`;
+    if (!shown.length) return emptyMatches($("#matches"), isFiltered(matchSel, matchDate), reset);
+    $("#matches").innerHTML = matchGroups(shown);
   };
-  mountLeaguePicker($("#league-filter"), { value: matchSel, onChange: (s) => { matchSel = s; draw(); } });
-  mountDateFilter($("#match-date"), { list, value: matchDate, onChange: (s) => { matchDate = s; draw(); } });
+  const mount = () => {
+    mountLeaguePicker($("#league-filter"), { value: matchSel, onChange: (s) => { matchSel = s; draw(); } });
+    mountDateFilter($("#match-date"), { list, value: matchDate, onChange: (s) => { matchDate = s; draw(); } });
+  };
+  const reset = () => { matchSel = { type: "all" }; matchDate = { type: "all" }; mount(); draw(); };
+  mount();
   $("#matches").onclick = (e) => {
     if (e.target.closest("button, a, .mdetail")) return;
     const row = e.target.closest(".mrow"); if (!row) return;
@@ -660,4 +720,4 @@ async function initChrome() {
 }
 
 // combos.js se carga después de este archivo: se enruta cuando ambos están listos.
-window.addEventListener("DOMContentLoaded", () => { route(); initChrome(); });
+window.addEventListener("DOMContentLoaded", () => { paintSkeletons(); route(); initChrome(); });

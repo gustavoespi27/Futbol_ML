@@ -57,7 +57,7 @@
         de <b>Pinnacle</b>, registra sus pronósticos más fiables para medir su precisión y ajusta sus probabilidades con los
         resultados reales.</p>
     </div>
-    <div class="grid g4" id="home-tiles"><div class="card loading" style="grid-column:1/-1">Revisando los partidos de hoy, mañana y pasado mañana… (la primera carga después de abrir el sitio puede tardar hasta un minuto)</div></div>
+    <div class="grid g4" id="home-tiles" data-skel="kpi:4"></div>
 
     <div class="card reco-card" style="margin-top:16px">
       <div class="reco-head">
@@ -74,17 +74,17 @@
       <div class="tab-pane on" data-pane="value">
         <p class="pane-note">Apuestas con <b>ventaja</b>: la mejor cuota supera en ≥ 6% el precio justo de Pinnacle (cuota ≤ 4,0).
           Monto: ¼ de Kelly, máximo 2% por apuesta y 10% por día.</p>
-        <div class="matches" id="sg-singles"><div class="loading">Calculando…</div></div>
+        <div class="matches" id="sg-singles" data-skel="cards:3"></div>
         <div id="sg-doubles-wrap" style="margin-top:14px"></div>
       </div>
       <div class="tab-pane" data-pane="reliable">
         <p class="pane-note">Lo que el sistema ve <b>más probable</b> en cada partido (≥ <span id="rel-min"></span>). Sirven para medir
           su precisión; suelen pagar poco, así que no son recomendaciones de apuesta por sí solas.</p>
-        <div class="table-wrap" id="rel-today"><div class="loading">Calculando…</div></div>
+        <div class="table-wrap" id="rel-today" data-skel="table:6"></div>
       </div>
       <div class="tab-pane" data-pane="near">
         <p class="pane-note">Les falta poco para tener valor: si alguna casa paga al menos la <b>cuota mínima</b>, pasan a recomendación.</p>
-        <div class="table-wrap" id="sg-closest"><div class="loading">Calculando…</div></div>
+        <div class="table-wrap" id="sg-closest" data-skel="table:5"></div>
       </div>
     </div>
 
@@ -92,7 +92,7 @@
       <h2 class="sec">Semáforo de los próximos partidos</h2>
       <div class="toolbar"><div class="filters" id="sem-filter" style="margin:0"></div><div id="sem-date"></div></div>
     </div>
-    <div class="card"><div class="table-wrap" id="semaforo"><div class="loading">Cargando partidos…</div></div>
+    <div class="card"><div class="table-wrap" id="semaforo" data-skel="semrows:6"></div>
       <div class="sem-legend" style="margin-top:12px">
         <span class="vchip green"><b>Apostar</b> la mejor cuota supera en ≥ 6% el precio justo de Pinnacle</span>
         <span class="vchip yellow"><b>Neutral</b> precio cercano al justo o paga muy poco</span>
@@ -109,11 +109,11 @@
         <div class="tab-pane on" data-pane="bets">
           <p class="pane-note">Apuestas en papel que la máquina registró antes de cada partido, con su motivo, resultado y CLV
             (si consiguió mejor cuota que la del cierre).</p>
-          <div class="table-wrap" id="sg-record"><div class="loading">Cargando apuestas…</div></div>
+          <div class="table-wrap" id="sg-record" data-skel="table:5"></div>
         </div>
         <div class="tab-pane" data-pane="picks">
           <p class="pane-note">Pronósticos fiables registrados antes de cada partido: así la máquina pone a prueba su precisión todos los días.</p>
-          <div class="table-wrap" id="rel-record"><div class="loading">Cargando pronósticos…</div></div>
+          <div class="table-wrap" id="rel-record" data-skel="table:5"></div>
         </div>
       </div>
       <div class="stack">
@@ -126,7 +126,7 @@
         <div class="card">
           <h2>Ajuste automático</h2>
           <p class="sub">Con cada resultado la máquina corrige si fue demasiado segura (T &gt; 1 suaviza) o demasiado tímida (T &lt; 1).</p>
-          <div id="calib-box"><div class="loading">Cargando…</div></div>
+          <div id="calib-box" data-skel="lines:3"></div>
         </div>
       </div>
     </div>
@@ -175,7 +175,7 @@
         Horarios en tu zona horaria.</p>
     </div>
     <div class="toolbar"><div class="filters" id="league-filter"></div><div id="match-date"></div></div>
-    <div id="matches"><div class="loading">Cargando partidos…</div></div>
+    <div id="matches" data-skel="rows:6"></div>
   </section>
 
   <!-- COMBINADAS -->
@@ -186,11 +186,11 @@
         Dentro de un mismo partido la probabilidad se calcula en conjunto (por ejemplo, "gana el local" y "más de 2,5 goles"
         suelen ir juntos); entre partidos distintos se multiplica.</p>
     </div>
-    <div class="grid g4" id="cb-tiles"></div>
+    <div class="grid g4" id="cb-tiles" data-skel="kpi:4"></div>
     <div class="combo-layout" style="margin-top:16px">
       <div>
         <div class="toolbar"><div class="filters" id="cb-filter"></div><div id="cb-date"></div></div>
-        <div class="stack" id="cb-matches"><div class="loading">Cargando partidos…</div></div>
+        <div class="stack" id="cb-matches" data-skel="cards:4"></div>
       </div>
       <aside class="card ticket" id="ticket"></aside>
     </div>
@@ -232,7 +232,7 @@
       <p>Cada predicción se guarda <b>antes</b> de que empiece el partido y no se puede modificar. Cuando llega el resultado
         se compara con lo que pasó. Es la prueba más limpia, pero necesita cientos de partidos para ser concluyente.</p>
     </div>
-    <div class="grid g4" id="trk-tiles"></div>
+    <div class="grid g4" id="trk-tiles" data-skel="kpi:4"></div>
     <div class="card" style="margin-top:16px">
       <h2>Predicciones evaluadas</h2>
       <p class="sub">"Pronóstico" es el resultado al que el sistema le dio más probabilidad.</p>
@@ -253,7 +253,7 @@
       <p id="bt-intro">Evaluación sobre todos los partidos de 2026 de 38 ligas. Los pesos se ajustaron con datos de 2016-2025,
         así que estos partidos son "examen" para el modelo.</p>
     </div>
-    <div class="grid g3" id="bt-tiles"></div>
+    <div class="grid g3" id="bt-tiles" data-skel="kpi:3"></div>
     <div class="grid g2" style="margin-top:16px">
       <div class="card">
         <h2>Calibración</h2>
@@ -280,7 +280,7 @@
     <div class="card" style="margin-top:16px">
       <h2>Machine learning con el historial de los equipos</h2>
       <p class="sub">Gradient boosting entrenado con 2014-2025 y evaluado una sola vez en 2026 (log loss: menor es mejor).</p>
-      <div id="ml-block"><div class="loading">Cargando…</div></div>
+      <div id="ml-block" data-skel="table:4"></div>
     </div>
     <div class="card" style="margin-top:16px">
       <h2>Por liga</h2>
