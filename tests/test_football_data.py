@@ -74,5 +74,6 @@ def test_load_ou_closing_parametrized_in_chunks(conn, monkeypatch):
     monkeypatch.setattr(data, "OU_CHUNK", 1)                                 # fuerza varios lotes
     out = data.load_ou_closing(conn, mids + [999999])
     assert sorted(out.index) == sorted(mids[:2])
+    assert (out.dtypes == np.float64).all()                                   # lotes vacíos no cambian el tipo
     assert out["p_over"].tolist() == pytest.approx([0.5, 0.5])
     assert out["b365_over"].tolist() == pytest.approx([1.9, 1.9])

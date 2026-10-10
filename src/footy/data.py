@@ -104,9 +104,11 @@ def load_ou_closing(conn: sqlite3.Connection, match_ids) -> pd.DataFrame:
             f"""SELECT match_id, bookmaker, selection, price FROM odds
                 WHERE market = 'OU' AND line = 2.5 AND is_closing = 1
                   AND match_id IN ({",".join("?" * len(part))})""", conn, params=part))
-    odds = pd.concat(chunks, ignore_index=True)
-    if odds.empty:
+    # Un lote sin filas llega con columnas object y contaminaría el tipo de todo el resultado: se descarta.
+    chunks = [c for c in chunks if not c.empty]
+    if not chunks:
         return empty
+    odds = pd.concat(chunks, ignore_index=True).astype({"price": float})
     wide = odds.pivot_table(index="match_id", columns=["bookmaker", "selection"], values="price")
     out = pd.DataFrame(index=wide.index)
     out["p_over"] = np.nan
@@ -141,9 +143,10 @@ def load_odds_drift(conn: sqlite3.Connection, match_ids, books=DRIFT_BOOKS) -> p
                 WHERE o.market = '1X2' AND o.is_closing = 0 AND o.captured_at < m.kickoff_utc
                   AND o.bookmaker IN ({",".join("?" * len(books))})
                   AND o.match_id IN ({",".join("?" * len(part))})""", conn, params=[*books, *part]))
-    o = pd.concat(parts, ignore_index=True).sort_values("captured_at")
-    if o.empty:
+    parts = [x for x in parts if not x.empty]
+    if not parts:
         return pd.DataFrame(columns=cols)
+    o = pd.concat(parts, ignore_index=True).astype({"price": float}).sort_values("captured_at")
     g = o.groupby(["match_id", "bookmaker", "selection"]).price
     out = pd.DataFrame({"first": g.first(), "last": g.last(), "n": g.size()}).reset_index()
     out = out[out.n >= 2]
