@@ -221,11 +221,22 @@ footer { color: var(--muted); font-size: 12px; padding: 18px 28px 28px; border-t
 .pill.warn { background: var(--warn-bg); color: var(--warn); }
 
 /* barras de probabilidad 1X2 */
-.probbar { display: flex; height: 26px; border-radius: 6px; overflow: hidden; gap: 2px; }
+.probbar { display: flex; height: 28px; gap: 3px; position: relative; }
 .probbar > div {
-  display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;
-  color: #fff; min-width: 0; white-space: nowrap; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 700;
+  color: #fff; min-width: 0; white-space: nowrap; overflow: hidden; border-radius: 8px;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .22), rgba(255, 255, 255, 0) 70%);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .18); transition: flex .5s cubic-bezier(0.16, 1, 0.3, 1);
 }
+/* corte del mercado: línea fina con punto, sobre la barra oficial */
+.pb-mk {
+  position: absolute; top: -5px; bottom: -5px; width: 2px; margin-left: -1px; border-radius: 2px;
+  background: var(--text); opacity: .8; cursor: help;
+}
+.pb-mk::before { content: ""; position: absolute; top: -3px; left: -3px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--text); box-shadow: 0 0 0 2px var(--surface); }
+.pb-note { margin-top: 8px; font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.pb-key { width: 2px; height: 12px; border-radius: 2px; background: var(--text); opacity: .8; }
 .probbar .h { background: var(--home); }
 .probbar .d { background: var(--draw); }
 .probbar .a { background: var(--away); }
@@ -281,9 +292,9 @@ footer { color: var(--muted); font-size: 12px; padding: 18px 28px 28px; border-t
 .lg-cols span:nth-child(n+3):not(:last-child) { text-align: center; }
 .mrow {
   display: grid; grid-template-columns: 64px minmax(0, 1fr) repeat(3, 76px) 128px 22px; gap: 10px; align-items: center;
-  padding: 10px 16px; border-bottom: 1px solid var(--grid); cursor: pointer; transition: background .12s;
+  padding: 10px 16px; border-bottom: 1px solid var(--grid); cursor: pointer; transition: background .15s ease, box-shadow .15s ease;
 }
-.mrow:hover { background: var(--surface-2); }
+.mrow:hover { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); }
 .mrow.open { background: var(--surface-2); }
 .mrow .time { display: grid; color: var(--text-2); font-size: 12px; line-height: 1.3; }
 .mrow .time b { color: var(--text); font-size: 13px; }
@@ -304,7 +315,12 @@ footer { color: var(--muted); font-size: 12px; padding: 18px 28px 28px; border-t
   content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: var(--w, 0%); background: var(--c, var(--accent));
 }
 .pcell.top { background: color-mix(in srgb, var(--c) 14%, var(--surface)); }
-.pcell.green { box-shadow: inset 0 0 0 1.5px var(--good); }
+.pcell.has-mk::after {                              /* probabilidad del mercado sobre la misma escala */
+  content: ""; position: absolute; bottom: 0; left: var(--wm); width: 2px; height: 7px; margin-left: -1px;
+  background: var(--text); opacity: .55; border-radius: 1px;
+}
+.pcell.value { box-shadow: 0 0 0 1.5px var(--ev-positive), 0 0 12px var(--ev-glow);
+  background: color-mix(in srgb, var(--ev-positive) 12%, var(--surface)); }
 .mdetail { padding: 16px; border-bottom: 1px solid var(--grid); background: var(--bg); }
 .mdetail .match { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
 .mdetail .match > .meta, .mdetail .match > .teams { display: none; }
@@ -404,7 +420,9 @@ details.mx .body { padding: 14px 16px 16px; display: grid; gap: 14px; }
 .sg-card { display: grid; gap: 12px; }
 .sg-card .sel { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
 .sg-card .kv { grid-template-columns: repeat(3, 1fr); }
-.sg-card.green { box-shadow: inset 0 3px 0 var(--good), var(--shadow); }
+.sg-card.green { border-color: color-mix(in srgb, var(--ev-positive) 55%, transparent);
+  box-shadow: inset 0 3px 0 var(--ev-positive), 0 0 0 1px color-mix(in srgb, var(--ev-positive) 20%, transparent),
+    0 14px 34px -20px var(--ev-glow); }
 h2.sec { margin: 28px 0 12px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
 h2.sec::before { content: ""; width: 4px; height: 16px; border-radius: 2px; background: var(--accent); }
 .sec-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin: 28px 0 12px; }
@@ -424,7 +442,7 @@ h2.sec::before { content: ""; width: 4px; height: 16px; border-radius: 2px; back
   line-height: 1.25; background: var(--surface-2); color: var(--muted); }
 .vcell b { font-size: 13.5px; }
 .vcell small { white-space: nowrap; font-size: 9.5px; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
-.vcell.green { background: var(--good-bg); color: var(--good); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--good) 60%, transparent); }
+.vcell.green { background: var(--good-bg); color: var(--good); box-shadow: 0 0 0 1.5px var(--ev-positive), 0 0 12px var(--ev-glow); }
 .vcell.yellow { background: var(--warn-bg); color: var(--warn); }
 .vcell.red { background: var(--bad-bg); color: var(--bad); }
 table.sem td { padding: 6px 5px; }
@@ -441,11 +459,6 @@ table.sem td.m:hover .team span { color: var(--accent); }
 .vs-s { color: var(--muted); font-size: 11px; margin: 0 2px; }
 .mt { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-weight: 600; }
 .meta .lg, span.lg { display: inline-flex; align-items: center; gap: 6px; }
-:root[data-theme="dark"] .tlogo:not(.fb), :root[data-theme="dark"] .llogo:not(.fb) { filter: drop-shadow(0 0 1px rgba(255,255,255,.5)); }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .tlogo:not(.fb), :root:not([data-theme="light"]) .llogo:not(.fb) { filter: drop-shadow(0 0 1px rgba(255,255,255,.5)); }
-}
-
 /* ================= responsive ================= */
 @media (max-width: 1180px) {
   .lg-cols, .mrow { grid-template-columns: 56px minmax(0, 1fr) repeat(3, 66px) 22px; }
@@ -711,3 +724,34 @@ details.mx .opt-table .vchip { white-space: nowrap; }
   box-shadow: var(--shadow), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent), 0 18px 40px -28px var(--accent);
 }
 .bottomnav { backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%); }
+
+/* ================= micro-interacciones ================= */
+/* Escudos en un disco claro con borde fino: se leen igual sobre fondo claro u oscuro */
+.tlogo:not(.fb) { border-radius: 50%; padding: 2px; background: var(--logo-bg, #fff);
+  box-shadow: 0 0 0 1px var(--border), 0 1px 2px rgba(0, 0, 0, .08); }
+:root[data-theme="dark"] { --logo-bg: rgba(236, 241, 250, .94); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --logo-bg: rgba(236, 241, 250, .94); } }
+
+/* Tarjetas de partido: elevación sutil al pasar el cursor */
+.card.match, .sg-card, details.mx, .stat {
+  transition: transform .2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .2s ease, border-color .2s ease;
+}
+.card.match:hover, .sg-card:hover, details.mx:not([open]):hover, .stat:hover {
+  transform: translateY(-2px); border-color: var(--border-hi);
+  box-shadow: var(--shadow), 0 16px 34px -20px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* Insignia de valor (+EV frente a Pinnacle) con brillo que late */
+.ev-badge {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  font: 700 10.5px/1.5 var(--font-mono); letter-spacing: .02em; color: #03140d; background: var(--ev-positive);
+  animation: ev-pulse 2.4s ease-in-out infinite;
+}
+@keyframes ev-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--ev-glow); }
+  50% { box-shadow: 0 0 14px 3px var(--ev-glow); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ev-badge { animation: none; }
+  .card.match, .sg-card, details.mx, .stat, .probbar > div { transition: none; }
+}

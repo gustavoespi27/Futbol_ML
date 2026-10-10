@@ -39,7 +39,7 @@ function drawCurrent(d) {
         <span class="lg">${leagueLogo(s.league, 16)}${esc(s.league_name)}</span><span>${fmtDate(s.kickoff)}</span></div>
       <div><div style="color:var(--text-2);font-size:13.5px">${matchTag(s, 22)}</div>
         <div class="sel">${esc(s.label)}</div></div>
-      <div class="reco">${vchip({ level: "green", label: "Apostar", reason: "Cumple la regla de valor con riesgo acotado" })}
+      <div class="reco">${evBadge({ ev: s.ev, verdict: { level: "green", reason: s.reason || "Cumple la regla de valor" } })}
         <span class="pill ${RISK_PILL[s.risk]}">riesgo ${s.risk}</span>
         <span>cuota <b style="color:var(--text)">${num(s.odds)}</b> en ${esc(s.book)}${s.pinnacle ? ` · Pinnacle ${num(s.pinnacle)}` : ""}</span></div>
       <div class="kv">

@@ -128,12 +128,20 @@ function baseOptions(extra = {}) {
 }
 
 /* ---------- componentes ---------- */
-function probBar(p) {
+// Barra 1X2 de la probabilidad oficial. Con `pm` (mercado sin margen) marca dónde estaban sus cortes local|empate
+// y empate|visita: si una marca cae dentro de otro color, el sistema y el mercado no coinciden en ese resultado.
+function probBar(p, pm = null) {
   if (!p) return `<div class="probbar"><div style="flex:1;background:var(--surface-2);color:var(--muted)">sin datos</div></div>`;
   const cls = ["h", "d", "a"];
-  return `<div class="probbar" role="img" aria-label="Local ${pct(p[0])}, empate ${pct(p[1])}, visita ${pct(p[2])}">${
-    p.map((x, i) => `<div class="${cls[i]}" style="flex:${x}" title="${SEL[i]}: ${pct(x, 1)}">${x >= 0.12 ? pct(x) : ""}</div>`).join("")}</div>`;
+  const marks = pm ? [pm[0], pm[0] + pm[1]].map((x) => `<span class="pb-mk" style="left:${(x * 100).toFixed(1)}%"
+    title="Mercado: local ${pct(pm[0])} · empate ${pct(pm[1])} · visita ${pct(pm[2])}"></span>`).join("") : "";
+  return `<div class="probbar ${pm ? "has-mk" : ""}" role="img" aria-label="Local ${pct(p[0])}, empate ${pct(p[1])}, visita ${pct(p[2])}">${
+    p.map((x, i) => `<div class="${cls[i]}" style="flex:${x}" title="${SEL[i]}: ${pct(x, 1)}">${x >= 0.12 ? pct(x) : ""}</div>`).join("")}${marks}</div>${
+    pm ? `<div class="pb-note"><span class="pb-key"></span>dónde estaba el mercado (sin margen)</div>` : ""}`;
 }
+// Insignia de valor: solo para selecciones que el profesional apostaría (precio justo de Pinnacle).
+const evBadge = (o) => (o && o.verdict && o.verdict.level === "green" && o.ev != null
+  ? `<span class="ev-badge" title="${esc(o.verdict.reason)}">VALOR ${signed(o.ev)}</span>` : "");
 function miniBar(p) {
   const c = ["var(--home)", "var(--draw)", "var(--away)"];
   return `<span class="mini" title="L ${pct(p[0])} · E ${pct(p[1])} · V ${pct(p[2])}">${p.map((x, i) => `<i style="flex:${x};background:${c[i]}"></i>`).join("")}</span>`;
@@ -297,11 +305,15 @@ function matchRow(m) {
   const d = new Date(m.kickoff);
   const time = new Intl.DateTimeFormat("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
   const day = new Intl.DateTimeFormat("es-CL", { weekday: "short", day: "numeric" }).format(d);
+  const pm = m.p_market;
   const cell = (k, i, color) => {
     if (!p) return `<div class="pcell"><b>–</b><span>sin datos</span></div>`;
     const o = ops[k], v = o && o.verdict;
-    return `<div class="pcell ${i === fav ? "top" : ""} ${v && v.level === "green" ? "green" : ""}" style="--w:${(p[i] * 100).toFixed(0)}%;--c:var(${color})"
-      title="${v ? esc(`${v.label}: ${v.reason}`) : ""}"><b>${pct(p[i])}</b><span>${o && o.odds ? num(o.odds) : "–"}</span></div>`;
+    const mk = pm ? `;--wm:${(pm[i] * 100).toFixed(0)}%` : "";
+    const tip = [v ? `${v.label}: ${v.reason}` : "", pm ? `Mercado: ${pct(pm[i])}` : ""].filter(Boolean).join(" · ");
+    return `<div class="pcell ${i === fav ? "top" : ""} ${v && v.level === "green" ? "value" : ""} ${pm ? "has-mk" : ""}"
+      style="--w:${(p[i] * 100).toFixed(0)}%;--c:var(${color})${mk}"
+      title="${esc(tip)}"><b>${pct(p[i])}</b><span>${o && o.odds ? num(o.odds) : "–"}</span></div>`;
   };
   const best = bestOption(m);
   const tag = (id, name, isFav) => `<span class="team ${isFav ? "fav" : ""}">${teamLogo(id, name, 20)}<span>${esc(name)}</span></span>`;
@@ -309,7 +321,7 @@ function matchRow(m) {
     <div class="time"><b>${time}</b><span>${esc(day)}</span></div>
     <div class="tm">${tag(m.home_id, m.home, fav === 0)}${tag(m.away_id, m.away, fav === 2)}</div>
     ${cell("1", 0, "--home")}${cell("X", 1, "--draw")}${cell("2", 2, "--away")}
-    <div class="best">${best ? `${vchip(best.verdict)}<span>${esc(best.label)} · ${num(best.odds)}</span>` : `<span>${m.stale ? "datos atrasados" : "sin cuotas aún"}</span>`}</div>
+    <div class="best">${best ? `${evBadge(best) || vchip(best.verdict)}<span>${esc(best.label)} · ${num(best.odds)}</span>` : `<span>${m.stale ? "datos atrasados" : "sin cuotas aún"}</span>`}</div>
     <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
   </div>`;
 }
@@ -365,7 +377,7 @@ function matchCard(m) {
   return `<article class="card match">
     <div class="meta"><span class="lg">${leagueLogo(m.league, 16)}${esc(m.league_name)}</span><span>${fmtDate(m.kickoff)}</span></div>
     ${teamsRow(m)}
-    <div>${probBar(p)}</div>
+    <div>${probBar(p, m.p_market)}</div>
     <div class="reco"><span class="pill ${SOURCE_PILL[m.source] ?? ""}">${esc(m.source)}</span>
       ${fav != null ? `<span>Más probable: <b style="color:var(--text)">${fav === 1 ? "empate" : fav === 0 ? esc(m.home) : esc(m.away)}</b></span>` : ""}</div>
     ${m.options && m.options.length ? `<div class="sem-legend">${["1", "X", "2"].map((k) => {
@@ -593,7 +605,7 @@ function renderSimResult(r) {
     <div class="card match">
       <div class="meta"><span class="lg">${leagueLogo(r.league, 16)}${esc(r.league_name)}</span><span class="pill ${SOURCE_PILL[r.source]}">${esc(r.source)}</span></div>
       ${teamsRow(r)}
-      ${probBar(p)}
+      ${probBar(p, r.betting ? r.betting.p_market : null)}
       <div class="legend"><span><i style="background:var(--home)"></i>Local ${pct(p[0], 1)}</span><span><i style="background:var(--draw)"></i>Empate ${pct(p[1], 1)}</span><span><i style="background:var(--away)"></i>Visita ${pct(p[2], 1)}</span></div>
       <div class="kv">
         <div><span>Goles esperados</span><b class="num">${num(r.xg[0], 2)} – ${num(r.xg[1], 2)}</b></div>
