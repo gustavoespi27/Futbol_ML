@@ -109,7 +109,8 @@ async function renderCombos() {
           <p class="sub" style="margin:0">* Doble oportunidad estimada desde el 1X2 de la misma casa. Valor = probabilidad × cuota − 1.</p></div>
       </details>`;
     }).join("") : "";
-    if (!shown.length) emptyMatches(box, isFiltered(cbSel, cbDate), reset);
+    if (chips) chips.sync();
+    if (!shown.length) emptyMatches(box, isFiltered(cbSel, cbDate), reset, cbSel, catalog);
     syncAddButtons();
     box.scrollTop = scroll;
     const focus = openRef || lastRef;
@@ -126,8 +127,10 @@ async function renderCombos() {
   };
   cbRedraw = draw;
   mountToTop($("#cb-matches"));
-  const mount = () => {
-    mountLeaguePicker($("#cb-filter"), { value: cbSel, onChange: (s) => { cbSel = s; draw(); } });
+  let chips = null;
+  const mount = async () => {
+    const picker = await mountLeaguePicker($("#cb-filter"), { value: cbSel, onChange: (s) => { cbSel = s; draw(); } });
+    chips = mountQuickChips($("#cb-chips"), { list, catalog, picker, getSel: () => cbSel, onPick: (s) => { cbSel = s; draw(); } });
     mountDateFilter($("#cb-date"), { list, value: cbDate, onChange: (s) => { cbDate = s; draw(); } });
   };
   const reset = () => { cbSel = { type: "all" }; cbDate = { type: "all" }; mount(); draw(); };

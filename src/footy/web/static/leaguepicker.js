@@ -175,7 +175,7 @@ async function mountLeaguePicker(root, opts) {
       : `<div class="lp-item ${i === st.idx ? "act" : ""} ${it.c.n ? "" : "dim"} ${st.sel.type === "league" && st.sel.code === it.c.code ? "cur" : ""}" data-i="${i}" role="option">
            ${leagueLogo(it.c.code, 22)}
            <span class="lp-txt"><b>${highlight(it.c.name, q)}</b><small>${highlight(it.c.country, q)} · ${esc(it.c.continent)}</small></span>
-           <span class="lp-cnt">${it.c.n || "—"}</span></div>`)).join("")
+           <span class="lp-cnt">${it.c.n || "0 partidos"}</span></div>`)).join("")
       : `<div class="lp-none">Sin coincidencias${st.onlyActive ? ". Prueba desactivando «Solo con partidos»." : "."}</div>`;
     $r(".lp-count").textContent = `${teamRows.length ? `${teamRows.length} ${teamRows.length === 1 ? "equipo" : "equipos"} · ` : ""}${rows.length} ${rows.length === 1 ? "liga" : "ligas"}`;
     const act = list.querySelector(".lp-item.act");
@@ -223,7 +223,52 @@ async function mountLeaguePicker(root, opts) {
   list.onclick = (e) => { const it = e.target.closest(".lp-item"); if (it) choose(+it.dataset.i); };
   document.addEventListener("mousedown", (e) => { if (st.open && !root.contains(e.target)) close(); });
   renderTrigger();
-  return { set(sel) { st.sel = sel; renderTrigger(); }, catalog };
+  const apiPicker = { set(sel) { st.sel = sel; renderTrigger(); }, open, catalog };
+  root._picker = apiPicker;
+  return apiPicker;
+}
+
+// Atajo "/": abre el buscador de la vista activa (Panel, Partidos o Combinadas), salvo si se está escribiendo.
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.target instanceof Element && e.target.closest("input, textarea, select, [contenteditable]")) return;
+  const root = document.querySelector("section.view.active .lp");
+  if (!root || !root._picker) return;
+  e.preventDefault();
+  root.scrollIntoView({ block: "nearest" });
+  root._picker.open();
+});
+
+/* ---------- accesos rápidos: ligas populares con partidos hoy ---------- */
+const POPULAR = ["UCL", "E0", "SP1", "I1", "D1", "F1", "CHL", "ARG", "BRA", "UEL", "P1", "N1", "MEX", "USA", "LIB"];
+// Chips de un clic con las 5 ligas más populares que juegan hoy (si hoy no juega ninguna, las de los próximos días)
+// y un chip para abrir el buscador completo. Al elegir una, el buscador muestra la misma selección.
+function mountQuickChips(root, { list, catalog, picker, getSel, onPick }) {
+  const today = list.filter((m) => dateSelMatch({ type: "today" }, m.kickoff));
+  const pool = today.length ? today : list;
+  const counts = {};
+  pool.forEach((m) => { counts[m.league] = (counts[m.league] || 0) + 1; });
+  const rank = (c) => (POPULAR.includes(c) ? POPULAR.indexOf(c) : 100);
+  const top = Object.keys(counts).sort((a, b) => rank(a) - rank(b) || counts[b] - counts[a]).slice(0, 5);
+  const name = (c) => (catalog.find((x) => x.code === c) || { name: c }).name;
+  const nLeagues = catalog.length;
+  const draw = () => {
+    const sel = getSel();
+    root.innerHTML = `<span class="qc-label">${today.length ? "Hoy" : "Próximos días"}</span>${top.map((c) => `
+      <button type="button" class="qchip ${sel.type === "league" && sel.code === c ? "on" : ""}" data-c="${esc(c)}">
+        ${leagueLogo(c, 16)}<span>${esc(name(c))}</span><b>${counts[c]}</b></button>`).join("")}
+      <button type="button" class="qchip more">+ Buscar entre ${nLeagues} ligas…</button>`;
+  };
+  root.onclick = (e) => {
+    const b = e.target.closest(".qchip"); if (!b) return;
+    if (b.classList.contains("more")) { picker.open(); return; }
+    const sel = getSel();
+    const next = sel.type === "league" && sel.code === b.dataset.c ? { type: "all" } : { type: "league", code: b.dataset.c, name: name(b.dataset.c) };
+    picker.set(next);
+    onPick(next);
+  };
+  draw();
+  return { sync: draw };
 }
 
 /* ---------- filtro por día (los próximos partidos cubren hoy, mañana y pasado mañana) ---------- */

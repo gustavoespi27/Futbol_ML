@@ -44,9 +44,13 @@ def league_catalog(matches: list[dict]) -> list[dict]:
     for m in matches:
         counts[m["league"]] = counts.get(m["league"], 0) + 1
     names = league_names()
+    from footy.leagues import load_params
+
+    with_model = set(load_params())
     out = []
     for code, v in info.items():
         country = v["country"] or ""
         out.append({"code": code, "name": names.get(code, code), "country": COUNTRY_ES.get(country, country),
-                    "continent": CONTINENT.get(country, "Otros"), "type": v["type"], "n": counts.get(code, 0)})
+                    "continent": CONTINENT.get(country, "Otros"), "type": v["type"], "n": counts.get(code, 0),
+                    "model": code in with_model})
     return sorted(out, key=lambda r: (-r["n"], r["name"]))

@@ -134,14 +134,31 @@ function emptyState({ icon = "calendar", title, text = "", action = "" } = {}) {
     <b>${title}</b>${text ? `<p>${text}</p>` : ""}${action ? `<button type="button" class="empty-action">${action}</button>` : ""}</div>`;
 }
 // Lista filtrada sin resultados: si hay filtros activos, ofrece volver a ver todos los partidos.
-function emptyMatches(box, filtered, reset) {
+function emptyMatches(box, filtered, reset, sel = null, catalog = []) {
+  const league = sel && sel.type === "league" ? sel : null;
+  const canSimulate = league && (catalog.find((c) => c.code === league.code) || {}).model;
   box.innerHTML = filtered
-    ? emptyState({ icon: "search", title: "Sin partidos para este filtro",
-      text: "Prueba con otra liga, equipo o día.", action: "Ver todos los partidos" })
+    ? emptyState({ icon: "search", title: league ? `${esc(league.name)} no tiene partidos para este filtro` : "Sin partidos para este filtro",
+      text: canSimulate ? "Puedes simular cualquier partido de esta liga o volver a ver todos." : "Prueba con otra liga, equipo o día.",
+      action: "Ver todos los partidos" })
     : emptyState({ title: "No hay partidos programados en los próximos 3 días",
       text: "Puede ser fecha FIFA. La tarea diaria agrega partidos y cuotas a medida que se publican." });
   const b = box.querySelector(".empty-action");
   if (b) b.onclick = reset;
+  if (canSimulate && b) {
+    b.insertAdjacentHTML("beforebegin", `<button type="button" class="empty-action alt">Simular un partido de ${esc(league.name)}</button>`);
+    box.querySelector(".empty-action.alt").onclick = () => goSimulate(league.code);
+  }
+}
+// Abre el simulador con una liga elegida (si tiene modelo; si no, queda la liga por defecto).
+let pendingSimLeague = null;
+function goSimulate(code) {
+  pendingSimLeague = code;
+  const sel = $("#sim-league");
+  if (sel && [...sel.options].some((o) => o.value === code)) {
+    sel.value = code; sel.dispatchEvent(new Event("change")); pendingSimLeague = null;
+  }
+  location.hash = "#simulador";
 }
 const isFiltered = (sel, date) => (sel && sel.type !== "all") || (date && date.type !== "all");
 
@@ -288,7 +305,7 @@ async function renderSemaphore() {
   const [list, catalog] = await Promise.all([api("/api/upcoming"), leagueCatalog()]);
   const draw = () => {
     const shown = list.filter((m) => leagueSelMatch(semSel, m, catalog) && dateSelMatch(semDate, m.kickoff));
-    if (!shown.length) return emptyMatches($("#semaforo"), isFiltered(semSel, semDate), reset);
+    if (!shown.length) return emptyMatches($("#semaforo"), isFiltered(semSel, semDate), reset, semSel, catalog);
     $("#semaforo").innerHTML = `<table class="sem"><thead><tr><th>Partido</th>${SEM_COLS.map(([, n]) => `<th style="text-align:center">${n}</th>`).join("")}
       <th>Mejor opción</th></tr></thead><tbody>${shown.map(semRow).join("")}</tbody></table>`;
   };
@@ -369,12 +386,16 @@ async function renderMatches() {
   const byRef = Object.fromEntries(list.map((m) => [m.ref, m]));
   const draw = () => {
     const shown = list.filter((m) => leagueSelMatch(matchSel, m, catalog) && dateSelMatch(matchDate, m.kickoff));
-    if (!shown.length) return emptyMatches($("#matches"), isFiltered(matchSel, matchDate), reset);
+    if (chips) chips.sync();
+    if (!shown.length) return emptyMatches($("#matches"), isFiltered(matchSel, matchDate), reset, matchSel, catalog);
     $("#matches").innerHTML = matchGroups(shown);
   };
-  const mount = () => {
-    mountLeaguePicker($("#league-filter"), { value: matchSel, onChange: (s) => { matchSel = s; draw(); } });
+  let chips = null;
+  const mount = async () => {
+    const picker = await mountLeaguePicker($("#league-filter"), { value: matchSel, onChange: (s) => { matchSel = s; draw(); } });
     mountDateFilter($("#match-date"), { list, value: matchDate, onChange: (s) => { matchDate = s; draw(); } });
+    chips = mountQuickChips($("#match-chips"), { list, catalog, picker, getSel: () => matchSel,
+      onPick: (s) => { matchSel = s; draw(); } });
   };
   const reset = () => { matchSel = { type: "all" }; matchDate = { type: "all" }; mount(); draw(); };
   mount();
@@ -668,7 +689,9 @@ async function renderSimulator() {
   const leagues = await api("/api/leagues");
   const sel = $("#sim-league");
   sel.innerHTML = leagues.map((l) => `<option value="${esc(l.code)}">${esc(l.name)}</option>`).join("");
-  sel.value = leagues.some((l) => l.code === "E0") ? "E0" : leagues[0].code;
+  sel.value = pendingSimLeague && leagues.some((l) => l.code === pendingSimLeague) ? pendingSimLeague
+    : leagues.some((l) => l.code === "E0") ? "E0" : leagues[0].code;
+  pendingSimLeague = null;
   const loadTeams = async () => {
     $("#sim-home").innerHTML = $("#sim-away").innerHTML = "<option>Cargando…</option>";
     const teams = await api(`/api/teams/${sel.value}`);

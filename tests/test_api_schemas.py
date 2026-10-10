@@ -63,7 +63,7 @@ def test_overview_keeps_reserved_word_field_from():
 
 def test_contract_rejects_unknown_or_missing_fields():
     item = {"code": "E0", "name": "Premier League", "country": "Inglaterra", "continent": "Europa",
-            "type": "league", "n": 10}
+            "type": "league", "n": 10, "model": True}
     assert roundtrip(list[s.LeagueCatalogItem], [item]) == [item]
     with pytest.raises(ValidationError):
         s.LeagueCatalogItem.model_validate({**item, "nuevo": 1})        # campo no declarado en el contrato

@@ -106,9 +106,11 @@ mañana** (hora de Chile).
 
 **Navegación y filtros**
 
-- **Buscador de equipos y ligas** en Partidos, Semáforo y Combinadas: sugerencias mientras se escribe (sin importar
-  tildes ni mayúsculas), sección *Equipos* con escudo y liga, filtros por continente y país, selección de todas las
-  ligas de un país o continente y navegación con teclado.
+- **Buscador de equipos y ligas** en Partidos, Semáforo y Combinadas: se abre con la tecla `/`; sugerencias
+  mientras se escribe por nombre, país o código de liga (`E1`, `MLS`, `SP2`), sin importar tildes ni mayúsculas;
+  sección *Equipos* con escudo y liga, filtros por continente y país, y ligas sin partidos atenuadas (si tienen
+  modelo, el estado vacío ofrece abrir el simulador de esa liga).
+- **Accesos rápidos:** chips con las 5 ligas más populares que juegan hoy y un acceso al buscador completo.
 - **Filtro por día:** Todos, Hoy, Mañana y pasado mañana, con la cantidad de partidos de cada uno.
 - **Combinadas:** los partidos del boleto aparecen primero, resaltados con la etiqueta *En tu combinada*; el botón
   *↑ Tus partidos* vuelve a ellos desde cualquier punto de la lista. Cada selección del boleto es una fila propia,
@@ -226,7 +228,10 @@ significancia estadística ([decisiones](docs/decisiones.md)).
 | [football-data.co.uk](https://www.football-data.co.uk/) | 38 ligas desde 2012: resultados, tiros y cuotas de cierre (1X2; O/U 2,5 en 22 ligas europeas). Puede atrasarse varias semanas |
 | [API-Football](https://www.api-football.com/) (plan gratuito, 100 peticiones/día) | Calendario, resultados y cuotas pre-partido (1X2, O/U, ambos marcan) de ~10 casas incluida Pinnacle: Premier League, LaLiga, Bundesliga, Serie A, Ligue 1, Primeira Liga, Süper Lig, Argentina, Brasil, Chile, competiciones UEFA y selecciones (Mundial, eliminatorias, Nations League, Copa América, Eurocopa, amistosos) |
 
-Las cuotas se solicitan por prioridad (`odds_priority`) para respetar el presupuesto diario; el historial de
+API-Football también entrega calendario y resultados del día de las 29 ligas de football-data y de 7 copas
+nacionales (solo como historial de descanso y rotaciones) en la misma petición diaria, sin gastar cuota extra.
+Las cuotas se solicitan por prioridad (`odds_priority`) para respetar el presupuesto diario (con menos de 20
+peticiones restantes, solo las de prioridad 1 que empiezan en las próximas 12 horas); el historial de
 selecciones se carga gradualmente (`api_football.backfill`). Los equipos de ambas fuentes se enlazan por nombre, con
 alias en `config/team_aliases.yaml` y emparejamiento tolerante dentro de cada liga.
 

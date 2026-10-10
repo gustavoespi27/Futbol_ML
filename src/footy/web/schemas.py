@@ -24,6 +24,7 @@ class LeagueCatalogItem(Schema):
     continent: str
     type: str = Field(description="league | cup | international")
     n: int = Field(description="Partidos en el horizonte del dashboard (hoy, mañana y pasado mañana)")
+    model: bool = Field(description="Tiene modelo validado: se puede usar en el simulador")
 
 
 # --- /api/tracking -------------------------------------------------------------------
