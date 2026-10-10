@@ -173,7 +173,7 @@ function mountToTop(box) {
 let ticketSeq = 0;
 let shownLegs = new Set();                          // selecciones ya dibujadas: las nuevas entran con animación
 let lastPay = null;                                 // últimos montos mostrados, para animar el cambio
-const QUICK_STAKES = [1000, 5000, 10000, 50000];
+const QUICK_STAKES = [1000, 5000, 10000, 20000];
 
 // Cambia un número de `from` a `to` en ~350 ms (los montos se actualizan con movimiento, no de golpe).
 function animateNumber(el, from, to, fmt) {

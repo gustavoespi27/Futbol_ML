@@ -654,8 +654,6 @@ table.sem td.m:hover .team span { color: var(--accent); }
 .sel-p { color: var(--text-2); font-size: 12.5px; }
 .sel-odds { text-align: right; color: var(--muted); font-size: 12px; }
 .sel-row input { width: 70px; padding: 4px 6px; font-size: 12.5px; text-align: right; }
-.sel-row .x { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 0; }
-.sel-row .x:hover { color: var(--bad); }
 .sel-joint { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; padding: 7px 10px;
   background: color-mix(in srgb, var(--warn-bg) 70%, transparent); border-top: 1px solid var(--border); font-size: 12px; color: var(--text-2); }
 .sel-joint label { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; }
@@ -808,7 +806,7 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 
 /* ================= boleto (betting slip) ================= */
 .card.ticket {
-  padding: 0 16px 16px; overflow: hidden; border-radius: 18px; border-color: var(--border-hi);
+  padding: 0 16px 16px; overflow: hidden; border-radius: 16px; border-color: var(--border-hi);
   box-shadow: var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .t-head {
@@ -834,11 +832,13 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 .sel-row.enter { animation: slide-in-right .35s cubic-bezier(0.16, 1, 0.3, 1); }
 @keyframes slide-in-right { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
 .sel-row .x {
-  width: 24px; height: 24px; border-radius: 7px; font-size: 12px; display: grid; place-items: center;
-  opacity: .35; transition: opacity .15s, background .15s, color .15s;
+  width: 24px; height: 24px; border: 0; padding: 0; border-radius: 7px; background: none; color: var(--muted); cursor: pointer;
+  font-size: 12px; line-height: 1; display: grid; place-items: center; opacity: .35;
+  transition: opacity .15s, background .15s, color .15s, transform .2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .sel-row:hover .x, .sel-row .x:focus-visible { opacity: 1; }
-.sel-row .x:hover { background: var(--bad-bg); color: var(--bad); }
+.sel-row .x:hover { background: var(--bad-bg); color: var(--bad); transform: rotate(90deg) scale(1.1); }
+.sel-row .x:active { transform: rotate(90deg) scale(.9); }
 @media (hover: none) { .sel-row .x { opacity: .8; } }
 .corr { flex-basis: 100%; font-size: 11.5px; font-weight: 600; color: var(--muted); }
 .corr.up { color: var(--good); }
@@ -846,10 +846,13 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 .t-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .t-chip {
   flex: 1; min-width: 64px; padding: 6px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2);
-  color: var(--text-2); font-size: 12px; font-weight: 700; cursor: pointer; transition: all .15s;
+  color: var(--text-2); font-size: 12px; font-weight: 700; cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s, transform .12s ease, box-shadow .15s;
 }
 .t-chip:hover { border-color: var(--accent); color: var(--text); }
-.t-chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.t-chip:active { transform: scale(.94); }                      /* respuesta inmediata al pulsar */
+.t-chip.on { background: var(--accent); border-color: var(--accent); color: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent); }
 .t-win {
   display: grid; gap: 2px; padding: 14px 16px; border-radius: 14px;
   background: linear-gradient(135deg, color-mix(in srgb, var(--ev-positive) 14%, var(--surface)), var(--surface));
@@ -857,7 +860,7 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 }
 .t-win > span { font-size: 12px; color: var(--text-2); font-weight: 600; }
 .t-win > b { font-size: 30px; font-weight: 700; color: var(--ev-text); letter-spacing: -0.04em; line-height: 1.15;
-  text-shadow: 0 0 22px var(--ev-glow); }
+  text-shadow: 0 0 20px var(--ev-glow); }
 .t-win small { color: var(--muted); font-size: 12px; }
 .t-win small b { color: var(--text); font-size: 12px; }
 
