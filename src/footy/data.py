@@ -90,7 +90,9 @@ def load_ou_closing(conn: sqlite3.Connection, match_ids) -> pd.DataFrame:
     """Cierre Over/Under 2,5 por partido: p_over (sin margen; Pinnacle > promedio > Bet365) y cuotas Bet365.
 
     Índice match_id; columnas p_over, b365_over, b365_under (NaN si falta)."""
-    empty = pd.DataFrame(columns=["p_over", "b365_over", "b365_under"])
+    # Vacío con columnas float: tras un merge, p_over debe seguir siendo numérico (NaN) para np.isnan.
+    empty = pd.DataFrame({c: pd.Series(dtype=float) for c in ("p_over", "b365_over", "b365_under")},
+                         index=pd.Index([], dtype="int64", name="match_id"))
     ids = [int(i) for i in match_ids]
     if not ids:
         return empty

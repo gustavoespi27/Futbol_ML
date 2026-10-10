@@ -1,3 +1,5 @@
+import numpy as np
+import pandas as pd
 import pytest
 
 from footy.db import repository as repo
@@ -66,6 +68,9 @@ def test_load_ou_closing_parametrized_in_chunks(conn, monkeypatch):
     repo.insert_odds(conn, rows)
     assert data.load_ou_closing(conn, []).empty                              # sin ids: sin consulta
     assert data.load_ou_closing(conn, [mids[2]]).empty                       # ids sin cuotas O/U
+    merged = pd.DataFrame({"match_id": [mids[2]]}).merge(data.load_ou_closing(conn, [mids[2]]),
+                                                          left_on="match_id", right_index=True, how="left")
+    assert np.isnan(merged.p_over.to_numpy()).all()                         # sigue siendo numérico
     monkeypatch.setattr(data, "OU_CHUNK", 1)                                 # fuerza varios lotes
     out = data.load_ou_closing(conn, mids + [999999])
     assert sorted(out.index) == sorted(mids[:2])
