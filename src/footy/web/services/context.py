@@ -319,10 +319,11 @@ def _upcoming(days: int) -> list[dict]:
     local_today = datetime.now(LOCAL_TZ).date()
     end = datetime.combine(local_today + timedelta(days=days), datetime.min.time(), LOCAL_TZ)
     hidden = [c for c, v in config.settings()["competitions"].items() if v.get("history_only")]
+    where_hidden = f"AND c.code NOT IN ({','.join('?' * len(hidden))})" if hidden else ""
     ids = [r[0] for r in conn.execute(
         f"""SELECT m.id FROM matches m JOIN competitions c ON c.id = m.competition_id
             WHERE m.status = 'scheduled' AND m.kickoff_utc BETWEEN ? AND ?
-              AND c.code NOT IN ({",".join("?" * len(hidden))})
+              {where_hidden}
             ORDER BY m.kickoff_utc""", (repo.to_iso(now), repo.to_iso(end), *hidden))]
     through = data_through(conn)
     out = []
