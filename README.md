@@ -135,7 +135,7 @@ demás continúan:
 | `tracking`, `tracking_api` | Registro de predicciones antes de cada partido para su evaluación posterior |
 | `suggestions` | Cartera del apostador profesional: registra cada apuesta con su motivo, la liquida y mide su CLV |
 | `reliable` | **Pronósticos fiables:** registra antes del inicio la selección más probable de cada partido (≥ 65 %; 1X2, más/menos 2,5, ambos marcan) y al terminar mide acierto real vs esperado |
-| `report` | Informe [docs/seguimiento.md](docs/seguimiento.md) y refresco del dashboard si está abierto |
+| `report` | Informe local `docs/seguimiento.md` (no versionado) y refresco del dashboard si está abierto |
 
 ---
 
@@ -296,4 +296,3 @@ frameworks con Chart.js.
 | [05 – Machine learning](docs/analisis/05_ml.md) | Modelo sobre el historial de los equipos |
 | [06 – Apostador profesional](docs/analisis/06_profesional.md) | Value betting contra Pinnacle y CLV |
 | [Decisiones](docs/decisiones.md) | Registro de decisiones de diseño y sus motivos |
-| [Seguimiento](docs/seguimiento.md) | Informe prospectivo actualizado por la tarea diaria |

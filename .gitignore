@@ -8,6 +8,7 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .pytest_cache/
+.ruff_cache/
 .ipynb_checkpoints/
 
 # Datos: se regeneran con los scripts de ingesta, no se versionan
@@ -29,3 +30,9 @@ desktop.ini
 
 # Logs de recolección
 logs/
+
+# Archivos locales de trabajo (no se publican)
+CLAUDE.md
+.claude/
+docs/roadmap_claude.md
+docs/seguimiento.md
