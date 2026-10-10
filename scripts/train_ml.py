@@ -1,8 +1,9 @@
 """Análisis 05: modelos de machine learning sobre el historial de los equipos.
 
 1. Variables del historial (footy.features.history) para los 173 mil partidos de la base.
-2. Gradient boosting para 1X2, más de 2,5 goles y ambos marcan, en dos variantes: solo historial y
-   historial + Elo/Dixon-Coles. Hiperparámetros elegidos en VALID (2024-25); modelo final con 2014-2025.
+2. Gradient boosting con pérdida Poisson para los goles del local (λ) y de la visita (μ); 1X2, más de 2,5 goles y
+   ambos marcan salen de la misma matriz de marcadores. Dos variantes: solo historial e historial + Elo/Dixon-Coles.
+   Hiperparámetros y rho elegidos en VALID (2024-25); modelo final con 2014-2025.
 3. Mezcla con el mercado (pesos ajustados en VALID).
 4. Evaluación única en 2026: calidad de las probabilidades, alta confianza y apuestas con la regla de sugerencias.
 
@@ -122,69 +123,64 @@ def main() -> int:
     va = ((k >= ml.VALID_FROM) & (k < ml.TEST_FROM)).to_numpy()
 
     if "--production" in sys.argv:
-        models, meta = ml.load()
-        prod = ml.refit_production(fin, models)
+        model, meta = ml.load()
+        prod = ml.refit_production(fin, model)
         ml.save(prod, {**meta, "trained_until": fin.kickoff_utc.max()[:10], "production": True})
         log(f"modelos de producción entrenados con {len(fin):,} partidos hasta {fin.kickoff_utc.max()[:10]}")
         return 0
-    if "--eval" in sys.argv:                     # reutiliza los modelos ya entrenados
-        models, meta = ml.load()
-        if meta.get("production"):               # ya vieron 2026: evaluarlos en 2026 sería hacer trampa
-            log("Los modelos guardados son de producción (entrenados con 2026). Reentrena sin --eval para evaluar.")
+    if "--eval" in sys.argv:                     # reutiliza el modelo ya entrenado
+        model, meta = ml.load()
+        if meta.get("production"):               # ya vio 2026: evaluarlo en 2026 sería hacer trampa
+            log("El modelo guardado es de producción (entrenado con 2026). Reentrena sin --eval para evaluar.")
             return 1
-        choice, blend, valid_ll = meta["choice"], meta["blend"], meta["valid_logloss"]
+        blend, valid_ll = meta["blend"], meta["valid_logloss"]
     else:
-        models, choice, blend, valid_ll = train(fin, y_all, va)
-    evaluate(fin, y_all, k, va, models, choice, blend, valid_ll)
+        model, blend, valid_ll = train(fin, y_all, va)
+    evaluate(fin, y_all, k, va, model, blend, valid_ll)
     return 0
 
 
 def train(fin, y_all, va):
-    models, choice, blend, valid_ll = {}, {}, {}, {}
-    for task in ml.TASKS:
-        cand = {}
-        for use in (False, True):
-            m, p_valid = ml.fit_task(fin, task, use, log)
-            cand[use] = (m, p_valid)
-        # Variante elegida por log loss en VALID (mismas filas: las que tienen Elo/DC).
-        has = fin[ml.ELO_DC_COLS[0]].notna().to_numpy()
-        common = va & has
-        lls = {use: ll(_valid_pred(c, va, has, use)[common[va]], y_all[task][common]) for use, c in cand.items()}
-        use = min(lls, key=lls.get)
-        choice[task], models[task] = use, cand[use][0]
-        valid_ll[task] = {"historial": lls[False], "historial+elo_dc": lls[True]}
-        log(f"{task}: VALID historial={lls[False]:.5f} historial+elo/dc={lls[True]:.5f} -> elo_dc={use}")
-        # Mezcla con el mercado (en VALID, con predicciones del modelo de solo TRAIN).
-        p_val = _valid_pred(cand[use], va, has, use)
-        if task == "1x2":
-            mk = fin.loc[va, ["Mercado_pH", "Mercado_pD", "Mercado_pA"]].to_numpy()
-            ok = ~np.isnan(mk).any(1) & ~np.isnan(p_val).any(1)
-            blend[task] = fit_weights([p_val[ok], mk[ok]], y_all[task][va][ok], nonneg=True).round(4).tolist()
-        elif task == "over25":
-            mk = fin.loc[va, "p_over"].to_numpy()
-            ok = ~np.isnan(mk) & ~np.isnan(p_val)
-            blend[task] = fit_binary_blend(p_val[ok], mk[ok], y_all[task][va][ok])
-        log(f"  mezcla con mercado: {blend.get(task)}")
-    ml.save(models, {"choice": choice, "blend": blend, "valid_logloss": valid_ll, "trained_until": ml.TEST_FROM,
-                     "report": "data/processed/ml/report.json"})
-    return models, choice, blend, valid_ll
+    cand = {use: ml.fit(fin, use, log) for use in (False, True)}
+    # Variante elegida por log loss 1X2 en VALID sobre las mismas filas (las que tienen Elo/DC).
+    has = fin[ml.ELO_DC_COLS[0]].notna().to_numpy()
+    common = va & has
+    lls = {use: ll(_valid_pred(c, va, has, use)["1x2"][common[va]], y_all["1x2"][common]) for use, c in cand.items()}
+    use = min(lls, key=lls.get)
+    model, _ = cand[use]
+    valid_ll = {"historial": lls[False], "historial+elo_dc": lls[True], "elegida": cand[use][0].valid_logloss}
+    log(f"VALID 1X2 historial={lls[False]:.5f} historial+elo/dc={lls[True]:.5f} -> elo_dc={use} (rho={model.rho})")
+    # Mezcla con el mercado (en VALID, con predicciones del modelo de solo TRAIN).
+    p_val = _valid_pred(cand[use], va, has, use)
+    mk = fin.loc[va, ["Mercado_pH", "Mercado_pD", "Mercado_pA"]].to_numpy()
+    ok = ~np.isnan(mk).any(1) & ~np.isnan(p_val["1x2"]).any(1)
+    blend = {"1x2": fit_weights([p_val["1x2"][ok], mk[ok]], y_all["1x2"][va][ok], nonneg=True).round(4).tolist()}
+    mo = fin.loc[va, "p_over"].to_numpy()
+    ok = ~np.isnan(mo) & ~np.isnan(p_val["over25"])
+    blend["over25"] = fit_binary_blend(p_val["over25"][ok], mo[ok], y_all["over25"][va][ok])
+    log(f"  mezcla con mercado: {blend}")
+    ml.save(model, {"model": "poisson_goals", "use_elo_dc": use, "rho": model.rho, "blend": blend,
+                    "valid_logloss": valid_ll, "trained_until": ml.TEST_FROM,
+                    "report": "data/processed/ml/report.json"})
+    return model, blend, valid_ll
 
 
-def evaluate(fin, y_all, k, va, models, choice, blend, valid_ll):
+def evaluate(fin, y_all, k, va, model, blend, valid_ll):
 
     # --- Evaluación única en 2026 -------------------------------------------------------------
     te = (k >= ml.TEST_FROM).to_numpy()
     T = fin[te].reset_index(drop=True)
     yT = {t: v[te] for t, v in y_all.items()}
-    P = {t: models[t].predict(T) for t in ml.TASKS}
+    P = model.predict(T)
     lf = live.live_frame().set_index("match_id")
     cur = T.match_id.map(lambda i: i in lf.index).to_numpy()
     rep = {"periods": {"train": [ml.TRAIN_FROM, ml.VALID_FROM], "valid": [ml.VALID_FROM, ml.TEST_FROM],
                        "test": [ml.TEST_FROM, T.kickoff_utc.max()[:10]]},
-           "n_features": int(len(ml.design(fin.head(1), True, models["1x2"].comps).columns)),
+           "n_features": int(len(ml.design(fin.head(1), model.use_elo_dc, model.comps).columns)),
            "n_train": int(((k >= ml.TRAIN_FROM) & (k < ml.TEST_FROM)).sum()), "n_test": int(te.sum()),
-           "choice": choice, "blend": blend, "valid_logloss": valid_ll,
-           "params": {t: {"params": m.params, "n_iter": m.n_iter} for t, m in models.items()}}
+           "model": "poisson_goals", "use_elo_dc": model.use_elo_dc, "rho": model.rho, "blend": blend,
+           "valid_logloss": valid_ll,
+           "params": {s: {"params": model.params[s], "n_iter": model.n_iter[s]} for s in ml.SIDES}}
 
     # 1X2: mismas filas para todos (con mercado y con predicción del modelo actual)
     mk = T[["Mercado_pH", "Mercado_pD", "Mercado_pA"]].to_numpy()
@@ -247,11 +243,11 @@ def evaluate(fin, y_all, k, va, models, choice, blend, valid_ll):
                         "acc_mercado": round(acc(mk[rows][i], y[i]), 4)})
     rep["per_league"] = per
 
-    # Qué variables pesan más (permutación sobre una muestra de VALID, modelo 1X2)
+    # Qué variables pesan más (permutación sobre una muestra de VALID, goles esperados del local)
     smp = fin[va].sample(min(6000, int(va.sum())), random_state=0)
-    Xs = ml.design(smp, choice["1x2"], models["1x2"].comps)
-    imp = permutation_importance(models["1x2"].model, Xs, ml.targets(smp)["1x2"], scoring="neg_log_loss",
-                                 n_repeats=3, random_state=0)
+    Xs = ml.design(smp, model.use_elo_dc, model.comps)
+    imp = permutation_importance(model.models["lam"], Xs, smp.home_goals.to_numpy(float),
+                                 scoring="neg_mean_poisson_deviance", n_repeats=3, random_state=0)
     order = np.argsort(imp.importances_mean)[::-1][:15]
     rep["importance"] = [{"feature": Xs.columns[i], "importance": round(float(imp.importances_mean[i]), 5)}
                          for i in order]
@@ -262,11 +258,14 @@ def evaluate(fin, y_all, k, va, models, choice, blend, valid_ll):
 
 
 def _valid_pred(cand, va, has, use):
-    """Predicciones de VALID del modelo de solo TRAIN, alineadas a todas las filas de VALID (NaN si no aplica)."""
-    m, p = cand
-    rows = va & has if use else va
-    out = np.full((va.sum(), 3), np.nan) if m.task == "1x2" else np.full(va.sum(), np.nan)
-    out[rows[va]] = p
+    """Probabilidades de VALID del modelo de solo TRAIN, alineadas a todas las filas de VALID (NaN si no aplica)."""
+    _, P = cand
+    rows = (va & has if use else va)[va]
+    out = {}
+    for t, p in P.items():
+        o = np.full((va.sum(), 3), np.nan) if t == "1x2" else np.full(va.sum(), np.nan)
+        o[rows] = p
+        out[t] = o
     return out
 
 
@@ -290,13 +289,16 @@ def write_doc(r: dict) -> None:
     md = [
         "# Análisis 05 — Machine learning sobre el historial de los equipos", "",
         "*Generado por `scripts/train_ml.py`.*", "",
-        f"Gradient boosting con {r['n_features']} variables del historial (forma, tiros, localía, temporada, rachas, "
-        "descanso, enfrentamientos directos, contexto de liga) + liga, y opcionalmente las predicciones de Elo y "
-        f"Dixon-Coles. Entrenamiento {r['periods']['train'][0]} → {r['periods']['valid'][1]} "
+        f"Gradient boosting con pérdida Poisson y {r['n_features']} variables del historial (forma, tiros, localía, "
+        "temporada, rachas, descanso, enfrentamientos directos, contexto de liga) + liga, y opcionalmente las "
+        "predicciones de Elo y Dixon-Coles. Predice los goles esperados del local (λ) y de la visita (μ); 1X2, "
+        f"más/menos de 2,5 y ambos marcan salen de la misma matriz de marcadores (rho = {r['rho']}), "
+        "así que son coherentes. "
+        f"Entrenamiento {r['periods']['train'][0]} → {r['periods']['valid'][1]} "
         f"({miles(r['n_train'])} partidos), hiperparámetros elegidos en {r['periods']['valid'][0][:4]}-2025, "
         f"evaluación única en 2026 ({miles(r['n_test'])} partidos).", "",
-        "Variante elegida en validación (log loss): " + ", ".join(
-            f"{t}: {'historial + Elo/DC' if v else 'solo historial'}" for t, v in r["choice"].items()), "",
+        "Variante elegida en validación (log loss 1X2): "
+        + ("historial + Elo/Dixon-Coles" if r["use_elo_dc"] else "solo historial") + ".", "",
         f"## Resultado 1X2 en 2026 ({miles(r['x12']['n'])} partidos)", "",
         tbl(r["x12"], [("mercado", "Mercado (cierre sin margen)"), ("elo_dc", "Elo + Dixon-Coles"),
                        ("oficial_actual", "Oficial actual (Elo+DC+mercado)"), ("ml", "ML"),
@@ -328,7 +330,7 @@ def write_doc(r: dict) -> None:
         "harían falta datos que este no refleje todavía: alineaciones confirmadas, lesiones, cuotas tempranas.",
         "- Uso en el sistema: el ML reemplaza a Elo + Dixon-Coles como modelo propio (partidos sin cuotas, "
         "comparación modelo vs mercado y probabilidad de ambos marcan en la matriz de marcadores).", "",
-        "## Variables más influyentes (1X2)", "",
+        "## Variables más influyentes (goles esperados del local)", "",
         *[f"{i + 1}. `{x['feature']}` ({x['importance']:.4f})" for i, x in enumerate(r["importance"])], "",
     ]
     DOC.write_text("\n".join(md), encoding="utf-8", newline="\n")

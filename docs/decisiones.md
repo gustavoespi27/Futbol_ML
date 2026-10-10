@@ -342,3 +342,32 @@ predictores por liga se guardan en `data/cache/predictors/` y solo se reajustan 
 (carga en frío de ~40 s a ~4 s); el Panel dibuja cada sección por separado con avisos de carga; los archivos JS/CSS
 llevan versión para que el navegador no use copias viejas. El dashboard muestra solo hoy, mañana y pasado mañana
 (hora de Chile) y el filtro de fecha queda en Todos / Hoy / Mañana / pasado mañana (sin selector de día).
+
+## 2026-10-10 — Fase 9: señales nuevas para el modelo, medidas antes de adoptarlas
+
+Cada propuesta se evaluó con el protocolo del análisis 05 (hiperparámetros en 2024-2025, evaluación única en 2026,
+8.613 partidos con Elo/Dixon-Coles) y solo se adopta si mejora el log loss. Diferencias con intervalo bootstrap 95%.
+
+| Variante | 1X2 | Más/menos 2,5 | Ambos marcan |
+|---|---:|---:|---:|
+| Tres clasificadores (antes) | 1,02271 | 0,67926 | 0,68308 |
+| Proxy de xG en vez de tiros | 1,02399 (peor: +0,0013 [+0,0003; +0,0022]) | 0,67969 (igual) | 0,68275 (igual) |
+| Poisson λ, μ + matriz de marcadores | **1,02070** (mejor: −0,0020 [−0,0037; −0,0004]) | 0,67912 (igual) | 0,68299 (igual) |
+
+**Alineaciones y bajas (no se implementa).** La base tiene alineaciones de 129 partidos de 140 mil (120 de Chile
+2024, descargadas después de jugarse, y 9 de Brasil) y ninguna lesión. No hay con qué entrenar ni validar, y el plan
+gratuito no permite pedir alineaciones ~45 minutos antes de cada partido (1 petición por partido; la tarea corre 3
+veces al día). Requiere un plan pagado o una tarea programada cerca de cada inicio.
+
+**Proxy de xG (se descarta).** Sin ubicación de los tiros, el "xG" es tiros al arco × 0,27 + tiros desviados × 0,004
+(tasas por liga ajustadas con 2012-2015). Reemplazar los conteos de tiros por él empeora el 1X2: se pierde información.
+
+**Movimiento de cuotas (informativo).** Solo 11 partidos tienen dos o más capturas de Pinnacle; el histórico de
+football-data no tiene puntos intermedios. Se muestra si Pinnacle bajó (mercado a favor) o subió (mercado en contra)
+≥ 3% desde la primera captura, en el motivo de la apuesta y en «Casi con valor». No cambia la regla ni los montos
+hasta tener datos para medirlo.
+
+**Poisson λ, μ (se adopta).** Dos regresiones Poisson (goles del local y de la visita) reemplazan a los tres
+clasificadores; 1X2, más/menos y ambos marcan salen de la misma matriz de marcadores (Dixon-Coles, rho ajustado en
+validación), así que son coherentes entre sí. Mejora el 1X2 y empata en los otros dos mercados. Sigue lejos del
+mercado (1,0034): el sistema mantiene la combinación con las cuotas.

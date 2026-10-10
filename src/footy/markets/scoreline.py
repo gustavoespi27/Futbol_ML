@@ -30,16 +30,20 @@ def score_matrix(lam: float, mu: float, rho: float = 0.0, max_goals: int = MAX_G
     return m / m.sum()
 
 
-def outcome_probs(lam: np.ndarray, mu: np.ndarray, rho: float = 0.0) -> np.ndarray:
-    """P(H, D, A) vectorizado para muchos partidos. Devuelve (n, 3)."""
+def score_matrices(lam: np.ndarray, mu: np.ndarray, rho: float = 0.0) -> np.ndarray:
+    """score_matrix vectorizado para muchos partidos: (n, G, G), cada matriz renormalizada para sumar 1."""
     lam, mu = np.atleast_1d(lam), np.atleast_1d(mu)
     g = np.arange(MAX_GOALS + 1)
     ph = poisson.pmf(g[None, :], lam[:, None])           # (n, G)
     pa = poisson.pmf(g[None, :], mu[:, None])
     m = ph[:, :, None] * pa[:, None, :]                  # (n, G, G)
-    corr = tau(g[None, :2, None], g[None, None, :2], lam[:, None, None], mu[:, None, None], rho)
-    m[:, :2, :2] *= corr
-    m /= m.sum(axis=(1, 2), keepdims=True)
+    m[:, :2, :2] *= tau(g[None, :2, None], g[None, None, :2], lam[:, None, None], mu[:, None, None], rho)
+    return m / m.sum(axis=(1, 2), keepdims=True)
+
+
+def outcome_probs(lam: np.ndarray, mu: np.ndarray, rho: float = 0.0) -> np.ndarray:
+    """P(H, D, A) vectorizado para muchos partidos. Devuelve (n, 3)."""
+    m = score_matrices(lam, mu, rho)
     home = np.tril(np.ones((MAX_GOALS + 1,) * 2), -1)    # i > j
     out = np.stack([(m * home).sum(axis=(1, 2)),
                     np.trace(m, axis1=1, axis2=2),

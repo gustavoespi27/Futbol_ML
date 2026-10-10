@@ -162,3 +162,35 @@ def test_dixon_coles_shot_mix_uses_shots_without_leakage():
     # Sin estadísticas cae a solo goles
     m2 = DixonColes(xi=0.0, alpha=1e-4, mix=0.5).fit(df.assign(h_sot=np.nan, a_sot=np.nan), now)
     assert m2.shot_coefs is None
+
+
+def test_goal_markets_come_from_one_coherent_score_matrix():
+    from footy.markets.scoreline import score_matrix
+    from footy.models import ml
+
+    lam, mu, rho = np.array([1.6, 0.9]), np.array([1.1, 1.4]), -0.08
+    P = ml.goal_markets(lam, mu, rho)
+    np.testing.assert_allclose(P["1x2"].sum(1), 1)
+    for i in range(2):
+        M = score_matrix(lam[i], mu[i], rho)
+        tot = np.add.outer(np.arange(M.shape[0]), np.arange(M.shape[1]))
+        assert P["1x2"][i] == pytest.approx([np.tril(M, -1).sum(), np.trace(M), np.triu(M, 1).sum()])
+        assert P["over25"][i] == pytest.approx(M[tot > 2.5].sum())
+        assert P["btts"][i] == pytest.approx(M[1:, 1:].sum())
+
+
+def test_poisson_goal_model_learns_expected_goals_without_future_rows():
+    from footy.models import ml
+
+    rng = np.random.default_rng(1)
+    n = 6000
+    days = np.sort(rng.integers(0, 365 * 12, n))
+    kick = pd.Timestamp("2014-08-01", tz="UTC") + pd.to_timedelta(days, unit="D")
+    att_h, att_a = rng.normal(0, 0.35, n), rng.normal(0, 0.35, n)
+    df = pd.DataFrame({"comp": "X", "kickoff_utc": kick.strftime("%Y-%m-%dT%H:%M:%SZ"), "h_att": att_h, "a_att": att_a,
+                       "home_goals": rng.poisson(np.exp(0.35 + att_h)), "away_goals": rng.poisson(np.exp(0.1 + att_a))})
+    model, P_valid = ml.fit(df, use_elo_dc=False, log=lambda *a: None)
+    lam, mu = model.goals(pd.DataFrame({"comp": "X", "h_att": [0.6, -0.6], "a_att": [0.0, 0.0]}))
+    assert lam[0] > lam[1] and abs(mu[0] - mu[1]) < 0.15        # el ataque del local sube λ y no μ
+    _, va = ml._rows(df, False)
+    assert len(P_valid["1x2"]) == va.sum() and -0.2 <= model.rho <= 0.2

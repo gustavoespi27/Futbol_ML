@@ -175,9 +175,11 @@ porque el valor según el modelo propio no está validado.
 
 ## Modelo de probabilidades
 
-1. **Modelo propio:** gradient boosting con 88 variables del historial de los equipos (forma, goles, tiros, localía,
-   temporada, rachas, descanso, enfrentamientos directos y contexto de liga) más las predicciones de Elo y
-   Dixon-Coles. Entrenado con 140 mil partidos (2014-2025). Elo + Dixon-Coles quedan como respaldo.
+1. **Modelo propio:** gradient boosting con pérdida Poisson que predice los goles esperados del local (λ) y de la
+   visita (μ) a partir de 88 variables del historial de los equipos (forma, goles, tiros, localía, temporada,
+   rachas, descanso, enfrentamientos directos, contexto de liga) más las predicciones de Elo y Dixon-Coles. 1X2,
+   más/menos y ambos marcan salen de la misma matriz de marcadores, así que son coherentes entre sí. Entrenado con
+   140 mil partidos (2014-2025). Elo + Dixon-Coles quedan como respaldo.
 2. **Probabilidad oficial:** combinación log-lineal con el mercado sin margen, con pesos ≥ 0 ajustados en 2016-2025.
    Sin cuotas se usa el modelo; en ligas sin modelo validado, el mercado.
 3. **Más/menos 2,5 goles:** Dixon-Coles calibrado y combinado con las cuotas O/U cuando existen.
@@ -197,16 +199,16 @@ Temporada 2026, no vista durante el ajuste: 8.608 partidos de 1X2 en 38 ligas y 
 |---|---:|---:|
 | 1X2 – probabilidad oficial | 50,6 % | 1,0034 |
 | 1X2 – mercado (cierre sin margen) | 50,6 % | 1,0034 |
-| 1X2 – ML historial de equipos | 49,2 % | 1,0227 |
+| 1X2 – ML historial de equipos | 49,1 % | 1,0207 |
 | 1X2 – Elo + Dixon-Coles | 48,8 % | 1,0237 |
 | Más/menos 2,5 – oficial | 57,5 % | 0,6743 |
 | Más/menos 2,5 – mercado | 57,8 % | 0,6742 |
-| Más/menos 2,5 – ML | 56,3 % | 0,6797 |
+| Más/menos 2,5 – ML | 56,9 % | 0,6790 |
 | Más/menos 2,5 – Dixon-Coles | 55,7 % | 0,6821 |
-| Ambos marcan – ML (frecuencia histórica: 0,6870) | 55,7 % | 0,6831 |
+| Ambos marcan – ML (frecuencia histórica: 0,6870) | 56,0 % | 0,6830 |
 
 **Lectura.** El ML mejora a Elo + Dixon-Coles en las tres tareas, pero no alcanza al mercado: combinado con él recibe
-peso 0 y apostar solo con sus probabilidades pierde (−10,3 % en 5.043 apuestas; [análisis 05](docs/analisis/05_ml.md)).
+peso 0 y apostar solo con sus probabilidades pierde (−13,3 % en 4.606 apuestas; [análisis 05](docs/analisis/05_ml.md)).
 Las apuestas elegidas por valor según el modelo en 2026 acertaron 36,4 % cuando se esperaba 41,8 % (−5,0 % por
 unidad en 154 apuestas): **no hay ventaja demostrada fuera del precio de Pinnacle**, por eso toda sugerencia se
 registra antes del partido y se mide en el dashboard.

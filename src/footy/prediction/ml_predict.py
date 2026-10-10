@@ -20,8 +20,8 @@ MAX_AGE = 26 * 3600          # la tarea diaria lo recalcula dos veces al día
 
 
 def compute(days_ahead: int = 10) -> pd.DataFrame:
-    models, meta = ml.load()
-    if models is None:
+    model, _ = ml.load()
+    if model is None:
         return pd.DataFrame()
     conn = connect()
     df = build_features(load_all_matches(conn))
@@ -48,11 +48,12 @@ def compute(days_ahead: int = 10) -> pd.DataFrame:
             for k, v in comp.items():
                 up.at[i, k] = v
     out = pd.DataFrame({"match_id": up.match_id})
-    out[["ml_H", "ml_D", "ml_A"]] = models["1x2"].predict(up)
-    out["ml_over25"] = models["over25"].predict(up)
-    out["ml_btts"] = models["btts"].predict(up)
+    lam, mu = model.goals(up) if len(up) else (np.array([]), np.array([]))
+    P = ml.goal_markets(lam, mu, model.rho) if len(up) else {t: np.empty((0, 3) if t == "1x2" else 0) for t in ml.TASKS}
+    out[["ml_H", "ml_D", "ml_A"]] = P["1x2"]
+    out["ml_over25"], out["ml_btts"] = P["over25"], P["btts"]
     # Competiciones que el modelo no vio al entrenar (selecciones, copas internacionales): sin pronóstico ML.
-    unseen = ~up.comp.isin(models["1x2"].comps).to_numpy()
+    unseen = ~up.comp.isin(model.comps).to_numpy()
     out.loc[unseen, ["ml_H", "ml_D", "ml_A", "ml_over25", "ml_btts"]] = np.nan
     out["form_h"], out["form_a"] = up.h_pts_5.to_numpy(), up.a_pts_5.to_numpy()
     out["gf_h"], out["ga_h"] = up.h_gf_10.to_numpy(), up.h_ga_10.to_numpy()
