@@ -55,17 +55,29 @@ def _season_key(row) -> str:
     return f"{row.comp}|{row.season}"
 
 
+_FORM_FIELDS = ("pts", "gf", "ga", "sf", "sa", "tf", "ta")
+_FIELD_IDX = {f: i for i, f in enumerate(_FIELDS)}
+
+
+def _known(v) -> bool:
+    return v is not None and v == v                      # v == v es False solo para NaN
+
+
+def _mean(values) -> float:
+    """Media de una lista corta en Python puro: con ≤ 10 valores enteros es exacta e igual a np.mean, y evita el
+    costo fijo de NumPy (más de un millón de llamadas al recorrer toda la base)."""
+    return sum(values) / len(values) if values else np.nan
+
+
 def _team_feats(hist: deque, ewm: dict, prefix: str) -> dict:
+    """hist: tuplas en el orden de _FIELDS, solo de partidos anteriores."""
     out = {}
-    arr = {f: np.array([h[f] for h in hist], dtype=float) for f in _FIELDS} if hist else None
+    items = list(hist)
     for n in (5, WINDOW):
-        for f in ("pts", "gf", "ga", "sf", "sa", "tf", "ta"):
-            if arr is None:
-                out[f"{prefix}{f}_{n}"] = np.nan
-                continue
-            x = arr[f][-n:]
-            x = x[~np.isnan(x)]
-            out[f"{prefix}{f}_{n}"] = float(x.mean()) if len(x) else np.nan
+        last = items[-n:]
+        for f in _FORM_FIELDS:
+            i = _FIELD_IDX[f]
+            out[f"{prefix}{f}_{n}"] = float(_mean([x[i] for x in last if _known(x[i])])) if last else np.nan
     for f in ("pts", "gf", "ga", "sf", "sa"):
         out[f"{prefix}{f}_ewm"] = ewm.get(f, np.nan)
     return out
@@ -82,6 +94,7 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     streak: dict[int, list] = defaultdict(lambda: [0, 0])                 # invicto, sin ganar
     h2h: dict[tuple, deque] = defaultdict(lambda: deque(maxlen=H2H_WINDOW))
     league: dict[str, deque] = defaultdict(lambda: deque(maxlen=LEAGUE_WINDOW))
+    league_sum: dict[str, list] = defaultdict(lambda: [0, 0, 0])          # sumas móviles: local gana, empate, goles
 
     rows = []
     for r in df.itertuples(index=False):
@@ -91,9 +104,9 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
         f.update(_team_feats(hist[a], ewm[a], "a_"))
         for side, team, venue in (("h", h, "home"), ("a", a, "away")):
             vh = venue_hist[(team, venue)]
-            f[f"{side}_venue_pts5"] = float(np.mean([x[0] for x in vh])) if vh else np.nan
-            f[f"{side}_venue_gf5"] = float(np.mean([x[1] for x in vh])) if vh else np.nan
-            f[f"{side}_venue_ga5"] = float(np.mean([x[2] for x in vh])) if vh else np.nan
+            f[f"{side}_venue_pts5"] = float(_mean([x[0] for x in vh]))
+            f[f"{side}_venue_gf5"] = float(_mean([x[1] for x in vh]))
+            f[f"{side}_venue_ga5"] = float(_mean([x[2] for x in vh]))
             s = season[(team, sk)]
             f[f"{side}_season_n"] = s[0]
             f[f"{side}_season_ppg"] = s[1] / s[0] if s[0] else np.nan
@@ -105,13 +118,13 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
         if hh:
             pts = [p if home == h else (3 - p if p != 1 else 1) for home, p, gd in hh]
             gds = [gd if home == h else -gd for home, p, gd in hh]
-            f["h2h_n"], f["h2h_pts"], f["h2h_gd"] = len(hh), float(np.mean(pts)), float(np.mean(gds))
+            f["h2h_n"], f["h2h_pts"], f["h2h_gd"] = len(hh), float(_mean(pts)), float(_mean(gds))
         else:
             f["h2h_n"], f["h2h_pts"], f["h2h_gd"] = 0, np.nan, np.nan
         lg = league[r.comp]
         if lg:
-            arr = np.array(lg, dtype=float)
-            f["lg_home"], f["lg_draw"], f["lg_goals"] = arr[:, 0].mean(), arr[:, 1].mean(), arr[:, 2].mean()
+            n_lg, tot = len(lg), league_sum[r.comp]
+            f["lg_home"], f["lg_draw"], f["lg_goals"] = tot[0] / n_lg, tot[1] / n_lg, tot[2] / n_lg
         else:
             f["lg_home"] = f["lg_draw"] = f["lg_goals"] = np.nan
         rows.append(f)
@@ -124,13 +137,13 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
         for team, gf, ga, pts, sf, sa, tf, ta, venue in (
                 (h, hg, ag, ph, r.h_sot, r.a_sot, r.h_shots, r.a_shots, "home"),
                 (a, ag, hg, pa, r.a_sot, r.h_sot, r.a_shots, r.h_shots, "away")):
-            rec = {"gf": gf, "ga": ga, "pts": pts, "sf": sf, "sa": sa, "tf": tf, "ta": ta}
+            rec = (gf, ga, pts, sf, sa, tf, ta)                  # orden de _FIELDS
             hist[team].append(rec)
             venue_hist[(team, venue)].append((pts, gf, ga))
             e = ewm[team]
             for k in ("pts", "gf", "ga", "sf", "sa"):
-                v = rec[k]
-                if v is None or (isinstance(v, float) and np.isnan(v)):
+                v = rec[_FIELD_IDX[k]]
+                if not _known(v):
                     continue
                 e[k] = v if k not in e or np.isnan(e[k]) else (1 - EWM_ALPHA) * e[k] + EWM_ALPHA * v
             s = season[(team, sk)]
@@ -143,9 +156,15 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
             last_date[team] = r.kickoff
             n_played[team] += 1
         h2h[(min(h, a), max(h, a))].append((h, ph, hg - ag))
-        league[r.comp].append((hg > ag, hg == ag, hg + ag))
+        lg, tot, new = league[r.comp], league_sum[r.comp], (int(hg > ag), int(hg == ag), hg + ag)
+        if len(lg) == lg.maxlen:                         # sale el partido más antiguo de la ventana
+            tot[:] = [t - o for t, o in zip(tot, lg[0])]
+        lg.append(new)
+        tot[:] = [t + x for t, x in zip(tot, new)]
 
-    feats = pd.DataFrame(rows)
+    # Todas las variables en float64 (los contadores también): tipos consistentes para el modelo y sin
+    # conversiones implícitas de Pandas al combinar con NaN.
+    feats = pd.DataFrame(rows).astype({c: "float64" for c in rows[0] if c != "match_id"} if rows else {})
     out = df.merge(feats, on="match_id", how="left")
     # Diferencias local - visita de las variables principales (los árboles las aprovechan mejor así).
     for base in ("pts_5", "pts_10", "gf_10", "ga_10", "sf_10", "sa_10", "pts_ewm", "gf_ewm", "ga_ewm",

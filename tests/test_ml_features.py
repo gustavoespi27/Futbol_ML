@@ -39,3 +39,25 @@ def test_design_excludes_odds_market_and_same_match_stats():
     assert "Elo_pH" in cols and "comp" in cols
     assert "Elo_pH" not in ml.design(df, use_elo_dc=False, comps=["E0"]).columns
     assert set(feature_columns(df)) <= set(cols)
+
+
+def test_build_features_emits_no_pandas_warnings_and_all_float64():
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")                           # cualquier FutureWarning/SettingWithCopy falla
+        f = build_features(_matches())
+    cols = feature_columns(f)
+    assert cols and all(f[c].dtype == np.float64 for c in cols)
+    assert f.loc[0, "h_exp"] == 0.0 and f.loc[3, "h2h_n"] == 3.0   # contadores también en float
+
+
+def test_league_context_rolling_window_drops_oldest(monkeypatch):
+    from footy.features import history
+
+    monkeypatch.setattr(history, "LEAGUE_WINDOW", 2)
+    f = build_features(_matches())
+    # Resultados previos: 2-0 (local gana), 1-1, 3-1 (local gana), 0-2. Ventana de 2 partidos.
+    assert f.loc[2, "lg_home"] == 0.5 and f.loc[2, "lg_draw"] == 0.5 and f.loc[2, "lg_goals"] == 2.0
+    assert f.loc[3, "lg_home"] == 0.5 and f.loc[3, "lg_draw"] == 0.5 and f.loc[3, "lg_goals"] == 3.0
+    assert f.loc[4, "lg_home"] == 0.5 and f.loc[4, "lg_draw"] == 0.0 and f.loc[4, "lg_goals"] == 3.0
