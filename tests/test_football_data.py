@@ -48,3 +48,26 @@ def test_parse_main_two_digit_year_and_default_time(conn):
     assert counts == {"matches": 1, "odds": 3, "stats": 4, "skipped": 0}
     known = conn.execute("SELECT DISTINCT captured_at FROM team_match_stats").fetchone()[0]
     assert known == "2012-08-17T17:00:00Z"                       # stats: conocidas al terminar
+
+
+def test_load_ou_closing_parametrized_in_chunks(conn, monkeypatch):
+    from footy import data
+
+    comp = repo.competition_id(conn, "ARG")
+    h = repo.resolve_team(conn, "x", "A", "A", "Argentina")
+    a = repo.resolve_team(conn, "x", "B", "B", "Argentina")
+    mids = [repo.upsert_match(conn, source="x", source_match_id=str(k), competition_id=comp, season="2026",
+                              kickoff_utc=f"2026-{3 * k + 1:02d}-01T20:00:00Z", home_team_id=h, away_team_id=a,
+                              status="finished", home_goals=1, away_goals=1) for k in range(3)]
+    rows = [{"match_id": m, "source": "x", "bookmaker": book, "market": "OU", "line": 2.5, "selection": sel,
+             "price": price, "captured_at": "2026-01-01T00:00:00Z", "is_closing": 1}
+            for m in mids[:2] for book, sel, price in (("Pinnacle", "OVER", 2.0), ("Pinnacle", "UNDER", 2.0),
+                                                       ("Bet365", "OVER", 1.9), ("Bet365", "UNDER", 1.9))]
+    repo.insert_odds(conn, rows)
+    assert data.load_ou_closing(conn, []).empty                              # sin ids: sin consulta
+    assert data.load_ou_closing(conn, [mids[2]]).empty                       # ids sin cuotas O/U
+    monkeypatch.setattr(data, "OU_CHUNK", 1)                                 # fuerza varios lotes
+    out = data.load_ou_closing(conn, mids + [999999])
+    assert sorted(out.index) == sorted(mids[:2])
+    assert out["p_over"].tolist() == pytest.approx([0.5, 0.5])
+    assert out["b365_over"].tolist() == pytest.approx([1.9, 1.9])

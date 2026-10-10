@@ -83,18 +83,28 @@ def _add_stats(conn, df: pd.DataFrame, comps: list[str]) -> pd.DataFrame:
 
 
 OU_BOOKS = ("Pinnacle", "Market Avg", "Bet365")
+OU_CHUNK = 900                                          # ids por consulta (bajo el límite de variables de SQLite)
 
 
 def load_ou_closing(conn: sqlite3.Connection, match_ids) -> pd.DataFrame:
     """Cierre Over/Under 2,5 por partido: p_over (sin margen; Pinnacle > promedio > Bet365) y cuotas Bet365.
 
     Índice match_id; columnas p_over, b365_over, b365_under (NaN si falta)."""
-    ids = ",".join(str(int(i)) for i in match_ids)
+    empty = pd.DataFrame(columns=["p_over", "b365_over", "b365_under"])
+    ids = [int(i) for i in match_ids]
     if not ids:
-        return pd.DataFrame(columns=["p_over", "b365_over", "b365_under"])
-    odds = pd.read_sql_query(
-        f"""SELECT match_id, bookmaker, selection, price FROM odds
-            WHERE market = 'OU' AND line = 2.5 AND is_closing = 1 AND match_id IN ({ids})""", conn)
+        return empty
+    # Consulta parametrizada en lotes: SQLite limita las variables de enlace por sentencia (999 en versiones antiguas).
+    chunks = []
+    for k in range(0, len(ids), OU_CHUNK):
+        part = ids[k:k + OU_CHUNK]
+        chunks.append(pd.read_sql_query(
+            f"""SELECT match_id, bookmaker, selection, price FROM odds
+                WHERE market = 'OU' AND line = 2.5 AND is_closing = 1
+                  AND match_id IN ({",".join("?" * len(part))})""", conn, params=part))
+    odds = pd.concat(chunks, ignore_index=True)
+    if odds.empty:
+        return empty
     wide = odds.pivot_table(index="match_id", columns=["bookmaker", "selection"], values="price")
     out = pd.DataFrame(index=wide.index)
     out["p_over"] = np.nan
