@@ -1,7 +1,6 @@
 """Reglas de valor del modelo propio (footy.betting.suggestions): Kelly, regla original y semáforo.
 
-La cartera oficial del apostador profesional se prueba en test_pro.py; el registro experimental de sugerencias, en
-test_experimental_suggestions.py.
+La cartera oficial del apostador profesional se prueba en test_pro.py.
 """
 
 import pytest

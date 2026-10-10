@@ -6,9 +6,6 @@ tarea diaria (scripts/daily.py → service.register_suggestions) y la muestra el
 
 Es dinero simulado: bankroll inicial 100 unidades; cada apuesta usa la fracción (¼ Kelly con topes) del bankroll
 disponible al momento de liquidarla, en orden de kickoff.
-
-No confundir con footy.prediction.experimental_suggestions (tabla `suggestions`): prototipo de la regla del modelo
-propio, sin uso en producción.
 """
 
 import sqlite3

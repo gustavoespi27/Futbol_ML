@@ -150,23 +150,8 @@ CREATE TABLE IF NOT EXISTS api_requests (
     errors          TEXT
 );
 
--- EXPERIMENTAL, sin uso en producción (footy.prediction.experimental_suggestions): sugerencias de la regla del
--- modelo propio. Una fila por pierna; las de una combinada comparten group_id. La cartera oficial es pro_bets.
-CREATE TABLE IF NOT EXISTS suggestions (
-    id              INTEGER PRIMARY KEY,
-    created_at      TEXT NOT NULL,
-    group_id        TEXT NOT NULL,
-    kind            TEXT NOT NULL CHECK (kind IN ('simple', 'doble')),
-    match_id        INTEGER NOT NULL REFERENCES matches(id),
-    selection       TEXT NOT NULL,
-    p               REAL NOT NULL,
-    odds            REAL NOT NULL,
-    book            TEXT,
-    stake           REAL NOT NULL,
-    model_version   TEXT NOT NULL,
-    UNIQUE (group_id, match_id, selection)
-);
-CREATE INDEX IF NOT EXISTS ix_suggestions_match ON suggestions (match_id);
+-- Tabla del registro de sugerencias del modelo propio, eliminado (nunca se usó en producción).
+DROP TABLE IF EXISTS suggestions;
 
 -- Cartera del apostador profesional (footy.betting.pro): apuestas en papel registradas antes del partido.
 -- Una por partido; el CLV se calcula al liquidar contra Pinnacle al cierre (o su último snapshot previo).

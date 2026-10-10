@@ -228,7 +228,7 @@ esperado (maldición del ganador: cuando una casa paga más que el consenso, a m
 no ve).
 
 **Medición prospectiva** (reemplazada después por la cartera del apostador profesional, tabla `pro_bets`; el
-registro de esta regla quedó como `footy.prediction.experimental_suggestions`, sin uso en producción): la tarea
+registro de esta regla y su tabla `suggestions` se eliminaron porque nunca se usaron en producción): la tarea
 diaria registraba las sugerencias antes de cada partido (tabla `suggestions`, una
 vez por selección) y el dashboard mostraba su resultado real.
 
