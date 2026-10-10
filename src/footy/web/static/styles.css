@@ -228,15 +228,14 @@ footer { color: var(--muted); font-size: 12px; padding: 18px 28px 28px; border-t
   background-image: linear-gradient(180deg, rgba(255, 255, 255, .22), rgba(255, 255, 255, 0) 70%);
   text-shadow: 0 1px 1px rgba(0, 0, 0, .18); transition: flex .5s cubic-bezier(0.16, 1, 0.3, 1);
 }
-/* corte del mercado: línea fina con punto, sobre la barra oficial */
-.pb-mk {
-  position: absolute; top: -5px; bottom: -5px; width: 2px; margin-left: -1px; border-radius: 2px;
-  background: var(--text); opacity: .8; cursor: help;
-}
-.pb-mk::before { content: ""; position: absolute; top: -3px; left: -3px; width: 8px; height: 8px; border-radius: 50%;
-  background: var(--text); box-shadow: 0 0 0 2px var(--surface); }
-.pb-note { margin-top: 8px; font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-.pb-key { width: 2px; height: 12px; border-radius: 2px; background: var(--text); opacity: .8; }
+/* comparación sistema vs mercado: barra oficial y, debajo, la del mercado sin margen en la misma escala */
+.pb-pair { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 10px; align-items: center; }
+.pb-lab { font-size: 11px; font-weight: 600; color: var(--muted); }
+.mkbar { display: flex; height: 8px; gap: 3px; opacity: .55; }
+.mkbar > div { border-radius: 4px; min-width: 0; }
+.mkbar .h { background: var(--home); }
+.mkbar .d { background: var(--draw); }
+.mkbar .a { background: var(--away); }
 .probbar .h { background: var(--home); }
 .probbar .d { background: var(--draw); }
 .probbar .a { background: var(--away); }
@@ -315,10 +314,6 @@ footer { color: var(--muted); font-size: 12px; padding: 18px 28px 28px; border-t
   content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: var(--w, 0%); background: var(--c, var(--accent));
 }
 .pcell.top { background: color-mix(in srgb, var(--c) 14%, var(--surface)); }
-.pcell.has-mk::after {                              /* probabilidad del mercado sobre la misma escala */
-  content: ""; position: absolute; bottom: 0; left: var(--wm); width: 2px; height: 7px; margin-left: -1px;
-  background: var(--text); opacity: .55; border-radius: 1px;
-}
 .pcell.value { box-shadow: 0 0 0 1.5px var(--ev-positive), 0 0 12px var(--ev-glow);
   background: color-mix(in srgb, var(--ev-positive) 12%, var(--surface)); }
 .mdetail { padding: 16px; border-bottom: 1px solid var(--grid); background: var(--bg); }
@@ -772,7 +767,7 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 }
 .card.match:hover, .sg-card:hover, details.mx:not([open]):hover, .stat:hover {
   transform: translateY(-2px); border-color: var(--border-hi);
-  box-shadow: var(--shadow), 0 16px 34px -20px color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: var(--shadow), 0 10px 24px -16px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 /* Insignia de valor (+EV frente a Pinnacle) con brillo que late */

@@ -102,7 +102,7 @@ async function renderCombos() {
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--text-2);font-size:12.5px"><span class="lg">${leagueLogo(m.league, 16)}${esc(m.league_name)}</span>
             <span style="display:flex;align-items:center;gap:8px">${n ? `<span class="in-ticket-tag">En tu combinada · ${n} ${n === 1 ? "selección" : "selecciones"}</span>` : ""}${fmtDate(m.kickoff)}</span></div>
           ${teamsRow(m)}
-          ${probBar(m.p_official, m.p_market, false)}
+          ${probBar(m.p_official)}
           <div style="color:var(--muted);font-size:12px">Toca para ver todas las opciones · ${esc(m.source)}</div>
         </summary>
         <div class="body">${suggestionsBlock(m)}${optionsTable(m)}

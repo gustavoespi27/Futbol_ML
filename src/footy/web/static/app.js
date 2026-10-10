@@ -233,16 +233,17 @@ function baseOptions(extra = {}) {
 }
 
 /* ---------- componentes ---------- */
-// Barra 1X2 de la probabilidad oficial. Con `pm` (mercado sin margen) marca dónde estaban sus cortes local|empate
-// y empate|visita: si una marca cae dentro de otro color, el sistema y el mercado no coinciden en ese resultado.
-function probBar(p, pm = null, note = true) {
+// Barra 1X2 de la probabilidad oficial. Con `pm` (mercado sin margen) agrega debajo una barra fina del mercado con
+// la misma escala: si los cortes no coinciden, el sistema y el mercado ven distinto el partido.
+function probBar(p, pm = null) {
   if (!p) return `<div class="probbar"><div style="flex:1;background:var(--surface-2);color:var(--muted)">sin datos</div></div>`;
   const cls = ["h", "d", "a"];
-  const marks = pm ? [pm[0], pm[0] + pm[1]].map((x) => `<span class="pb-mk" style="left:${(x * 100).toFixed(1)}%"
-    title="Mercado: local ${pct(pm[0])} · empate ${pct(pm[1])} · visita ${pct(pm[2])}"></span>`).join("") : "";
-  return `<div class="probbar ${pm ? "has-mk" : ""}" role="img" aria-label="Local ${pct(p[0])}, empate ${pct(p[1])}, visita ${pct(p[2])}">${
-    p.map((x, i) => `<div class="${cls[i]}" style="flex:${x}" title="${SEL[i]}: ${pct(x, 1)}">${x >= 0.12 ? pct(x) : ""}</div>`).join("")}${marks}</div>${
-    pm && note ? `<div class="pb-note"><span class="pb-key"></span>dónde estaba el mercado (sin margen)</div>` : ""}`;
+  const bar = `<div class="probbar" role="img" aria-label="Local ${pct(p[0])}, empate ${pct(p[1])}, visita ${pct(p[2])}">${
+    p.map((x, i) => `<div class="${cls[i]}" style="flex:${x}" title="${SEL[i]}: ${pct(x, 1)}">${x >= 0.12 ? pct(x) : ""}</div>`).join("")}</div>`;
+  if (!pm) return bar;
+  const mk = `<div class="mkbar" role="img" aria-label="Mercado: local ${pct(pm[0])}, empate ${pct(pm[1])}, visita ${pct(pm[2])}">${
+    pm.map((x, i) => `<div class="${cls[i]}" style="flex:${x}" title="Mercado · ${SEL[i]}: ${pct(x, 1)}"></div>`).join("")}</div>`;
+  return `<div class="pb-pair"><span class="pb-lab">Sistema</span>${bar}<span class="pb-lab">Mercado</span>${mk}</div>`;
 }
 // Insignia de valor: solo para selecciones que el profesional apostaría (precio justo de Pinnacle).
 const evBadge = (o) => (o && o.verdict && o.verdict.level === "green" && o.ev != null
@@ -407,10 +408,9 @@ function matchRow(m) {
   const cell = (k, i, color) => {
     if (!p) return `<div class="pcell"><b>–</b><span>sin datos</span></div>`;
     const o = ops[k], v = o && o.verdict;
-    const mk = pm ? `;--wm:${(pm[i] * 100).toFixed(0)}%` : "";
     const tip = [v ? `${v.label}: ${v.reason}` : "", pm ? `Mercado: ${pct(pm[i])}` : ""].filter(Boolean).join(" · ");
-    return `<div class="pcell ${i === fav ? "top" : ""} ${v && v.level === "green" ? "value" : ""} ${pm ? "has-mk" : ""}"
-      style="--w:${(p[i] * 100).toFixed(0)}%;--c:var(${color})${mk}"
+    return `<div class="pcell ${i === fav ? "top" : ""} ${v && v.level === "green" ? "value" : ""}"
+      style="--w:${(p[i] * 100).toFixed(0)}%;--c:var(${color})"
       title="${esc(tip)}"><b>${pct(p[i])}</b><span>${o && o.odds ? num(o.odds) : "–"}</span></div>`;
   };
   const best = bestOption(m);
