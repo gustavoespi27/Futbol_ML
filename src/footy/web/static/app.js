@@ -28,6 +28,7 @@ function logoFallback(img) {
   s.className = img.className + " fb";
   s.textContent = img.dataset.ini || "";
   s.style.setProperty("--h", img.dataset.h || "210");
+  s.style.width = img.style.width; s.style.height = img.style.height;      // mismo tamaño que la imagen
   if (!img.dataset.ini) s.style.display = "none";            // logo de liga sin respaldo: se oculta
   img.replaceWith(s);
 }
@@ -661,15 +662,82 @@ async function renderML() {
 }
 
 /* ---------- SIMULADOR ---------- */
+/* ---------- selector visual con íconos (simulador) ---------- */
+// Reemplaza a la vista un <select> nativo (que no admite imágenes) por un botón con ícono y una lista con búsqueda.
+// El <select> queda oculto como fuente del valor: el formulario lo sigue leyendo igual.
+function mountIconSelect(select, { items, placeholder = "Buscar…", disabled = () => false }) {
+  let wrap = select.nextElementSibling;
+  if (!wrap || !wrap.classList.contains("isel")) {
+    wrap = document.createElement("div");
+    wrap.className = "isel";
+    select.after(wrap);
+    select.classList.add("isel-native");
+  }
+  const st = { open: false, q: "", idx: 0, shown: [] };
+  const current = () => items.find((it) => it.value === select.value) || items[0];
+  wrap.innerHTML = `<button type="button" class="isel-btn" aria-haspopup="listbox"></button>
+    <div class="isel-pop" hidden><div class="lp-search"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="text" placeholder="${esc(placeholder)}" autocomplete="off" spellcheck="false"></div>
+      <div class="isel-list" role="listbox"></div></div>`;
+  const btn = wrap.querySelector(".isel-btn"), pop = wrap.querySelector(".isel-pop");
+  const input = wrap.querySelector("input"), list = wrap.querySelector(".isel-list");
+  const drawBtn = () => {
+    const it = current();
+    btn.innerHTML = it ? `${it.icon}<span class="isel-lab">${esc(it.label)}</span><svg class="ico isel-caret" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>` : "<span>Cargando…</span>";
+  };
+  const drawList = () => {
+    const q = normTxt(st.q);
+    st.shown = items.filter((it) => !q || normTxt(it.label).includes(q));
+    st.idx = Math.min(st.idx, Math.max(0, st.shown.length - 1));
+    list.innerHTML = st.shown.length ? st.shown.map((it, i) => {
+      const off = disabled(it.value);
+      return `<div class="isel-item ${i === st.idx ? "act" : ""} ${it.value === select.value ? "cur" : ""} ${off ? "off" : ""}"
+        data-i="${i}" role="option">${it.icon}<span class="isel-lab">${highlight(it.label, q)}</span>${off ? "<small>ya elegido</small>" : ""}</div>`;
+    }).join("") : `<div class="lp-none">Sin coincidencias</div>`;
+    const act = list.querySelector(".act");
+    if (act) act.scrollIntoView({ block: "nearest" });
+  };
+  const close = () => { st.open = false; pop.hidden = true; wrap.classList.remove("open"); };
+  const open = () => {
+    st.open = true; st.q = ""; input.value = "";
+    st.idx = Math.max(0, items.findIndex((it) => it.value === select.value));
+    pop.hidden = false; wrap.classList.add("open"); drawList(); setTimeout(() => input.focus(), 0);
+  };
+  const choose = (i) => {
+    const it = st.shown[i];
+    if (!it || disabled(it.value)) return;
+    select.value = it.value;
+    select.dispatchEvent(new Event("change"));
+    drawBtn(); close(); btn.focus();
+  };
+  btn.onclick = () => (st.open ? close() : open());
+  input.oninput = () => { st.q = input.value; st.idx = 0; drawList(); };
+  input.onkeydown = (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); st.idx = Math.min(st.idx + 1, st.shown.length - 1); drawList(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); st.idx = Math.max(st.idx - 1, 0); drawList(); }
+    else if (e.key === "Enter") { e.preventDefault(); choose(st.idx); }
+    else if (e.key === "Escape") { close(); btn.focus(); }
+  };
+  list.onclick = (e) => { const it = e.target.closest(".isel-item"); if (it) choose(+it.dataset.i); };
+  document.addEventListener("mousedown", (e) => { if (st.open && !wrap.contains(e.target)) close(); });
+  // Si el valor cambia desde fuera (p. ej. "Simular un partido de esta liga"), el botón lo refleja.
+  select._iselDraw = drawBtn;
+  if (!select._iselBound) { select._iselBound = true; select.addEventListener("change", () => select._iselDraw()); }
+  drawBtn();
+  return { refresh: drawBtn };
+}
+
 async function renderSimulator() {
   $("#sim-stake").value = getStake();
   // El envío se registra primero (si no, un clic temprano recargaría la página) y el botón espera a los equipos.
-  const submitBtn = $("#sim-form button");
+  const submitBtn = $("#sim-form button[type=submit]");
   submitBtn.disabled = true;
   submitBtn.textContent = "Cargando equipos…";
   $("#sim-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const btn = e.target.querySelector("button"); btn.disabled = true;
+    const btn = e.target.querySelector("button[type=submit]"); btn.disabled = true;
     const odds = ["#sim-o1", "#sim-o2", "#sim-o3"].map((s) => parseFloat($(s).value));
     const st = parseFloat($("#sim-stake").value);
     if (st > 0) setStake(st);
@@ -688,12 +756,22 @@ async function renderSimulator() {
   sel.value = pendingSimLeague && leagues.some((l) => l.code === pendingSimLeague) ? pendingSimLeague
     : leagues.some((l) => l.code === "E0") ? "E0" : leagues[0].code;
   pendingSimLeague = null;
+  mountIconSelect(sel, { items: leagues.map((l) => ({ value: l.code, label: l.name, icon: leagueLogo(l.code, 20) })),
+    placeholder: "Buscar liga…" });
   const loadTeams = async () => {
     $("#sim-home").innerHTML = $("#sim-away").innerHTML = "<option>Cargando…</option>";
     const teams = await api(`/api/teams/${sel.value}`);
-    const opts = teams.map((t) => `<option>${esc(t)}</option>`).join("");
+    const opts = teams.map((t) => `<option value="${esc(t.name)}">${esc(t.name)}</option>`).join("");
     $("#sim-home").innerHTML = opts; $("#sim-away").innerHTML = opts;
     if (teams.length > 1) $("#sim-away").selectedIndex = 1;
+    const items = teams.map((t) => ({ value: t.name, label: t.name, icon: teamLogo(t.id, t.name, 22) }));
+    // Un equipo no puede jugar contra sí mismo: el elegido en un lado aparece deshabilitado en el otro.
+    const home = mountIconSelect($("#sim-home"), { items, placeholder: "Buscar equipo…",
+      disabled: (v) => v === $("#sim-away").value });
+    const away = mountIconSelect($("#sim-away"), { items, placeholder: "Buscar equipo…",
+      disabled: (v) => v === $("#sim-home").value });
+    $("#sim-home").onchange = () => away.refresh();
+    $("#sim-away").onchange = () => home.refresh();
   };
   sel.addEventListener("change", loadTeams);
   await loadTeams();

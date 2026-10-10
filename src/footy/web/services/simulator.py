@@ -7,10 +7,11 @@ from footy.web.services.common import _f, _probs, public
 from footy.web.services.context import predictor, sim_context, top_scores
 
 
-def teams(code: str) -> list[str]:
+def teams(code: str) -> list[dict]:
+    """Equipos activos de la liga (jugaron el último año) con su id, para mostrar su escudo en el simulador."""
     p = predictor(code)
     active = set(p.recent_counts.index)
-    return sorted(n for i, n in p.teams.items() if i in active)
+    return sorted(({"id": int(i), "name": n} for i, n in p.teams.items() if i in active), key=lambda t: t["name"])
 
 
 def predict(code: str, home: str, away: str, odds: list[float] | None) -> dict:
