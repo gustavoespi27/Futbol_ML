@@ -130,12 +130,18 @@ def fuzzy_team_match(conn: sqlite3.Connection, name: str, competition_code: str,
     import difflib
 
     since = to_iso(datetime.now(timezone.utc) - timedelta(days=365 * years))
+    # Primero los partidos recientes de la competición (índice por kickoff) y después sus equipos: unir teams con
+    # matches por "t.id IN (local, visita)" recorría todos los partidos por cada equipo (~12 s por consulta).
     cands = conn.execute(
-        """SELECT DISTINCT t.id, t.name FROM teams t
-           JOIN matches m ON t.id IN (m.home_team_id, m.away_team_id)
-           JOIN competitions c ON c.id = m.competition_id
-           JOIN team_aliases a ON a.team_id = t.id AND a.source = 'football_data'
-           WHERE c.code = ? AND m.kickoff_utc >= ?""", (competition_code, since)).fetchall()
+        """WITH ids AS (
+             SELECT m.home_team_id AS id FROM matches m JOIN competitions c ON c.id = m.competition_id
+             WHERE c.code = ? AND m.kickoff_utc >= ?
+             UNION
+             SELECT m.away_team_id FROM matches m JOIN competitions c ON c.id = m.competition_id
+             WHERE c.code = ? AND m.kickoff_utc >= ?)
+           SELECT t.id, t.name FROM ids JOIN teams t ON t.id = ids.id
+           WHERE EXISTS (SELECT 1 FROM team_aliases a WHERE a.team_id = t.id AND a.source = 'football_data')
+           ORDER BY t.id""", (competition_code, since, competition_code, since)).fetchall()
     core = _core(name)
     if not core:
         return None
