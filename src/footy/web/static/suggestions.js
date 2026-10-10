@@ -33,23 +33,22 @@ function drawCurrent(d) {
   const r = d.rules;
   setTabCount("value", d.singles.length);
   setTabCount("near", d.closest.length);
+  // Tarjeta de oportunidad: partido con escudos, selección y ventaja, y los cuatro números que deciden la apuesta.
   $("#sg-singles").innerHTML = d.singles.length ? d.singles.map((s) => `
     <article class="card sg-card green">
-      <div class="meta" style="display:flex;justify-content:space-between;color:var(--text-2);font-size:12.5px">
-        <span class="lg">${leagueLogo(s.league, 16)}${esc(s.league_name)}</span><span>${fmtDate(s.kickoff)}</span></div>
-      <div><div style="color:var(--text-2);font-size:13.5px">${matchTag(s, 22)}</div>
-        <div class="sel">${esc(s.label)}</div></div>
-      <div class="reco">${evBadge({ ev: s.ev, verdict: { level: "green", reason: s.reason || "Cumple la regla de valor" } })}
-        <span class="pill ${RISK_PILL[s.risk]}">riesgo ${s.risk}</span>
-        <span>cuota <b style="color:var(--text)">${num(s.odds)}</b> en ${esc(s.book)}${s.pinnacle ? ` · Pinnacle ${num(s.pinnacle)}` : ""}</span></div>
-      <div class="kv">
-        <div><span>Probabilidad</span><b class="num">${pct(s.p, 1)}</b></div>
-        <div><span>Valor esperado</span><b class="num" style="color:var(--good)">${signed(s.ev)}</b></div>
-        <div><span>Precio justo</span><b class="num">${num(1 / s.p)}</b></div>
-        <div><span>Monto sugerido</span><b class="num">${money(s.stake * bank)}</b></div>
-        <div><span>Si acierta, ganas</span><b class="num">${money(s.stake * bank * (s.odds - 1))}</b></div>
-        <div><span>% del bankroll</span><b class="num">${pct(s.stake, 1)}</b></div>
+      <div class="sg-head"><span class="lg">${leagueLogo(s.league, 16)}${esc(s.league_name)}</span><span>${fmtDate(s.kickoff)}</span></div>
+      <div class="sg-teams">${teamLogo(s.home_id, s.home, 30)}<b>${esc(s.home)}</b><span class="vs-s">vs</span>
+        <b>${esc(s.away)}</b>${teamLogo(s.away_id, s.away, 30)}</div>
+      <div class="sg-pick"><div><span class="sg-k">Apuesta</span><div class="sel">${esc(s.label)}</div></div>
+        ${evBadge({ ev: s.ev, verdict: { level: "green", reason: s.reason || "Cumple la regla de valor" } })}</div>
+      <div class="sg-grid">
+        <div><span>Cuota ofrecida</span><b class="num">${num(s.odds)}</b><small>${esc(s.book)}</small></div>
+        <div><span>Precio justo Pinnacle</span><b class="num">${num(s.fair_odds || 1 / s.p)}</b><small>${pct(s.p, 1)} de probabilidad</small></div>
+        <div><span>Ventaja (+EV)</span><b class="num ev">${signed(s.ev)}</b><small>sobre el precio justo</small></div>
+        <div><span>Stake sugerido</span><b class="num">${money(s.stake * bank)}</b><small>¼ Kelly · ${pct(s.stake, 1)} del bankroll</small></div>
       </div>
+      <div class="sg-foot"><span class="pill ${RISK_PILL[s.risk]}">riesgo ${s.risk}</span>
+        <span>Si acierta ganas <b>${money(s.stake * bank * (s.odds - 1))}</b></span></div>
       ${s.reason ? `<p class="why"><b>Por qué:</b> ${esc(s.reason)}</p>` : ""}
       <div class="callout" style="padding:10px 12px;font-size:13px"><div>Antes de apostar revisa la cuota en ${esc(s.book)}: tómala solo si
         sigue en <b>${num((1 + r.min_edge / 2) / s.p)}</b> o más. Si bajó, la ventaja desapareció.</div></div>

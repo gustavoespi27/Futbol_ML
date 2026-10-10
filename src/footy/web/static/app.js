@@ -270,6 +270,19 @@ function stat(label, value, hint = "") {
   return `<div class="card stat"><div class="label">${label}</div><div class="value num">${value}</div>${hint ? `<div class="hint">${hint}</div>` : ""}</div>`;
 }
 const SOURCE_PILL = { "modelo + mercado": "good", modelo: "", mercado: "warn", "sin datos": "", error: "bad" };
+const KPI_ICONS = {
+  value: '<path d="M3 17 9 11l4 4 8-8"/><path d="M15 7h6v6"/>',
+  reliable: '<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/>',
+  accuracy: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8" fill="currentColor"/>',
+  ledger: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/>',
+};
+// Indicador del Panel: ícono temático, cifra grande con dígitos tabulares y detalle.
+function kpi(kind, label, value, hint, good = false) {
+  return `<div class="card stat kpi kpi-${kind} ${good ? "kpi-good" : ""}"><div class="kpi-top"><span class="label">${label}</span>
+    <span class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+      stroke-linejoin="round" aria-hidden="true">${KPI_ICONS[kind]}</svg></span></div>
+    <div class="value num">${value}</div><div class="hint">${hint}</div></div>`;
+}
 
 /* ---------- calculadora de apuesta ---------- */
 const clp = (x) => (x == null || isNaN(x) ? "–" : (x < 0 ? "−$" : "$") + Math.round(Math.abs(x)).toLocaleString("es-CL"));
@@ -343,7 +356,7 @@ function renderTicker(o) {
     chip("Sharp", esc(e.sharp || "–"), "Precio justo de referencia: cuotas de Pinnacle sin margen"),
     chip("Edge", `≥ ${signed(e.min_edge, 1)}`, "Ventaja mínima sobre el precio justo para apostar"),
     chip("Cuota", `≤ ${num(e.max_odds, 1)}`),
-    chip("Stake", `${e.kelly_fraction === 0.25 ? "¼" : num(e.kelly_fraction, 2)} Kelly · máx ${pct(e.max_stake, 0)}`, `Máximo ${pct(e.max_daily, 0)} del bankroll por día`),
+    chip("Stake", `${e.kelly_fraction === 0.25 ? "1/4" : num(e.kelly_fraction, 2)} Kelly · máx ${pct(e.max_stake, 0)}`, `Máximo ${pct(e.max_daily, 0)} del bankroll por día`),
     chip("Calibración", `T ${num(e.temperature, 2)}`, "Ajuste automático con resultados reales: T > 1 suaviza, T < 1 agudiza"),
   ].join("");
 }
@@ -367,12 +380,14 @@ async function renderHome() {
   renderSemaphore().catch((e) => showError("v-inicio", e));
   const [sug, rel] = await Promise.all([renderSuggestions(), renderReliable()]);
   const L = sug.ledger || {}, R = rel.record || {};
+  // Cada indicador lleva un ícono de su tema; el acento esmeralda solo aparece cuando hay apuestas con valor.
   $("#home-tiles").innerHTML = [
-    `<div class="card stat kpi-good"><div class="label">Apuestas con valor hoy</div>
-      <div class="value num">${sug.singles.length}</div><div class="hint">en ${sug.n_matches_sharp} partidos con precio de Pinnacle</div></div>`,
-    stat("Pronósticos fiables hoy", rel.today.length, `selecciones con ${pct(rel.min_p)} o más`),
-    stat("Precisión en vivo", R.n ? pct(R.hit, 1) : "–", R.n ? `esperaba ${pct(R.expected, 1)} · ${R.n} pronósticos` : `${R.pending || 0} pronósticos esperando resultado`),
-    stat("Cartera en papel", L.settled ? signed(L.yield) : `${L.open || 0} abiertas`,
+    kpi("value", "Apuestas con valor hoy", sug.singles.length, `en ${sug.n_matches_sharp} partidos con precio de Pinnacle`,
+      sug.singles.length > 0),
+    kpi("reliable", "Pronósticos fiables hoy", rel.today.length, `selecciones con ${pct(rel.min_p)} o más`),
+    kpi("accuracy", "Precisión en vivo", R.n ? pct(R.hit, 1) : "–",
+      R.n ? `esperaba ${pct(R.expected, 1)} · ${R.n} pronósticos` : `${R.pending || 0} pronósticos esperando resultado`),
+    kpi("ledger", "Cartera en papel", L.settled ? signed(L.yield) : `${L.open || 0} <small>abiertas</small>`,
       L.clv != null ? `CLV ${signed(L.clv)} · ${pct(L.clv_pos)} sobre el cierre` : L.settled ? `${L.won} ganadas de ${L.settled}` : "se mide al terminar cada partido"),
   ].join("");
 

@@ -471,8 +471,6 @@ details.mx .body { padding: 14px 16px 16px; display: grid; gap: 14px; }
 
 /* ================= apostador / semáforo ================= */
 .sg-card { display: grid; gap: 12px; }
-.sg-card .sel { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
-.sg-card .kv { grid-template-columns: repeat(3, 1fr); }
 .sg-card.green { border-color: color-mix(in srgb, var(--ev-positive) 55%, transparent);
   box-shadow: inset 0 3px 0 var(--ev-positive), 0 0 0 1px color-mix(in srgb, var(--ev-positive) 20%, transparent),
     0 14px 34px -20px var(--ev-glow); }
@@ -550,7 +548,6 @@ table.sem td.m:hover .team span { color: var(--accent); }
   .mrow { grid-template-columns: 46px minmax(0, 1fr) repeat(3, 54px); gap: 6px; padding: 10px 12px; }
   .mrow .chev { display: none; }
   .pcell b { font-size: 12.5px; }
-  .sg-card .kv { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* detalle desplegado: dos columnas (cuotas | goles, forma | modelo vs mercado) */
@@ -694,9 +691,10 @@ table.sem td.m:hover .team span { color: var(--accent); }
 .tab:hover { color: var(--text); }
 .tab.on { color: var(--accent); border-bottom-color: var(--accent); }
 .tab span:empty { display: none; }
-.tab span { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--surface-3); color: var(--text-2);
-  font-size: 10.5px; display: inline-grid; place-items: center; }
-.tab.on span { background: var(--accent-soft); color: var(--accent); }
+.tab span { min-width: 22px; height: 20px; padding: 0 7px; margin-left: 2px; border-radius: 999px; background: var(--surface-3);
+  color: var(--text-2); font: 700 10.5px/1 var(--font-mono); display: inline-grid; place-items: center;
+  border: 1px solid var(--border); }
+.tab.on span { background: var(--accent-soft); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
 .tab-pane { display: none; }
 .tab-pane.on { display: block; animation: fade .15s ease-out; }
 .pane-note { color: var(--text-2); font-size: 12.5px; margin-bottom: 12px; }
@@ -710,7 +708,8 @@ tbody tr:has(+ tr.why-row) td { border-bottom: 0; }
 .pbar::before { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w); background: color-mix(in srgb, var(--good) 22%, transparent); }
 .pbar b { position: relative; }
 .log-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; align-items: start; }
-.kpi-good { box-shadow: inset 0 3px 0 var(--good), var(--shadow); }
+.kpi-good { border-color: color-mix(in srgb, var(--ev-positive) 55%, transparent);
+  box-shadow: inset 0 2px 0 var(--ev-positive), 0 0 18px -6px var(--ev-glow), var(--shadow); }
 @media (max-width: 1100px) { .log-layout { grid-template-columns: minmax(0, 1fr); } }
 
 .lp-head { padding: 8px 10px 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
@@ -967,3 +966,38 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 .form-dot.D { background: #facc15; }
 .form-dot.L { background: #ef4444; color: #fff; }
 @media (prefers-reduced-motion: reduce) { .pcell.value { animation: none; } .pcell { transition: none; } }
+
+/* ================= indicadores del Panel ================= */
+.kpi { background: linear-gradient(160deg, var(--surface-hi), var(--surface) 70%); }
+.kpi-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.kpi-ico {
+  width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; flex: none;
+  color: var(--kc, var(--accent)); background: color-mix(in srgb, var(--kc, var(--accent)) 13%, transparent);
+}
+.kpi-ico svg { width: 17px; height: 17px; }
+.kpi-value { --kc: var(--ev-positive); }
+.kpi-reliable { --kc: var(--accent-2); }
+.kpi-accuracy { --kc: #a78bfa; }
+.kpi-ledger { --kc: #fbbf24; }
+.kpi .value { font-family: var(--font-display); font-size: 32px; font-weight: 700; letter-spacing: -0.045em;
+  font-variant-numeric: tabular-nums; margin-top: 4px; }
+.kpi .value small { font-size: 17px; font-weight: 600; color: var(--text-2); letter-spacing: -0.01em; }
+.kpi:hover { box-shadow: var(--shadow), 0 14px 30px -18px var(--kc, var(--accent)); }
+.kpi-good .value { color: var(--ev-text); }
+
+/* ================= tarjeta de oportunidad (apuesta con valor) ================= */
+.sg-head { display: flex; justify-content: space-between; gap: 8px; color: var(--text-2); font-size: 12.5px; }
+.sg-teams { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; }
+.sg-teams b { font-weight: 650; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sg-pick { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 10px;
+  background: color-mix(in srgb, var(--ev-positive) 7%, var(--surface-2)); border: 1px solid color-mix(in srgb, var(--ev-positive) 25%, transparent); }
+.sg-k { font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.sg-pick .sel { font-family: var(--font-display); font-size: 20px; font-weight: 750; letter-spacing: -0.02em; }
+.sg-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.sg-grid > div { display: grid; gap: 2px; padding: 8px 10px; border-radius: 9px; background: var(--surface-2); min-width: 0; }
+.sg-grid span { font-size: 10.5px; color: var(--muted); font-weight: 600; }
+.sg-grid b { font: 700 16px/1.2 var(--font-mono); letter-spacing: -0.02em; }
+.sg-grid b.ev { color: var(--ev-text); }
+.sg-grid small { font-size: 10.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sg-foot { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--text-2); }
+.sg-foot b { color: var(--ev-text); font-family: var(--font-mono); }
