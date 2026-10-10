@@ -250,7 +250,8 @@ src/footy/
   betting/         margen, EV, backtest, apostador profesional (pro.py), semáforo (suggestions.py)
   prediction/      predictor por liga, ML, seguimiento, cartera (pro_ledger.py),
                    pronósticos fiables (reliable.py), recalibración (recalibration.py)
-  web/             FastAPI + frontend estático (HTML/CSS/JS, Chart.js)
+  web/             FastAPI (app.py), fachada de datos (service.py) y frontend estático (HTML/CSS/JS, Chart.js)
+    services/      catalog, context, betting, combos, evaluation, simulator: un submódulo por responsabilidad
 scripts/           puntos de entrada
 tests/             pruebas unitarias (pytest)
 ```
