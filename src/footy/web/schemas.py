@@ -119,6 +119,20 @@ class ConfidenceBin(Schema):
     hit: float | None
 
 
+class Engine(Schema):
+    """Parámetros vigentes del motor: modelo ML, recalibración y reglas del apostador profesional."""
+    ml_model: str | None = Field(description="poisson_goals: goles esperados λ (local) y μ (visita)")
+    rho: float | None = Field(description="Corrección Dixon-Coles de la matriz de marcadores")
+    n_competitions: int
+    temperature: float = Field(description="Recalibración automática: T > 1 suaviza, T < 1 agudiza")
+    sharp: str
+    min_edge: float
+    max_odds: float
+    kelly_fraction: float
+    max_stake: float
+    max_daily: float
+
+
 class Overview(Schema):
     backtest: BacktestSummary
     confidence: list[ConfidenceBin]
@@ -127,6 +141,7 @@ class Overview(Schema):
     last_daily_run: str | None
     n_leagues_model: int
     model_version: str
+    engine: Engine
 
 
 # --- /api/upcoming -------------------------------------------------------------------

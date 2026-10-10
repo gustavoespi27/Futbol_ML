@@ -25,7 +25,22 @@ def overview() -> dict:
                 if log.exists() else None)
     return {"backtest": bt["summary"], "confidence": bt["confidence"], "tracking": trk["summary"],
             "last_api_request": last_api, "last_daily_run": last_run,
-            "n_leagues_model": len(load_params()), "model_version": tracking.MODEL_VERSION}
+            "n_leagues_model": len(load_params()), "model_version": tracking.MODEL_VERSION, "engine": engine()}
+
+
+def engine() -> dict:
+    """Parámetros vigentes del motor (para el ticker del Panel): modelo ML, recalibración y reglas del profesional."""
+    from footy.betting import pro
+    from footy.models import ml
+    from footy.prediction import recalibration
+
+    _, meta = ml.load()
+    comps = config.settings()["competitions"]
+    return {"ml_model": (meta or {}).get("model"), "rho": (meta or {}).get("rho"),
+            "n_competitions": sum(1 for v in comps.values() if not v.get("history_only")),
+            "temperature": round(recalibration.current_T(), 3),
+            "sharp": pro.SHARP, "min_edge": pro.MIN_EDGE, "max_odds": pro.MAX_ODDS,
+            "kelly_fraction": pro.KELLY_FRACTION, "max_stake": pro.MAX_STAKE, "max_daily": pro.MAX_DAILY}
 
 
 def ml_report() -> dict:

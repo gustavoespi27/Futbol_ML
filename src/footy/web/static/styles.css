@@ -908,3 +908,33 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 .isel-item.cur { color: var(--accent); }
 .isel-item.off { opacity: .45; cursor: not-allowed; }
 .isel-item small { font-size: 11px; color: var(--muted); font-weight: 500; }
+
+/* ================= ticker del motor (Panel) ================= */
+.quant-ticker {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -6px 0 16px; padding: 6px;
+  scroll-behavior: smooth; scrollbar-width: none; border: 1px solid var(--border); border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  backdrop-filter: blur(12px) saturate(150%); -webkit-backdrop-filter: blur(12px) saturate(150%);
+  font: 500 11.5px/1 var(--font-mono);
+}
+.quant-ticker::-webkit-scrollbar { display: none; }
+.quant-ticker:empty { display: none; }
+.ticker-chip {
+  display: inline-flex; align-items: center; gap: 7px; flex: none; padding: 6px 10px; border-radius: 8px; white-space: nowrap;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--muted); cursor: default;
+}
+.ticker-chip > span:first-child { text-transform: uppercase; letter-spacing: .08em; font-size: 10px; }
+.ticker-chip b { color: var(--accent-2); font-weight: 700; }
+.ticker-chip.live { border-color: color-mix(in srgb, var(--ev-positive) 40%, transparent); }
+.ticker-chip.live b { color: var(--ev-text); }
+.ticker-chip.live > span:last-child { text-transform: none; letter-spacing: 0; font-size: 11px; }
+.live-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #00e599; flex: none;
+  animation: pulse-green 2s ease-in-out infinite;
+}
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 229, 153, .55); }
+  50% { box-shadow: 0 0 0 6px rgba(0, 229, 153, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+@media (max-width: 760px) { .quant-ticker { flex-wrap: nowrap; overflow-x: auto; } }   /* en móvil: una línea con desplazamiento */

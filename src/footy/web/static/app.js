@@ -330,8 +330,27 @@ function semRow(m) {
 }
 
 /* ---------- INICIO ---------- */
+// Ticker del motor: datos vigentes de /api/overview (nada escrito a mano).
+function renderTicker(o) {
+  const e = o.engine || {};
+  const ago = o.last_daily_run ? Math.max(0, Math.round((Date.now() - new Date(o.last_daily_run)) / 3600000)) : null;
+  const chip = (k, v, title = "") => `<span class="ticker-chip" title="${esc(title)}"><span>${k}</span><b>${v}</b></span>`;
+  const model = e.ml_model === "poisson_goals" ? "Poisson λ/μ" : esc(e.ml_model || "Elo + DC");
+  $("#quant-ticker").innerHTML = [
+    `<span class="ticker-chip live"><span class="live-dot"></span><b>Motor activo</b>${ago != null ? `<span>datos hace ${ago} h</span>` : ""}</span>`,
+    chip("Ligas", `${o.n_leagues_model} con modelo · ${e.n_competitions} seguidas`),
+    chip("Modelo", `${model}${e.rho != null ? ` · ρ ${num(e.rho, 3)}` : ""}`, "Goles esperados del local (λ) y la visita (μ); todos los mercados salen de la misma matriz"),
+    chip("Sharp", esc(e.sharp || "–"), "Precio justo de referencia: cuotas de Pinnacle sin margen"),
+    chip("Edge", `≥ ${signed(e.min_edge, 1)}`, "Ventaja mínima sobre el precio justo para apostar"),
+    chip("Cuota", `≤ ${num(e.max_odds, 1)}`),
+    chip("Stake", `${e.kelly_fraction === 0.25 ? "¼" : num(e.kelly_fraction, 2)} Kelly · máx ${pct(e.max_stake, 0)}`, `Máximo ${pct(e.max_daily, 0)} del bankroll por día`),
+    chip("Calibración", `T ${num(e.temperature, 2)}`, "Ajuste automático con resultados reales: T > 1 suaviza, T < 1 agudiza"),
+  ].join("");
+}
+
 async function renderHome() {
   const o = await api("/api/overview");
+  renderTicker(o);
   const b = o.backtest, t = o.tracking;
   $("#hero-acc").innerHTML = `${pct(b.acc_official, 1)} <small>de ${b.n.toLocaleString("es-CL")} partidos</small>`;
   $("#hero-sub").textContent = `Partidos de ${b.leagues} ligas entre ${fmtDate(b.from, false)} y ${fmtDate(b.to, false)}, que el sistema no había visto al elegir sus parámetros.`;

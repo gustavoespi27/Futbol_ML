@@ -57,7 +57,10 @@ def test_overview_keeps_reserved_word_field_from():
           "ou": ou}
     data = {"backtest": bt, "confidence": [{"range": "60–70%", "n": 5, "pred": 0.65, "hit": 0.6}],
             "tracking": {"evaluated": 0, "pending": 0, "paper_bets": 0}, "last_api_request": None,
-            "last_daily_run": "2026-10-09T13:00:00Z", "n_leagues_model": 38, "model_version": "elo_dc_v3"}
+            "last_daily_run": "2026-10-09T13:00:00Z", "n_leagues_model": 38, "model_version": "elo_dc_v3",
+            "engine": {"ml_model": "poisson_goals", "rho": -0.08366, "n_competitions": 53, "temperature": 1.0,
+                       "sharp": "Pinnacle", "min_edge": 0.06, "max_odds": 4.0, "kelly_fraction": 0.25,
+                       "max_stake": 0.02, "max_daily": 0.1}}
     assert roundtrip(s.Overview, data) == data
 
 
