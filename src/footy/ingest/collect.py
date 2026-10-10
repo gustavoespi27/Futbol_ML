@@ -25,6 +25,8 @@ from footy.ingest.api_football import (
 )
 
 log = logging.getLogger(__name__)
+LOW_BUDGET = 20          # con menos peticiones que esto, solo cuotas de prioridad 1 que empiezan pronto
+URGENT_HOURS = 12
 
 
 def collect_fixtures_by_date(client: ApiFootball, conn: sqlite3.Connection, dates: list[str]) -> int:
@@ -46,13 +48,15 @@ def collect_fixtures_by_date(client: ApiFootball, conn: sqlite3.Connection, date
 def collect_odds(client: ApiFootball, conn: sqlite3.Connection, horizon_hours: float,
                  refresh_hours: float | None = None) -> tuple[int, int]:
     """Un snapshot de cuotas por partido próximo de las ligas con collect_odds. Devuelve (partidos, filas).
-    Los partidos con snapshot de hace menos de `refresh_hours` se saltan (presupuesto de 100 peticiones/día)."""
+    Los partidos con snapshot de hace menos de `refresh_hours` se saltan (presupuesto de 100 peticiones/día).
+    Si quedan menos de LOW_BUDGET peticiones, el resto se reserva para ligas de prioridad 1 con partidos dentro de
+    URGENT_HOURS: las cuotas de esos partidos son las que más se pierden si no se capturan ahora."""
     comps = config.settings()["competitions"]
     codes = [c for c, v in comps.items() if v.get("collect_odds")]
     refresh_hours = refresh_hours or config.settings()["api_football"].get("odds_refresh_hours", 10)
     now = datetime.now(timezone.utc)
     rows = conn.execute(
-        f"""SELECT m.id, ms.source_match_id, c.code FROM matches m
+        f"""SELECT m.id, ms.source_match_id, c.code, m.kickoff_utc FROM matches m
             JOIN competitions c ON c.id = m.competition_id
             JOIN match_sources ms ON ms.match_id = m.id AND ms.source = ?
             WHERE c.code IN ({",".join("?" * len(codes))})
@@ -65,8 +69,16 @@ def collect_odds(client: ApiFootball, conn: sqlite3.Connection, horizon_hours: f
 
     # Prioridad por competición (odds_priority) y, dentro de ella, los partidos más próximos primero.
     rows = sorted(rows, key=lambda r: comps[r["code"]].get("odds_priority", 5))
-    n_matches = n_rows = 0
+    n_matches = n_rows = skipped = 0
+    urgent_until = repo.to_iso(now + timedelta(hours=URGENT_HOURS))
     for r in rows:
+        low = client.remaining < LOW_BUDGET
+        if low and (comps[r["code"]].get("odds_priority", 5) > 1 or r["kickoff_utc"] > urgent_until):
+            if not skipped:
+                log.info("Cuota restante: %s. Omitiendo cuotas de ligas secundarias para preservar presupuesto",
+                         client.remaining)
+            skipped += 1
+            continue
         try:
             items = client.get("odds", fixture=r["source_match_id"])["response"]
         except ApiError as e:
@@ -77,6 +89,8 @@ def collect_odds(client: ApiFootball, conn: sqlite3.Connection, horizon_hours: f
             n_rows += repo.insert_odds(conn, odds_rows(r["id"], item, captured_at))
         n_matches += bool(items)
         conn.commit()
+    if skipped:
+        log.info("Cuotas omitidas por presupuesto: %s partidos", skipped)
     return n_matches, n_rows
 
 

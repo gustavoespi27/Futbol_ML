@@ -113,3 +113,32 @@ def test_other_api_errors_skip_only_that_request(conn):
     with pytest.raises(af.ApiError):
         c.get("odds", fixture=1)
     assert c.remaining > c.reserve
+
+
+def test_collect_odds_keeps_low_budget_for_priority_one_matches_soon(conn, caplog, monkeypatch):
+    from datetime import datetime, timedelta, timezone
+
+    from footy.ingest import collect
+
+    now = datetime.now(timezone.utc)
+    comps = af.config.settings()["competitions"]
+    p1 = next(c for c, v in comps.items() if v.get("collect_odds") and v.get("odds_priority", 5) == 1)
+    p2 = next(c for c, v in comps.items() if v.get("collect_odds") and v.get("odds_priority", 5) > 1)
+    games = {}
+    for i, (code, hours) in enumerate([(p1, 3), (p2, 3), (p1, 30)]):
+        h = repo.resolve_team(conn, "x", f"H{i}", f"Local {i}", "Chile")     # equipos distintos: no se enlazan
+        a = repo.resolve_team(conn, "x", f"A{i}", f"Visita {i}", "Chile")
+        mid = repo.upsert_match(conn, source=af.SOURCE, source_match_id=str(100 + i),
+                                competition_id=repo.competition_id(conn, code), season="2026",
+                                kickoff_utc=repo.to_iso(now + timedelta(hours=hours)),
+                                home_team_id=h, away_team_id=a, status="scheduled")
+        games[100 + i] = mid
+    c = client(conn, *[FakeResponse({"errors": [], "results": 0, "response": []}) for _ in range(3)])
+    c.remaining = collect.LOW_BUDGET - 1                     # presupuesto bajo
+    with caplog.at_level("INFO"):
+        collect.collect_odds(c, conn, horizon_hours=36)
+    assert [p["fixture"] for _, p in c.session.calls] == ["100"]   # solo prioridad 1 y dentro de 12 h
+    assert "Omitiendo cuotas de ligas secundarias" in caplog.text
+    c2 = client(conn, *[FakeResponse({"errors": [], "results": 0, "response": []}) for _ in range(3)])
+    collect.collect_odds(c2, conn, horizon_hours=36)            # con presupuesto normal se piden todos
+    assert sorted(p["fixture"] for _, p in c2.session.calls) == ["100", "101", "102"]
