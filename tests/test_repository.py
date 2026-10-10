@@ -115,3 +115,22 @@ def test_connect_memory_always_gets_schema():
     for _ in range(2):
         c = connect(":memory:")
         assert c.execute("SELECT 1 FROM sqlite_master WHERE name = 'matches'").fetchone()
+
+
+def test_recent_form_returns_last_results_oldest_first(conn):
+    from footy.web.services.context import recent_form
+
+    comp = repo.competition_id(conn, "CHL")
+    a = repo.resolve_team(conn, "x", "A", "A", "Chile")
+    b = repo.resolve_team(conn, "x", "B", "B", "Chile")
+    scores = [(2, 0), (1, 1), (0, 3), (1, 0), (2, 2), (0, 1)]            # resultados de A (local en los pares)
+    for k, (hg, ag) in enumerate(scores):
+        home, away = (a, b) if k % 2 == 0 else (b, a)
+        g1, g2 = (hg, ag) if k % 2 == 0 else (ag, hg)
+        repo.upsert_match(conn, source="x", source_match_id=str(k), competition_id=comp, season="2026",
+                          kickoff_utc=f"2026-0{k + 1}-01T20:00:00Z", home_team_id=home, away_team_id=away,
+                          status="finished", home_goals=g1, away_goals=g2)
+    form = recent_form(conn, [a, b, None])
+    assert form[a] == ["D", "L", "W", "D", "L"]                           # los 5 últimos, el más reciente al final
+    assert form[b] == ["D", "W", "L", "D", "W"]
+    assert recent_form(conn, []) == {}

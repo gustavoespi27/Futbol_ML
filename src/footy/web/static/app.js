@@ -261,7 +261,7 @@ function probBar(p, pm = null) {
 }
 // Insignia de valor: solo para selecciones que el profesional apostaría (precio justo de Pinnacle).
 const evBadge = (o) => (o && o.verdict && o.verdict.level === "green" && o.ev != null
-  ? `<span class="ev-badge" title="${esc(o.verdict.reason)}">VALOR ${signed(o.ev)}</span>` : "");
+  ? `<span class="ev-badge" title="${esc(o.verdict.reason)}">${signed(o.ev)} VALOR</span>` : "");
 function miniBar(p) {
   const c = ["var(--home)", "var(--draw)", "var(--away)"];
   return `<span class="mini" title="L ${pct(p[0])} · E ${pct(p[1])} · V ${pct(p[2])}">${p.map((x, i) => `<i style="flex:${x};background:${c[i]}"></i>`).join("")}</span>`;
@@ -446,9 +446,11 @@ function matchRow(m) {
     if (!p) return `<div class="pcell"><b>–</b><span>sin datos</span></div>`;
     const o = ops[k], v = o && o.verdict;
     const tip = [v ? `${v.label}: ${v.reason}` : "", pm ? `Mercado: ${pct(pm[i])}` : ""].filter(Boolean).join(" · ");
-    return `<div class="pcell ${i === fav ? "top" : ""} ${v && v.level === "green" ? "value" : ""}"
-      style="--w:${(p[i] * 100).toFixed(0)}%;--c:var(${color})"
-      title="${esc(tip)}"><b>${pct(p[i])}</b><span>${o && o.odds ? num(o.odds) : "–"}</span></div>`;
+    // Botón de cuota: etiqueta 1/X/2, la cuota en grande y la probabilidad del sistema debajo.
+    const odds = o && o.odds ? num(o.odds) : null;
+    return `<div class="pcell ${i === fav ? "top" : ""} ${v && v.level === "green" ? "value" : ""} ${odds ? "" : "no-odds"}"
+      style="--w:${(p[i] * 100).toFixed(0)}%;--c:var(${color})" title="${esc(tip)}">
+      <i>${k}</i><b>${odds || "–"}</b><span>${pct(p[i])}</span></div>`;
   };
   const best = bestOption(m);
   const tag = (id, name, isFav) => `<span class="team ${isFav ? "fav" : ""}">${teamLogo(id, name, 20)}<span>${esc(name)}</span></span>`;
@@ -459,6 +461,18 @@ function matchRow(m) {
     <div class="best">${best ? `${evBadge(best) || vchip(best.verdict)}<span>${esc(best.label)} · ${num(best.odds)}</span>` : `<span>${m.stale ? "datos atrasados" : "sin cuotas aún"}</span>`}</div>
     <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
   </div>`;
+}
+// Medidor de goles esperados: barra continua local (λ) contra visita (μ), con sus valores a cada lado.
+function xgGauge(lam, mu) {
+  const share = lam + mu > 0 ? (lam / (lam + mu)) * 100 : 50;
+  // <span> y no <div>: dentro de .kv cada <div> recibe fondo y relleno de tarjeta.
+  return `<span class="xg-gauge" role="img" aria-label="Goles esperados: local ${num(lam, 2)}, visita ${num(mu, 2)}">
+    <b class="xg-h">${num(lam, 2)}</b><span class="xg-bar"><i style="width:${share.toFixed(1)}%"></i></span><b class="xg-a">${num(mu, 2)}</b></span>`;
+}
+// Puntos de forma: G verde, E amarillo, P rojo (del más antiguo al más reciente).
+function formDots(seq) {
+  const lab = { W: ["G", "Ganó"], D: ["E", "Empató"], L: ["P", "Perdió"] };
+  return `<span class="form-dots">${(seq || []).map((r) => `<span class="form-dot ${r}" title="${lab[r][1]}">${lab[r][0]}</span>`).join("")}</span>`;
 }
 function matchCard(m) {
   const p = m.p_official;
@@ -472,7 +486,7 @@ function matchCard(m) {
   let extra = "";
   if (m.xg) {
     extra = `<div class="kv">
-      <div><span>Goles esperados</span><b class="num">${num(m.xg[0], 1)} – ${num(m.xg[1], 1)}</b></div>
+      <div class="xg-cell"><span>Goles esperados</span>${xgGauge(m.xg[0], m.xg[1])}</div>
       <div><span>Marcador más probable</span><b class="num">${esc(m.top_scores[0][0])}</b></div>
       <div><span>Más de 2,5 goles</span><b class="num">${pct(m.over25)}</b></div>
       <div><span>Ambos marcan</span><b class="num">${pct(m.btts)}</b></div></div>`;
@@ -491,7 +505,13 @@ function matchCard(m) {
       <div style="color:var(--muted)">Cuotas de la casa: aún no publicadas o no recolectadas.</div></div>`;
   }
   let form = "";
-  if (m.form && m.form.form_h != null) {
+  if (m.recent) {
+    form = `<div class="compare">
+      <div class="odds-row form-row"><span>Últimos 5</span><span>${formDots(m.recent.home)}</span><span></span>
+        <span>${formDots(m.recent.away)}</span></div>
+      ${m.form && m.form.form_h != null ? `<div class="odds-row"><span>Goles (últ. 10)</span><span>${num(m.form.gf_h, 1)}–${num(m.form.ga_h, 1)}</span><span></span><span>${num(m.form.gf_a, 1)}–${num(m.form.ga_a, 1)}</span></div>` : ""}
+      ${m.form && m.form.h2h_n ? `<div style="color:var(--muted)">Últimos ${m.form.h2h_n} enfrentamientos: ${esc(m.home)} sumó ${num(m.form.h2h_pts, 1)} pts por partido</div>` : ""}</div>`;
+  } else if (m.form && m.form.form_h != null) {
     const f = m.form;
     form = `<div class="compare">
       <div class="odds-row"><span>Forma (últ. 5)</span><span>${num(f.form_h, 1)} pts</span><span></span><span>${num(f.form_a, 1)} pts</span></div>

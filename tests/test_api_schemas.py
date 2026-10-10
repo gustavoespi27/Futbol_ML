@@ -32,7 +32,8 @@ FULL = {**BASE, "market_book": "Pinnacle", "home_id": 1, "away_id": 2, "source":
                     {"key": "BTTS_Y", "label": "Ambos marcan", "group": "Ambos marcan", "p": 0.52, "fair": 1.92,
                      "odds": None, "book": None, "estimated": False, "ev": None, "verdict": VERDICT}],
         "suggestions": [{"keys": ["1", "O1.5"], "label": "Gana local y más de 1,5", "p": 0.4, "fair": 2.5}],
-        "odds_1x2": {"Bet365": [2.1, 3.4, 3.6], "Pinnacle": [2.0, 3.5, 3.9]}}
+        "odds_1x2": {"Bet365": [2.1, 3.4, 3.6], "Pinnacle": [2.0, 3.5, 3.9]},
+        "recent": {"home": ["W", "D", "L", "W", "W"], "away": ["L", "L", "D"]}}
 NO_DATA = {**BASE, "market_book": None, "home_id": None, "away_id": None, "source": "sin datos", "p_official": None,
            "options": [], "suggestions": [], "recommendation": {"bet": False, "text": "Sin modelo validado ni cuotas"}}
 ERROR = {**BASE, "source": "error", "error": "equipo sin historial", "options": [], "suggestions": [],

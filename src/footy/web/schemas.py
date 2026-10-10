@@ -251,3 +251,5 @@ class MatchSummary(Schema):
     top_scores: list[tuple[str, float | None]] | None = None
     odds_1x2: dict[str, list[float]] | None = None
     error: str | None = None
+    recent: dict[str, list[str]] | None = Field(
+        None, description="Últimos 5 resultados de cada equipo (W/D/L, del más antiguo al más reciente)")

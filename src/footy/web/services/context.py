@@ -312,6 +312,32 @@ def upcoming(days: int = HORIZON_DAYS) -> list[dict]:
         return out
 
 
+FORM_N = 5
+
+
+def recent_form(conn, team_ids, n: int = FORM_N) -> dict[int, list[str]]:
+    """Últimos `n` resultados terminados de cada equipo ("W" gana, "D" empata, "L" pierde), del más antiguo al más
+    reciente. Una sola consulta para todos los equipos (ROW_NUMBER por equipo), en cualquier competición."""
+    ids = sorted({int(t) for t in team_ids if t is not None})
+    if not ids:
+        return {}
+    marks = ",".join("?" * len(ids))
+    rows = conn.execute(
+        f"""WITH t AS (
+              SELECT home_team_id AS team, kickoff_utc, home_goals AS gf, away_goals AS ga FROM matches
+              WHERE status = 'finished' AND home_goals IS NOT NULL AND home_team_id IN ({marks})
+              UNION ALL
+              SELECT away_team_id, kickoff_utc, away_goals, home_goals FROM matches
+              WHERE status = 'finished' AND home_goals IS NOT NULL AND away_team_id IN ({marks}))
+            SELECT team, gf, ga FROM (
+              SELECT *, ROW_NUMBER() OVER (PARTITION BY team ORDER BY kickoff_utc DESC) AS rn FROM t)
+            WHERE rn <= ? ORDER BY team, kickoff_utc""", (*ids, *ids, n)).fetchall()
+    out: dict[int, list[str]] = {}
+    for team, gf, ga in rows:
+        out.setdefault(team, []).append("W" if gf > ga else "D" if gf == ga else "L")
+    return out
+
+
 def _upcoming(days: int) -> list[dict]:
     conn = connect()
     now = datetime.now(timezone.utc)
@@ -341,4 +367,10 @@ def _upcoming(days: int) -> list[dict]:
         ctx["data_through"] = last
         ctx["stale"] = bool(last and (now - repo.from_iso(last)).days > STALE_DAYS)
         out.append(ctx)
+    # Forma reciente para los puntos G/E/P del detalle (partidos ya terminados: todos anteriores a estos).
+    form = recent_form(conn, [t for c in out for t in (c.get("home_id"), c.get("away_id"))])
+    for c in out:
+        h, a = form.get(c.get("home_id")), form.get(c.get("away_id"))
+        if h or a:
+            c["recent"] = {"home": h or [], "away": a or []}
     return out

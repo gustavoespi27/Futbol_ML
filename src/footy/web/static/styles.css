@@ -319,18 +319,27 @@ footer { color: var(--muted); font-size: 12px; padding: 18px 28px 28px; border-t
 .mrow .best { display: grid; gap: 3px; justify-items: start; font-size: 11.5px; color: var(--muted); }
 .mrow .chev { color: var(--muted); transition: transform .15s; width: 18px; height: 18px; }
 .mrow.open .chev { transform: rotate(180deg); }
-.pcell {
-  display: grid; justify-items: center; gap: 1px; padding: 5px 4px; border-radius: 7px; background: var(--surface-2);
-  font-size: 11px; color: var(--muted); position: relative; overflow: hidden;
+.pcell {                                         /* botón de cuota de mercado */
+  display: grid; justify-items: center; gap: 0; padding: 4px 4px 6px; border-radius: 8px; background: var(--surface-2);
+  border: 1px solid var(--border); color: var(--muted); position: relative; overflow: hidden; cursor: pointer;
+  transition: transform .2s cubic-bezier(0.16, 1, 0.3, 1), border-color .2s ease, box-shadow .2s ease;
 }
-.pcell b { font-size: 13.5px; color: var(--text); font-weight: 700; position: relative; }
-.pcell span { position: relative; }
+.pcell i { font: 600 9.5px/1.2 var(--font-mono); font-style: normal; color: var(--muted); letter-spacing: .06em; position: relative; }
+.pcell b { font: 700 14px/1.25 var(--font-mono); color: var(--text); letter-spacing: -0.02em; position: relative; }
+.pcell span { font: 500 10.5px/1.2 var(--font-mono); color: var(--text-2); position: relative; }
+.pcell.no-odds b { color: var(--muted); }
+.pcell:hover { transform: translateY(-2px); border-color: var(--border-hi);
+  box-shadow: 0 6px 16px -10px color-mix(in srgb, var(--accent) 70%, transparent); }
 .pcell::before {                                  /* relleno proporcional a la probabilidad */
   content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: var(--w, 0%); background: var(--c, var(--accent));
 }
 .pcell.top { background: color-mix(in srgb, var(--c) 14%, var(--surface)); }
-.pcell.value { box-shadow: 0 0 0 1.5px var(--ev-positive), 0 0 12px var(--ev-glow);
-  background: color-mix(in srgb, var(--ev-positive) 12%, var(--surface)); }
+.pcell.value {                                   /* selección con valor frente a Pinnacle */
+  border-color: #00e599; background: color-mix(in srgb, #00e599 10%, var(--surface));
+  box-shadow: 0 0 14px var(--ev-glow); animation: value-glow 2.4s ease-in-out infinite;
+}
+.pcell.value b { color: var(--ev-text); }
+@keyframes value-glow { 0%, 100% { box-shadow: 0 0 8px var(--ev-glow); } 50% { box-shadow: 0 0 18px var(--ev-glow); } }
 .mdetail { padding: 16px; border-bottom: 1px solid var(--grid); background: var(--bg); }
 .mdetail .match { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
 .mdetail .match > .meta, .mdetail .match > .teams { display: none; }
@@ -938,3 +947,23 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 }
 @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
 @media (max-width: 760px) { .quant-ticker { flex-wrap: nowrap; overflow-x: auto; } }   /* en móvil: una línea con desplazamiento */
+
+/* ================= detalle del partido: goles esperados y forma ================= */
+.xg-cell { display: grid; gap: 8px; }
+.kv .xg-cell > span:first-child { display: block; }
+.xg-gauge, .kv .xg-gauge { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.xg-gauge b { font: 700 14px/1 var(--font-mono); }
+.xg-gauge .xg-h { color: var(--home); }
+.xg-gauge .xg-a { color: var(--away); }
+.xg-bar, .kv .xg-bar { display: block; height: 8px; border-radius: 999px; background: var(--away); overflow: hidden; }
+.xg-bar i { display: block; height: 100%; background: var(--home); border-right: 2px solid var(--surface); }
+.form-dots { display: inline-flex; gap: 4px; }
+.form-row > span:nth-child(4) { justify-content: flex-end; display: flex; }
+.form-dot {
+  width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center;
+  font: 700 9.5px/1 var(--font-mono); color: #0b1220;
+}
+.form-dot.W { background: #22c55e; }
+.form-dot.D { background: #facc15; }
+.form-dot.L { background: #ef4444; color: #fff; }
+@media (prefers-reduced-motion: reduce) { .pcell.value { animation: none; } .pcell { transition: none; } }
