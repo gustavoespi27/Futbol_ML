@@ -748,7 +748,7 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 }
 
 /* ================= tarjetas clave: borde con iluminación sutil ================= */
-.reco-card, .stat:first-child {
+.reco-card {
   border-color: var(--border-hi);
   box-shadow: var(--shadow), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent), 0 18px 40px -28px var(--accent);
 }
