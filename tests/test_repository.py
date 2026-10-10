@@ -94,3 +94,24 @@ def test_fuzzy_team_match_within_competition(conn):
     assert repo.fuzzy_team_match(conn, "Göztepe", "T1") == ids["Goztep"]
     assert repo.fuzzy_team_match(conn, "Besiktas", "T1") is None          # sin candidato: no se inventa
     assert repo.fuzzy_team_match(conn, "Galatasaray", "I1") is None       # solo dentro de la competición
+
+
+def test_connect_disk_uses_wal_and_initializes_schema_once(tmp_path, monkeypatch):
+    from footy.db import connection
+
+    db = tmp_path / "f.sqlite"
+    c1 = connect(db)
+    assert c1.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+    assert c1.execute("PRAGMA busy_timeout").fetchone()[0] == 5000
+    assert c1.execute("SELECT 1 FROM sqlite_master WHERE name = 'matches'").fetchone()
+    monkeypatch.setattr(connection, "_schema", lambda: (_ for _ in ()).throw(AssertionError("DDL repetido")))
+    c2 = connect(db)                                           # misma base en el mismo proceso: no reaplica el DDL
+    assert c2.execute("PRAGMA busy_timeout").fetchone()[0] == 5000
+    c1.close()
+    c2.close()
+
+
+def test_connect_memory_always_gets_schema():
+    for _ in range(2):
+        c = connect(":memory:")
+        assert c.execute("SELECT 1 FROM sqlite_master WHERE name = 'matches'").fetchone()
