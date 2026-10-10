@@ -207,8 +207,8 @@ function areaGradient(color, top = 0.30) {
   };
 }
 // Curva de bankroll / unidades: suave, sin puntos salvo al pasar el cursor, con área sombreada hasta `base`.
-const curveSet = (label, data, color, base = null) => ({
-  label, data, showLine: true, borderColor: color, backgroundColor: base == null ? color : areaGradient(color),
+const curveSet = (label, data, color, base = null, top = 0.30) => ({
+  label, data, showLine: true, borderColor: color, backgroundColor: base == null ? color : areaGradient(color, top),
   fill: base == null ? false : { target: { value: base } }, borderWidth: 2.2, tension: 0.3,
   pointRadius: 0, pointHoverRadius: 5, pointHoverBorderWidth: 3, pointHoverBorderColor: css("--surface"), pointHoverBackgroundColor: color,
 });
@@ -637,7 +637,7 @@ async function renderBacktest() {
       type: "scatter",
       data: { datasets: [
         breakEven("Equilibrio", 0, 100, 0),
-        curveSet(`Modelo solo (${bm.n.toLocaleString("es-CL")} apuestas)`, toPts(bm), css("--model")),
+        curveSet(`Modelo solo (${bm.n.toLocaleString("es-CL")} apuestas)`, toPts(bm), css("--model"), 0, 0.16),
         curveSet(`v2: modelo + mercado, cuota ≤ 4 (${bo.n} apuestas)`, toPts(bo), css("--official"), 0),
       ] },
       options: baseOptions({
