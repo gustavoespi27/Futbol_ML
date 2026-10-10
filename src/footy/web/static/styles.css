@@ -98,7 +98,7 @@ p { margin: 0; }
 code { font: 12px var(--font-mono); background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
 .num, td, .value, .vcell b { font-variant-numeric: tabular-nums; }
 /* Cifras (cuotas, probabilidades, métricas) en monoespaciada con dígitos tabulares: se alinean y se comparan de un vistazo */
-.num, .pcell b, .pcell span, .vcell b, .kv b, td.r, .df-btn span, .lp-cnt, .lp-n, .probbar > div, .sel-row .p {
+.num, .pcell b, .pcell span, .vcell b, .kv b, td.r, .df-btn span, .lp-cnt, .lp-n, .probbar > div, .sel-p, .sel-odds, .t-chip {
   font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
 }
 /* Cifras grandes (indicadores): fuente de títulos con dígitos tabulares */
@@ -445,13 +445,6 @@ details.mx .body { padding: 14px 16px 16px; display: grid; gap: 14px; }
 .sugg { display: grid; gap: 6px; }
 .sugg .row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 10px; align-items: center; background: var(--surface-2);
   border-radius: 8px; padding: 7px 10px; font-size: 13px; }
-.leg { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 10px 0; border-bottom: 1px solid var(--grid); font-size: 13px; }
-.leg:last-child { border-bottom: 0; }
-.leg .m { color: var(--muted); font-size: 12px; display: grid; gap: 3px; margin-top: 4px; }
-.leg .x { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 18px; padding: 0 4px; }
-.leg .x:hover { color: var(--bad); }
-.leg input { width: 84px; padding: 4px 8px; font-size: 12.5px; }
-.leg .tags { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; grid-column: 1 / -1; }
 .big-p { font-size: 40px; font-weight: 700; letter-spacing: -0.05em; line-height: 1; }
 .ticket .kv div { padding: 8px 10px; }
 .kv.payout { grid-template-columns: repeat(2, 1fr); }
@@ -760,7 +753,7 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 }
 
 /* ================= tarjetas clave: borde con iluminación sutil ================= */
-.reco-card, .stat:first-child, .ticket > .card:first-child {
+.reco-card, .stat:first-child {
   border-color: var(--border-hi);
   box-shadow: var(--shadow), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent), 0 18px 40px -28px var(--accent);
 }
@@ -796,3 +789,69 @@ details.mx .opt-table .vchip { white-space: nowrap; }
   .ev-badge { animation: none; }
   .card.match, .sg-card, details.mx, .stat, .probbar > div { transition: none; }
 }
+
+/* ================= boleto (betting slip) ================= */
+.card.ticket {
+  padding: 0 16px 16px; overflow: hidden; border-radius: 18px; border-color: var(--border-hi);
+  box-shadow: var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.t-head {
+  display: flex; align-items: center; gap: 10px; margin: 0 -16px; padding: 14px 16px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--surface)), var(--surface) 70%);
+  border-bottom: 1px solid var(--border);
+}
+.t-head h2 { font-size: 16px; font-weight: 800; }
+.t-type {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent); font-size: 11.5px; font-weight: 700;
+}
+.t-type b { min-width: 20px; height: 20px; border-radius: 999px; background: var(--accent); color: #fff; display: grid; place-items: center;
+  font: 700 11px/1 var(--font-mono); padding: 0 6px; }
+.t-type:not(:has(b)) { padding-right: 10px; background: var(--surface-2); color: var(--muted); }
+.t-clear { margin-left: auto; border: 0; background: none; color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.t-clear:hover { color: var(--bad); }
+.t-empty { color: var(--muted); font-size: 13px; padding: 4px 0 2px; }
+.leg-group { background: var(--surface-2); border-color: var(--border); border-radius: 12px; }
+.leg-group .lg-match { background: transparent; }
+.leg-group.same { border-color: color-mix(in srgb, var(--warn) 35%, var(--border)); }
+.sel-row { background: var(--surface); }
+.sel-row.enter { animation: slide-in-right .35s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes slide-in-right { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+.sel-row .x {
+  width: 24px; height: 24px; border-radius: 7px; font-size: 12px; display: grid; place-items: center;
+  opacity: .35; transition: opacity .15s, background .15s, color .15s;
+}
+.sel-row:hover .x, .sel-row .x:focus-visible { opacity: 1; }
+.sel-row .x:hover { background: var(--bad-bg); color: var(--bad); }
+@media (hover: none) { .sel-row .x { opacity: .8; } }
+.corr { flex-basis: 100%; font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.corr.up { color: var(--good); }
+.corr.down { color: var(--bad); }
+.t-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.t-chip {
+  flex: 1; min-width: 64px; padding: 6px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2);
+  color: var(--text-2); font-size: 12px; font-weight: 700; cursor: pointer; transition: all .15s;
+}
+.t-chip:hover { border-color: var(--accent); color: var(--text); }
+.t-chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.t-win {
+  display: grid; gap: 2px; padding: 14px 16px; border-radius: 14px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--ev-positive) 14%, var(--surface)), var(--surface));
+  border: 1px solid color-mix(in srgb, var(--ev-positive) 35%, transparent);
+}
+.t-win > span { font-size: 12px; color: var(--text-2); font-weight: 600; }
+.t-win > b { font-size: 30px; font-weight: 700; color: var(--ev-positive); letter-spacing: -0.04em; line-height: 1.15;
+  text-shadow: 0 0 22px var(--ev-glow); }
+.t-win small { color: var(--muted); font-size: 12px; }
+.t-win small b { color: var(--text); font-size: 12px; }
+:root:not([data-theme="dark"]) .t-win > b { color: var(--good); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .t-win > b { color: var(--ev-positive); } }
+
+/* contador del boleto: late al agregar una selección */
+.badge.pulse { animation: badge-pulse .6s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes badge-pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); }
+  40% { transform: scale(1.35); }
+  100% { transform: scale(1); box-shadow: 0 0 0 10px transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .sel-row.enter, .badge.pulse { animation: none; } }

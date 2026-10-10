@@ -183,14 +183,14 @@ function baseOptions(extra = {}) {
 /* ---------- componentes ---------- */
 // Barra 1X2 de la probabilidad oficial. Con `pm` (mercado sin margen) marca dónde estaban sus cortes local|empate
 // y empate|visita: si una marca cae dentro de otro color, el sistema y el mercado no coinciden en ese resultado.
-function probBar(p, pm = null) {
+function probBar(p, pm = null, note = true) {
   if (!p) return `<div class="probbar"><div style="flex:1;background:var(--surface-2);color:var(--muted)">sin datos</div></div>`;
   const cls = ["h", "d", "a"];
   const marks = pm ? [pm[0], pm[0] + pm[1]].map((x) => `<span class="pb-mk" style="left:${(x * 100).toFixed(1)}%"
     title="Mercado: local ${pct(pm[0])} · empate ${pct(pm[1])} · visita ${pct(pm[2])}"></span>`).join("") : "";
   return `<div class="probbar ${pm ? "has-mk" : ""}" role="img" aria-label="Local ${pct(p[0])}, empate ${pct(p[1])}, visita ${pct(p[2])}">${
     p.map((x, i) => `<div class="${cls[i]}" style="flex:${x}" title="${SEL[i]}: ${pct(x, 1)}">${x >= 0.12 ? pct(x) : ""}</div>`).join("")}${marks}</div>${
-    pm ? `<div class="pb-note"><span class="pb-key"></span>dónde estaba el mercado (sin margen)</div>` : ""}`;
+    pm && note ? `<div class="pb-note"><span class="pb-key"></span>dónde estaba el mercado (sin margen)</div>` : ""}`;
 }
 // Insignia de valor: solo para selecciones que el profesional apostaría (precio justo de Pinnacle).
 const evBadge = (o) => (o && o.verdict && o.verdict.level === "green" && o.ev != null
@@ -217,20 +217,6 @@ function payout(stake, odds, p) {
   const ret = stake * odds;
   return { ret, net: ret - stake, lose: -stake, expected: p == null ? null : stake * (p * odds - 1), p };
 }
-function payoutBox(stake, odds, p, note = "") {
-  if (!odds || !stake) return `<div class="callout"><div>Ingresa un monto y una cuota para simular la apuesta.</div></div>`;
-  const r = payout(stake, odds, p);
-  const expColor = r.expected == null ? "var(--text)" : r.expected >= 0 ? "var(--good)" : "var(--bad)";
-  return `<div class="kv payout">
-      <div><span>Si aciertas, recibes</span><b class="num">${clp(r.ret)}</b></div>
-      <div><span>Ganancia neta</span><b class="num" style="color:var(--good)">+${clp(r.net)}</b></div>
-      <div><span>Si fallas, pierdes</span><b class="num" style="color:var(--bad)">${clp(r.lose)}</b></div>
-      <div><span>Ganancia esperada</span><b class="num" style="color:${expColor}">${r.expected == null ? "–" : (r.expected >= 0 ? "+" : "") + clp(r.expected)}</b></div>
-    </div>
-    <p class="sub" style="margin:8px 0 0">${p != null ? `Acierta ${pct(p, 1)} de las veces según el sistema. La ganancia esperada es lo que ganarías (o perderías) en promedio
-      por apuesta si la repitieras muchas veces: ${clp(stake)} × (${pct(p, 1)} × ${num(odds)} − 1).` : ""} ${note}</p>`;
-}
-
 /* ---------- semáforo ---------- */
 function vchip(v, text) {
   v = v || { level: "none", label: "Sin cuota", reason: "" };

@@ -10,7 +10,14 @@ let cbSel = { type: "all" }, cbDate = { type: "all" };
 let openRef = null;
 let cbRedraw = null;      // redibuja la lista de Combinadas (los partidos del boleto van primero)
 
+let legCount = ticket.legs.length;
 function afterTicketChange() {
+  if (ticket.legs.length > legCount) {            // se agregó una selección: el contador late
+    document.querySelectorAll("[data-ticket-count]").forEach((b) => {
+      b.classList.remove("pulse"); void b.offsetWidth; b.classList.add("pulse");
+    });
+  }
+  legCount = ticket.legs.length;
   const refs = new Set(ticket.legs.map((l) => l.ref));
   Object.keys(ticket.groupOdds).forEach((r) => { if (!refs.has(r)) delete ticket.groupOdds[r]; });
   saveTicket(); syncAddButtons(); refreshTicket();
@@ -95,7 +102,7 @@ async function renderCombos() {
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--text-2);font-size:12.5px"><span class="lg">${leagueLogo(m.league, 16)}${esc(m.league_name)}</span>
             <span style="display:flex;align-items:center;gap:8px">${n ? `<span class="in-ticket-tag">En tu combinada · ${n} ${n === 1 ? "selección" : "selecciones"}</span>` : ""}${fmtDate(m.kickoff)}</span></div>
           ${teamsRow(m)}
-          ${probBar(m.p_official, m.p_market)}
+          ${probBar(m.p_official, m.p_market, false)}
           <div style="color:var(--muted);font-size:12px">Toca para ver todas las opciones · ${esc(m.source)}</div>
         </summary>
         <div class="body">${suggestionsBlock(m)}${optionsTable(m)}
@@ -161,13 +168,38 @@ function mountToTop(box) {
 
 /* ---------- boleto ---------- */
 let ticketSeq = 0;
+let shownLegs = new Set();                          // selecciones ya dibujadas: las nuevas entran con animación
+let lastPay = null;                                 // últimos montos mostrados, para animar el cambio
+const QUICK_STAKES = [1000, 5000, 10000, 50000];
+
+// Cambia un número de `from` a `to` en ~350 ms (los montos se actualizan con movimiento, no de golpe).
+function animateNumber(el, from, to, fmt) {
+  if (from == null || from === to || matchMedia("(prefers-reduced-motion: reduce)").matches) { el.textContent = fmt(to); return; }
+  const t0 = performance.now();
+  const step = (t) => {
+    const k = Math.min(1, (t - t0) / 350), e = 1 - Math.pow(1 - k, 3);
+    el.textContent = fmt(from + (to - from) * e);
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+// Selecciones del mismo partido: ¿la correlación ayuda o perjudica frente a tratarlas como independientes?
+function correlationNote(g) {
+  if (!g.same_match || g.impossible || !g.items || g.items.some((it) => !it.p)) return "";
+  const indep = g.items.reduce((acc, it) => acc * it.p, 1);
+  const ratio = g.p / indep;
+  if (ratio > 1.03) return `<span class="corr up" title="Probabilidad conjunta ${pct(g.p, 1)} vs ${pct(indep, 1)} si fueran independientes">▲ La correlación favorece: ocurren juntas ${signed(ratio - 1, 0)} más que por separado</span>`;
+  if (ratio < 0.97) return `<span class="corr down" title="Probabilidad conjunta ${pct(g.p, 1)} vs ${pct(indep, 1)} si fueran independientes">▼ La correlación penaliza: ocurren juntas ${signed(ratio - 1, 0)} respecto de por separado</span>`;
+  return `<span class="corr">Casi independientes entre sí</span>`;
+}
 async function refreshTicket() {
   const el = $("#ticket");
   if (!el) return;
   syncAddButtons();
   if (!ticket.legs.length) {
-    el.innerHTML = `<h2>Tu combinada</h2><div class="empty" style="padding:12px 0">Agrega selecciones con <b>+</b>.
-      Puedes combinar varias del mismo partido o de partidos distintos.</div>`;
+    el.innerHTML = `<div class="t-head"><h2>Tu boleto</h2><span class="t-type">vacío</span></div>
+      <div class="t-empty">Agrega selecciones con <b>+</b>. Puedes combinar varias del mismo partido o de partidos distintos.</div>`;
+    shownLegs = new Set();
     return;
   }
   const seq = ++ticketSeq;
@@ -193,19 +225,21 @@ async function refreshTicket() {
       const oddsCell = single
         ? `<input type="number" step="0.01" min="1.01" value="${own ?? it.odds ?? ""}" data-ref="${esc(g.ref)}" data-key="${it.key}" class="t-odds" title="Cuota de tu casa">`
         : `<span class="sel-odds">${it.odds ? num(it.odds) : "–"}</span>`;
-      return `<div class="sel-row">
+      const id = `${g.ref}|${it.key}`;
+      return `<div class="sel-row ${shownLegs.has(id) ? "" : "enter"}">
         <span class="sel-dot"></span>
         <span class="sel-name">${esc(it.label)}</span>
         <span class="sel-p num">${pct(it.p, 1)}</span>
         ${oddsCell}
-        <button class="x" title="Quitar «${esc(it.label)}»" data-ref="${esc(g.ref)}" data-key="${it.key}">×</button>
+        <button class="x" title="Quitar «${esc(it.label)}»" aria-label="Quitar ${esc(it.label)}" data-ref="${esc(g.ref)}" data-key="${it.key}">✕</button>
       </div>`;
     }).join("");
     const joint = g.same_match ? `<div class="sel-joint">
         <span>${g.impossible ? '<span class="pill bad">imposible: se contradicen</span>' : `Juntas en este partido: <b>${pct(g.p, 1)}</b> · justa ${num(g.fair)}`}</span>
+        ${correlationNote(g)}
         <label>cuota de tu casa<input type="number" step="0.01" min="1.01" value="${ticket.groupOdds[g.ref] ?? ""}" placeholder="—"
           data-ref="${esc(g.ref)}" data-key="" class="t-odds"></label></div>` : "";
-    return `<div class="leg-group">
+    return `<div class="leg-group ${g.same_match ? "same" : ""}">
       <div class="lg-match"><div class="mt">${matchTag({ home: h, away: a, home_id: g.home_id, away_id: g.away_id }, 16)}</div>
         <small>${leagueLogo(g.league, 12)} ${esc(g.league_name)}${g.kickoff ? ` · ${fmtDate(g.kickoff)}` : ""}</small></div>
       ${items}${joint}
@@ -222,17 +256,20 @@ async function refreshTicket() {
   } else {
     verdict = `<div class="callout warn"><div><b>Valor esperado ${signed(r.ev)} por unidad:</b> la casa paga menos de lo que vale esta combinada según el sistema. A la larga, pierde.</div></div>`;
   }
+  const nSel = r.groups.reduce((a, g) => a + g.keys.length, 0);
+  const type = nSel === 1 ? "Simple" : r.groups.length === 1 ? "Mismo partido" : "Combinada";
   el.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center"><h2>Tu combinada</h2>
-      <button class="chip" id="t-clear">Vaciar</button></div>
+    <div class="t-head"><h2>Tu boleto</h2><span class="t-type">${type}<b>${nSel}</b></span>
+      <button class="t-clear" id="t-clear" title="Quitar todas las selecciones">Vaciar</button></div>
     <div class="legs">${legsHtml}</div>
     <div><div style="color:var(--text-2);font-size:13px">Probabilidad de acertarla</div>
       <div class="big-p num">${pct(r.p, 1)}</div>
       <div style="color:var(--muted);font-size:12.5px;margin-top:4px">${r.p > 0 ? `≈ 1 de cada ${Math.max(1, Math.round(1 / r.p))} veces` : "imposible: hay selecciones contradictorias"}</div></div>
     <div class="kv">
-      <div><span>Cuota combinada${odds ? "" : " (justa)"}</span><b class="num">${num(odds || r.fair_odds)}</b></div>
+      <div><span>Cuota ${nSel === 1 ? "" : "combinada"}${odds ? "" : " (justa)"}</span><b class="num">${num(odds || r.fair_odds)}</b></div>
       <div><span>Monto a apostar ($)</span><input id="t-stake" type="number" min="1" step="any" value="${stake}" style="padding:4px 8px"></div>
     </div>
+    <div class="t-chips">${QUICK_STAKES.map((v) => `<button type="button" class="t-chip" data-v="${v}">${clp(v)}</button>`).join("")}</div>
     <div id="t-payout"></div>
     ${verdict}
     ${hist ? `<p class="sub" style="margin:0">En 2026, las combinadas de ${hist.legs} ${hist.legs === 1 ? "selección" : "partidos"} con las opciones más probables
@@ -253,10 +290,36 @@ async function refreshTicket() {
   });
   const drawPay = () => {
     const st = parseFloat($("#t-stake").value) || 0;
-    $("#t-payout").innerHTML = payoutBox(st, odds || r.fair_odds, r.p,
-      odds ? "" : "Calculado con la cuota justa del sistema: ingresa la cuota de tu casa en cada selección para el retorno real.");
+    const o = odds || r.fair_odds;
+    el.querySelectorAll(".t-chip").forEach((c) => c.classList.toggle("on", Number(c.dataset.v) === st));
+    if (!st || !o) {
+      $("#t-payout").innerHTML = `<div class="callout"><div>Ingresa un monto para simular la apuesta.</div></div>`;
+      lastPay = null;
+      return;
+    }
+    const pay = payout(st, o, r.p);
+    $("#t-payout").innerHTML = `
+      <div class="t-win"><span>Ganancia potencial si aciertas</span><b class="num" data-f="net"></b>
+        <small>Recibes <b class="num" data-f="ret"></b> en total</small></div>
+      <div class="kv payout">
+        <div><span>Si fallas, pierdes</span><b class="num" style="color:var(--bad)" data-f="lose"></b></div>
+        <div><span>Ganancia esperada</span><b class="num" data-f="expected"
+          style="color:${pay.expected >= 0 ? "var(--good)" : "var(--bad)"}"></b></div>
+      </div>
+      <p class="sub" style="margin:0">Acierta ${pct(r.p, 1)} de las veces según el sistema. La ganancia esperada es el promedio por
+        apuesta si la repitieras muchas veces.${odds ? "" : " Calculado con la cuota justa: ingresa la cuota de tu casa en cada selección."}</p>`;
+    const fmt = { net: (x) => "+" + clp(x), ret: clp, lose: clp, expected: (x) => (x >= 0 ? "+" : "") + clp(x) };
+    $("#t-payout").querySelectorAll("[data-f]").forEach((b) => {
+      const f = b.dataset.f;
+      animateNumber(b, lastPay ? lastPay[f] : null, pay[f], fmt[f]);
+    });
+    lastPay = pay;
   };
   $("#t-stake").oninput = (e) => { setStake(e.target.value); drawPay(); };
+  el.querySelectorAll(".t-chip").forEach((c) => {
+    c.onclick = () => { $("#t-stake").value = c.dataset.v; setStake(c.dataset.v); drawPay(); };
+  });
+  shownLegs = new Set(r.groups.flatMap((g) => g.keys.map((k) => `${g.ref}|${k}`)));
   drawPay();
 }
 
