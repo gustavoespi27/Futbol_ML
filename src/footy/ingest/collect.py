@@ -16,6 +16,7 @@ from footy.ingest.api_football import (
     SOURCE,
     ApiError,
     ApiFootball,
+    ApiUnavailable,
     BudgetExhausted,
     competitions_by_api_id,
     odds_rows,
@@ -149,6 +150,11 @@ def run_daily(conn: sqlite3.Connection, client: ApiFootball) -> dict:
         summary["backfill"] = backfill_pending(client, conn, cfg.get("backfill_per_run", 0))
         summary["details"] = collect_details(client, conn)
     except BudgetExhausted as e:
-        log.info("Presupuesto agotado: %s", e)
+        # Sin cuota se detiene la cola: lo ya guardado queda y la tarea diaria sigue con los pasos que no usan la API.
+        log.warning("Recolección detenida, presupuesto agotado: %s", e)
+        summary["stopped"] = "presupuesto"
+    except ApiUnavailable as e:
+        log.warning("Recolección detenida, API-Football no disponible: %s", e)
+        summary["stopped"] = "api_no_disponible"
     summary["end_remaining"] = client.remaining
     return summary

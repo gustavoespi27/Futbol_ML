@@ -15,6 +15,8 @@ import time
 from datetime import datetime
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 from footy import config
 from footy.db import repository as repo
@@ -35,41 +37,93 @@ STATUS_MAP = {
 
 
 class ApiError(RuntimeError):
-    pass
+    """La API respondió con un error para esta petición (parámetros, partido inexistente...): se salta y se sigue."""
 
 
 class BudgetExhausted(RuntimeError):
-    pass
+    """No quedan peticiones del día (reserva alcanzada o cuota agotada en la API): la recolección se detiene."""
+
+
+class ApiUnavailable(RuntimeError):
+    """La API no responde (red caída, timeout o error 5xx tras los reintentos): la recolección se detiene."""
+
+
+RETRY_STATUS = (429, 500, 502, 503, 504)
+RATE_LIMIT_WAIT = 10.0       # segundos de espera si la API avisa en el cuerpo que se superó el límite por minuto
+
+
+def make_session(key: str) -> requests.Session:
+    """Sesión HTTP con reintentos automáticos y backoff exponencial (1 s, 2 s, 4 s) ante fallas transitorias:
+    errores de conexión, timeouts de lectura y respuestas 429/500/502/503/504 (respeta Retry-After)."""
+    retry = Retry(total=3, connect=3, read=3, status=3, backoff_factor=1, status_forcelist=RETRY_STATUS,
+                  allowed_methods=frozenset({"GET"}), respect_retry_after_header=True, raise_on_status=False)
+    session = requests.Session()
+    session.mount("https://", HTTPAdapter(max_retries=retry))
+    session.headers["x-apisports-key"] = key
+    return session
+
+
+def _quota_error(errors) -> bool:
+    """API-Football informa la cuota diaria agotada con HTTP 200 y errors = {"requests": "You have reached the
+    request limit for the day..."}."""
+    return isinstance(errors, dict) and "requests" in errors
 
 
 class ApiFootball:
-    def __init__(self, conn: sqlite3.Connection, key: str | None = None):
+    def __init__(self, conn: sqlite3.Connection, key: str | None = None, session: requests.Session | None = None):
         cfg = config.settings()["api_football"]
         self.conn = conn
-        self.session = requests.Session()
-        self.session.headers["x-apisports-key"] = key or config.api_football_key()
+        self.session = session or make_session(key or config.api_football_key())
         self.reserve = cfg["reserve"]
         self.min_interval = cfg["min_seconds_between"]
         self.raw_dir = config.path("raw") / SOURCE
         self._last_call = 0.0
-        reqs = self.status()["requests"]
-        self.remaining = reqs["limit_day"] - reqs["current"]
+        self.unavailable: str | None = None
+        try:
+            reqs = self.status()["requests"]
+            self.remaining = reqs["limit_day"] - reqs["current"]
+        except (requests.RequestException, ValueError, KeyError, TypeError) as e:
+            # Sin /status no se sabe cuánto queda: no se gasta nada y la tarea diaria sigue con los demás pasos.
+            self.remaining = 0
+            self.unavailable = f"/status no disponible: {e}"
+            log.warning("API-Football no disponible, se omite la recolección: %s", e)
 
     def status(self) -> dict:
         """/status no consume cuota."""
         return self.session.get(f"{BASE_URL}/status", timeout=30).json()["response"]
 
     def get(self, endpoint: str, **params) -> dict:
+        if self.unavailable:
+            raise ApiUnavailable(self.unavailable)
         if self.remaining <= self.reserve:
             raise BudgetExhausted(f"Quedan {self.remaining} peticiones (reserva {self.reserve})")
+        data = self._request(endpoint, params)
+        if isinstance(data.get("errors"), dict) and "rateLimit" in data["errors"]:
+            time.sleep(RATE_LIMIT_WAIT)                    # límite por minuto: se espera y se intenta una vez más
+            data = self._request(endpoint, params)
+        errors = data.get("errors") or None
+        if _quota_error(errors):
+            self.remaining = 0
+            raise BudgetExhausted(f"Cuota diaria de API-Football agotada: {errors['requests']}")
+        if errors:
+            raise ApiError(f"{endpoint} {params}: {errors}")
+        return data
+
+    def _request(self, endpoint: str, params: dict) -> dict:
+        """Una petición con los reintentos de la sesión; guarda la respuesta cruda y la registra en api_requests."""
         wait = self.min_interval - (time.monotonic() - self._last_call)
         if wait > 0:
             time.sleep(wait)
         self._last_call = time.monotonic()
-
-        r = self.session.get(f"{BASE_URL}/{endpoint}", params=params, timeout=60)
+        try:
+            r = self.session.get(f"{BASE_URL}/{endpoint}", params=params, timeout=60)
+        except requests.RequestException as e:
+            raise ApiUnavailable(f"{endpoint} {params}: {e}") from e
         requested_at = repo.utc_now()
-        data = r.json()
+        try:
+            data = r.json()
+        except ValueError as e:                           # p. ej. página HTML de un 502 tras agotar los reintentos
+            raise ApiUnavailable(f"{endpoint} {params}: HTTP {r.status_code} sin JSON") from e
         header = r.headers.get("x-ratelimit-requests-remaining")
         # El header a veces llega atrasado: se toma el valor más conservador entre él y la cuenta local.
         self.remaining = min(int(header), self.remaining - 1) if header is not None else self.remaining - 1
@@ -83,8 +137,8 @@ class ApiFootball:
              r.status_code, data.get("results"), json.dumps(errors) if errors else None),
         )
         self.conn.commit()
-        if errors:
-            raise ApiError(f"{endpoint} {params}: {errors}")
+        if r.status_code >= 500:
+            raise ApiUnavailable(f"{endpoint} {params}: HTTP {r.status_code}")
         return data
 
     def get_all_pages(self, endpoint: str, **params) -> list:
