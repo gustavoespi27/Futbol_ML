@@ -8,6 +8,7 @@ api_football:
   Belgrano Cordoba: Belgrano
   Central Cordoba de Santiago: Central Cordoba
   Deportivo Riestra: Dep. Riestra
+  Estudiantes de Rio Cuarto: Estudiantes Rio Cuarto
   Independ. Rivadavia: Ind. Rivadavia
   Instituto Cordoba: Instituto
   Union Santa Fe: Union de Santa Fe
@@ -23,8 +24,10 @@ api_football:
   # Portugal
   Sporting CP: Sp Lisbon
   Vitoria Guimaraes: Guimaraes
+  Vitória SC: Guimaraes
   # Turquía
   Istanbul Basaksehir: Buyuksehyr
+  Başakşehir: Buyuksehyr
   Göztepe: Goztep
   # Inglaterra
   Manchester United: Man United
@@ -49,3 +52,28 @@ api_football:
   Stade Brestois 29: Brest
   Paris Saint Germain: Paris SG
   Saint Etienne: St Etienne
+  # Ligas que antes solo venían de football-data (alias verificados contra su historial; los ascendidos sin
+  # historial, como Shenyang Urban o Sichuan Jiuniu, se crean como equipos nuevos)
+  Sheffield Wednesday: Sheffield Weds
+  Dundee Utd: Dundee United
+  Heart Of Midlothian: Hearts
+  Queen of the South: Queen of Sth
+  Fortuna Sittard: For Sittard
+  OH Leuven: Oud-Heverlee Leuven
+  WSG Wattens: Tirol
+  CFR 1907 Cluj: CFR Cluj
+  Universitatea Craiova: Univ. Craiova
+  Sepsi OSK Sfantu Gheorghe: Sepsi Sf. Gheorghe
+  Dynamo: Dynamo Moscow
+  Rodina Moskva: Rodina Moscow
+  Turku PS: TPS
+  St Patrick's Athl.: St. Patricks
+  Atletico San Luis: Atl. San Luis
+  Tokyo Verdy: Verdy
+  Chongqing Tongliang Long: Chongqing Tonglianglong
+  Qingdao Jonoon: Qingdao Hainiu
+  Qingdao Youth Island: Qingdao West Coast
+  Dalian Zhixing: Dalian Yingbo
+  Chengdu Better City: Chengdu Rongcheng
+  Tianjin Teda: Tianjin Jinmen Tiger
+  Henan Jianye: Henan Songshan Longmen

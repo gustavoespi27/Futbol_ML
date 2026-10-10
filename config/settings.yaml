@@ -177,7 +177,182 @@ competitions:
     type: cup
     api_football_id: 11
     collect_odds: false
-
+  # Ligas con historial de football-data.co.uk: API-Football aporta calendario y resultados del día sin gastar
+  # cuota (vienen en la misma petición /fixtures?date). Sin cuotas pre-partido: el cierre llega por CSV.
+  E1:
+    name: Championship
+    country: England
+    type: league
+    api_football_id: 40
+    collect_odds: false
+  E2:
+    name: League One
+    country: England
+    type: league
+    api_football_id: 41
+    collect_odds: false
+  E3:
+    name: League Two
+    country: England
+    type: league
+    api_football_id: 42
+    collect_odds: false
+  EC:
+    name: National League
+    country: England
+    type: league
+    api_football_id: 43
+    collect_odds: false
+  SC0:
+    name: Scottish Premiership
+    country: Scotland
+    type: league
+    api_football_id: 179
+    collect_odds: false
+  SC1:
+    name: Scottish Championship
+    country: Scotland
+    type: league
+    api_football_id: 180
+    collect_odds: false
+  SC2:
+    name: Scottish League One
+    country: Scotland
+    type: league
+    api_football_id: 183
+    collect_odds: false
+  SC3:
+    name: Scottish League Two
+    country: Scotland
+    type: league
+    api_football_id: 184
+    collect_odds: false
+  D2:
+    name: 2. Bundesliga
+    country: Germany
+    type: league
+    api_football_id: 79
+    collect_odds: false
+  I2:
+    name: Serie B
+    country: Italy
+    type: league
+    api_football_id: 136
+    collect_odds: false
+  SP2:
+    name: Segunda División
+    country: Spain
+    type: league
+    api_football_id: 141
+    collect_odds: false
+  F2:
+    name: Ligue 2
+    country: France
+    type: league
+    api_football_id: 62
+    collect_odds: false
+  N1:
+    name: Eredivisie
+    country: Netherlands
+    type: league
+    api_football_id: 88
+    collect_odds: false
+  B1:
+    name: Jupiler Pro League
+    country: Belgium
+    type: league
+    api_football_id: 144
+    collect_odds: false
+  G1:
+    name: Super League Grecia
+    country: Greece
+    type: league
+    api_football_id: 197
+    collect_odds: false
+  AUT:
+    name: Bundesliga Austria
+    country: Austria
+    type: league
+    api_football_id: 218
+    collect_odds: false
+  CHN:
+    name: Super League China
+    country: China
+    type: league
+    api_football_id: 169
+    collect_odds: false
+  DNK:
+    name: Superliga Dinamarca
+    country: Denmark
+    type: league
+    api_football_id: 119
+    collect_odds: false
+  FIN:
+    name: Veikkausliiga
+    country: Finland
+    type: league
+    api_football_id: 244
+    collect_odds: false
+  IRL:
+    name: Premier Division Irlanda
+    country: Ireland
+    type: league
+    api_football_id: 357
+    collect_odds: false
+  JPN:
+    name: J1 League
+    country: Japan
+    type: league
+    api_football_id: 98
+    collect_odds: false
+  MEX:
+    name: Liga MX
+    country: Mexico
+    type: league
+    api_football_id: 262
+    collect_odds: false
+  NOR:
+    name: Eliteserien
+    country: Norway
+    type: league
+    api_football_id: 103
+    collect_odds: false
+  POL:
+    name: Ekstraklasa
+    country: Poland
+    type: league
+    api_football_id: 106
+    collect_odds: false
+  ROU:
+    name: Superliga Rumania
+    country: Romania
+    type: league
+    api_football_id: 283
+    collect_odds: false
+  RUS:
+    name: Premier League Rusia
+    country: Russia
+    type: league
+    api_football_id: 235
+    collect_odds: false
+  SWE:
+    name: Allsvenskan
+    country: Sweden
+    type: league
+    api_football_id: 113
+    collect_odds: false
+  SWZ:
+    name: Super League Suiza
+    country: Switzerland
+    type: league
+    api_football_id: 207
+    collect_odds: false
+  USA:
+    name: MLS
+    country: USA
+    type: league
+    api_football_id: 253
+    collect_odds: false
 api_football:
   daily_limit: 100
   reserve: 5                 # peticiones que nunca se gastan (margen de seguridad)

@@ -246,7 +246,7 @@ alias en `config/team_aliases.yaml` y emparejamiento tolerante dentro de cada li
 ## Arquitectura
 
 ```
-config/            settings.yaml (competiciones, API), football_data.yaml, league_models.json, team_aliases.yaml, logos.yaml
+config/            settings.yaml (competiciones, API), football_data.yaml, league_models.json, team_aliases.yaml
 data/              raw / processed / db / cache (no versionado)
 artifacts/ml/      modelos de machine learning entrenados (no versionado)
 docs/              decisiones, análisis 01-06 y seguimiento prospectivo

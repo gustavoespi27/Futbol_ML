@@ -23,5 +23,5 @@ def test_logo_is_downloaded_once_and_missing_is_remembered(tmp_path, monkeypatch
 
 def test_league_ids_cover_settings_and_football_data_leagues():
     assert logos.league_api_id("E0") == 39            # de settings.yaml
-    assert logos.league_api_id("E1") == 40            # de config/logos.yaml
+    assert logos.league_api_id("E1") == 40            # liga de football-data, también en settings.yaml
     assert logos.league_api_id("XXX") is None

@@ -8,7 +8,6 @@ from functools import lru_cache
 from pathlib import Path
 
 import requests
-import yaml
 
 from footy import config
 from footy.db.connection import connect
@@ -19,13 +18,8 @@ CACHE = config.PROJECT_ROOT / "data" / "cache" / "logos"
 
 @lru_cache
 def _league_ids() -> dict[str, int]:
-    ids = {code: c["api_football_id"] for code, c in config.settings()["competitions"].items()
-           if "api_football_id" in c}
-    path = config.PROJECT_ROOT / "config" / "logos.yaml"
-    if path.exists():
-        with open(path, encoding="utf-8") as f:
-            ids.update((yaml.safe_load(f) or {}).get("leagues", {}))
-    return ids
+    return {code: c["api_football_id"] for code, c in config.settings()["competitions"].items()
+            if "api_football_id" in c}
 
 
 def league_api_id(code: str) -> int | None:
