@@ -1,5 +1,7 @@
 # Futbol ML
 
+[![CI](https://github.com/gustavoespi27/Futbol_ML/actions/workflows/ci.yml/badge.svg)](https://github.com/gustavoespi27/Futbol_ML/actions/workflows/ci.yml)
+
 **Sistema probabilístico de predicción de fútbol y value betting, con dashboard web local.**
 
 Futbol ML estima la probabilidad de cada resultado de un partido (1X2, doble oportunidad, más/menos goles, ambos
