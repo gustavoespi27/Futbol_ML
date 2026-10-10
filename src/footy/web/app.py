@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from footy.web import logos, service
+from footy.web import logos, schemas, service
 
 STATIC = Path(__file__).with_name("static")
 _cache: dict[str, tuple[float, object]] = {}
@@ -57,17 +57,21 @@ def cached(key: str, ttl: float, fn):
         return value
 
 
-@app.get("/api/overview")
+# response_model_exclude_unset: los campos opcionales que el backend no envía siguen sin aparecer (contrato idéntico).
+TYPED = {"response_model_exclude_unset": True}
+
+
+@app.get("/api/overview", response_model=schemas.Overview, **TYPED)
 def overview():
     return cached("overview", 300, service.overview)
 
 
-@app.get("/api/upcoming")
+@app.get("/api/upcoming", response_model=list[schemas.MatchSummary], **TYPED)
 def upcoming():
     return cached("upcoming", 300, service.upcoming)
 
 
-@app.get("/api/tracking")
+@app.get("/api/tracking", response_model=schemas.TrackingOverview, **TYPED)
 def tracking():
     return cached("tracking", 300, service.tracking_data)
 
@@ -82,7 +86,7 @@ def leagues():
     return cached("leagues", 3600, service.leagues_list)
 
 
-@app.get("/api/league-catalog")
+@app.get("/api/league-catalog", response_model=list[schemas.LeagueCatalogItem], **TYPED)
 def league_catalog():
     return cached("league_catalog", 300, service.league_catalog)
 
