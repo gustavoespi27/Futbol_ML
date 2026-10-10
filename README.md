@@ -89,7 +89,9 @@ reentrenarlos cada temporada.
 
 ## Dashboard
 
-Interfaz en español, con tema claro/oscuro y diseño adaptable a móvil. Muestra los partidos de **hoy, mañana y pasado
+Interfaz en español, con tema claro/oscuro y diseño adaptable a móvil: paleta cobalto (navegación) y esmeralda
+(valor positivo), Plus Jakarta Sans en títulos y JetBrains Mono en cuotas y métricas, barras con efecto vidrio,
+esqueletos de carga y gráficos con estilo de terminal financiera. Muestra los partidos de **hoy, mañana y pasado
 mañana** (hora de Chile).
 
 | Sección | Contenido |
@@ -113,6 +115,10 @@ mañana** (hora de Chile).
   también si pertenece al mismo partido.
 - **Listas largas** (semáforo, recomendaciones, bitácora, partidos, tablas de resultados) se desplazan dentro de su
   tarjeta con encabezado fijo, sin zonas desplazables anidadas.
+- **Lectura rápida:** la barra 1X2 marca dónde estaba el mercado sin margen; las selecciones con valor frente a
+  Pinnacle se destacan con borde esmeralda e insignia *VALOR +X%*.
+- **Boleto:** tipo automático (simple, mismo partido o combinada), aviso de si la correlación entre selecciones
+  del mismo partido favorece o penaliza, montos rápidos y ganancia potencial destacada.
 - **Escudos y logos** de API-Football (imágenes públicas, no consumen cuota) servidos por `/logo/team/<id>` y
   `/logo/league/<código>` con caché local; si falta un logo se muestran las iniciales.
 

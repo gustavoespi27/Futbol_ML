@@ -95,9 +95,8 @@ function drawHistory(h) {
   chart("ch-sg-bank", () => ({
     type: "scatter",
     data: { datasets: [
-      { label: "Punto de partida", data: [{ x: 0, y: 100 }, { x: h.curve.length - 1, y: 100 }], showLine: true, borderColor: css("--muted"), borderWidth: 1, pointRadius: 0 },
-      { label: "Bankroll", data: h.curve.map((c, i) => ({ x: i, y: c.b, d: c.d })), showLine: true, borderColor: css("--official"),
-        backgroundColor: css("--official"), borderWidth: 2, pointRadius: 0, pointHoverRadius: 5 },
+      breakEven("Punto de partida", 0, h.curve.length - 1, 100),
+      curveSet("Bankroll", h.curve.map((c, i) => ({ x: i, y: c.b, d: c.d })), css("--official"), 100),
     ] },
     options: baseOptions({
       interaction: { mode: "nearest", intersect: false, axis: "x" },
@@ -159,9 +158,8 @@ function drawProBacktest(bt) {
   chart("ch-pro-bank", () => ({
     type: "scatter",
     data: { datasets: [
-      { label: "Inicio", data: [{ x: 0, y: 100 }, { x: bt.curve.length - 1, y: 100 }], showLine: true, borderColor: css("--muted"), borderWidth: 1, pointRadius: 0 },
-      { label: "Bankroll", data: bt.curve.map((c, i) => ({ x: i, y: c.b, d: c.d })), showLine: true, borderColor: css("--good"),
-        backgroundColor: css("--good"), borderWidth: 2, pointRadius: 0, pointHoverRadius: 5 },
+      breakEven("Inicio", 0, bt.curve.length - 1, 100),
+      curveSet("Bankroll", bt.curve.map((c, i) => ({ x: i, y: c.b, d: c.d })), css("--ev-positive"), 100),
     ] },
     options: baseOptions({
       interaction: { mode: "nearest", intersect: false, axis: "x" },
@@ -219,8 +217,8 @@ async function renderReliable() {
     chart("ch-reliable", () => ({
       type: "bar",
       data: { labels: R.bins.map((b) => b.range), datasets: [
-        { label: "Esperado", data: R.bins.map((b) => b.expected * 100), backgroundColor: css("--official"), borderRadius: 4, maxBarThickness: 22 },
-        { label: "Real", data: R.bins.map((b) => b.hit * 100), backgroundColor: css("--model"), borderRadius: 4, maxBarThickness: 22 },
+        { label: "Esperado", data: R.bins.map((b) => b.expected * 100), backgroundColor: css("--official"), borderRadius: 6, maxBarThickness: 22 },
+        { label: "Real", data: R.bins.map((b) => b.hit * 100), backgroundColor: css("--model"), borderRadius: 6, maxBarThickness: 22 },
       ] },
       options: baseOptions({
         plugins: { ...baseOptions().plugins, tooltip: { ...baseOptions().plugins.tooltip, callbacks: {

@@ -66,6 +66,7 @@ function setTheme(t) {
   redrawCharts();
 }
 try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) { /* */ }
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => redrawCharts());
 $("#theme").addEventListener("click", () => {
   const dark = document.documentElement.dataset.theme
     ? document.documentElement.dataset.theme === "dark"
@@ -158,23 +159,74 @@ function chart(id, build) {
   charts[id] = new Chart(document.getElementById(id), build());
 }
 function redrawCharts() { Object.keys(chartDefs).forEach((id) => chart(id, chartDefs[id])); }
-if (window.Chart) {                       // gráficos con la misma tipografía del sitio
-  Chart.defaults.font.family = '"Inter", system-ui, sans-serif';
+const FONT_BODY = '"Inter", system-ui, sans-serif';
+const FONT_MONO = '"JetBrains Mono", ui-monospace, Consolas, monospace';
+const FONT_DISPLAY = '"Plus Jakarta Sans", "Inter", system-ui, sans-serif';
+if (window.Chart) {                       // gráficos con la tipografía del sitio y tooltips flotantes con sombra
+  Chart.defaults.font.family = FONT_BODY;
   Chart.defaults.font.size = 11.5;
+  Chart.register({
+    id: "tooltipShadow",
+    beforeTooltipDraw: (ch) => { const c = ch.ctx; c.save(); c.shadowColor = "rgba(2, 6, 23, .45)"; c.shadowBlur = 18; c.shadowOffsetY = 6; },
+    afterTooltipDraw: (ch) => ch.ctx.restore(),
+  });
 }
+// Color de un token con transparencia (los tokens son #rrggbb o rgb[a]()).
+function rgba(color, a) {
+  const c = color.trim();
+  if (c.startsWith("#")) {
+    const h = c.length === 4 ? [...c.slice(1)].map((x) => x + x).join("") : c.slice(1, 7);
+    return `rgba(${parseInt(h.slice(0, 2), 16)}, ${parseInt(h.slice(2, 4), 16)}, ${parseInt(h.slice(4, 6), 16)}, ${a})`;
+  }
+  const n = c.match(/[\d.]+/g) || [0, 0, 0];
+  return `rgba(${n[0]}, ${n[1]}, ${n[2]}, ${a})`;
+}
+// Relleno degradado vertical bajo una curva, desde su color hasta transparente (se calcula con el área ya medida).
+function areaGradient(color, top = 0.30) {
+  return (ctx) => {
+    const { chart: ch } = ctx;
+    if (!ch.chartArea) return rgba(color, top / 2);
+    const g = ch.ctx.createLinearGradient(0, ch.chartArea.top, 0, ch.chartArea.bottom);
+    g.addColorStop(0, rgba(color, top));
+    g.addColorStop(1, rgba(color, 0));
+    return g;
+  };
+}
+// Curva de bankroll / unidades: suave, sin puntos salvo al pasar el cursor, con área sombreada hasta `base`.
+const curveSet = (label, data, color, base = null) => ({
+  label, data, showLine: true, borderColor: color, backgroundColor: base == null ? color : areaGradient(color),
+  fill: base == null ? false : { target: { value: base } }, borderWidth: 2.2, tension: 0.3,
+  pointRadius: 0, pointHoverRadius: 5, pointHoverBorderWidth: 3, pointHoverBorderColor: css("--surface"), pointHoverBackgroundColor: color,
+});
+// Línea de equilibrio (punto de partida o cero), punteada y bien visible.
+const breakEven = (label, x0, x1, y) => ({ label, data: [{ x: x0, y }, { x: x1, y }], showLine: true, borderColor: css("--text-2"),
+  borderWidth: 1.3, borderDash: [5, 5], pointRadius: 0, pointHoverRadius: 0, fill: false });
+// Calibración: diagonal ideal en guiones y puntos con halo al pasar el cursor.
+const diagonal = () => ({ label: "Calibración perfecta", data: [{ x: 0, y: 0 }, { x: 100, y: 100 }], showLine: true,
+  borderColor: css("--muted"), borderWidth: 1.2, borderDash: [6, 6], pointRadius: 0, pointHoverRadius: 0 });
+const calibStyle = (color) => ({ showLine: true, borderColor: color, backgroundColor: color, borderWidth: 2, tension: 0.2,
+  pointRadius: 4.5, pointBorderColor: css("--surface"), pointBorderWidth: 2,
+  pointHoverRadius: 8, pointHoverBorderWidth: 8, pointHoverBorderColor: rgba(color, 0.28), pointHoverBackgroundColor: color });
 function baseOptions(extra = {}) {
   const grid = css("--grid"), text = css("--text-2");
   return {
-    responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
+    responsive: true, maintainAspectRatio: false, animation: { duration: 400, easing: "easeOutQuart" },
     interaction: { mode: "index", intersect: false },
     plugins: {
-      legend: { position: "top", align: "start", labels: { color: text, boxWidth: 10, boxHeight: 10, useBorderRadius: true, borderRadius: 3, font: { size: 12 } } },
-      tooltip: { backgroundColor: css("--surface"), titleColor: css("--text"), bodyColor: text, borderColor: css("--border"),
-        borderWidth: 1, padding: 10, cornerRadius: 8, boxPadding: 4, usePointStyle: true },
+      legend: { position: "top", align: "start", labels: { color: text, boxWidth: 10, boxHeight: 10, useBorderRadius: true, borderRadius: 3,
+        font: { size: 12 }, filter: (it) => !/^(Calibración perfecta|Punto de partida|Inicio|Equilibrio)$/.test(it.text),
+        // las series con área degradada usan el color de su línea en la leyenda
+        generateLabels: (ch) => Chart.defaults.plugins.legend.labels.generateLabels(ch)
+          .map((l) => (typeof l.fillStyle === "string" ? l : { ...l, fillStyle: l.strokeStyle })) } },
+      // tooltip oscuro tipo terminal en ambos temas: cifras en monoespaciada
+      tooltip: { backgroundColor: "#111726", titleColor: "#f1f5fb", bodyColor: "#c9d3e3", footerColor: "#8b97ab",
+        borderColor: "rgba(255, 255, 255, .10)", borderWidth: 1, padding: 12, cornerRadius: 10, boxPadding: 5, caretSize: 6,
+        usePointStyle: true, titleFont: { family: FONT_DISPLAY, weight: "700", size: 12.5 },
+        bodyFont: { family: FONT_MONO, size: 12 }, footerFont: { family: FONT_MONO, size: 11, weight: "500" } },
     },
     scales: {
-      x: { grid: { color: grid, drawTicks: false }, border: { display: false }, ticks: { color: text, font: { size: 11.5 }, padding: 6 } },
-      y: { grid: { color: grid, drawTicks: false }, border: { display: false }, ticks: { color: text, font: { size: 11.5 }, padding: 6 } },
+      x: { grid: { color: grid, drawTicks: false }, border: { display: false }, ticks: { color: text, font: { family: FONT_MONO, size: 11 }, padding: 6 } },
+      y: { grid: { color: grid, drawTicks: false }, border: { display: false }, ticks: { color: text, font: { family: FONT_MONO, size: 11 }, padding: 6 } },
     },
     ...extra,
   };
@@ -295,8 +347,8 @@ async function renderHome() {
     data: {
       labels: o.confidence.map((c) => c.range),
       datasets: [
-        { label: "Probabilidad que dio el sistema", data: o.confidence.map((c) => c.pred * 100), backgroundColor: css("--official"), borderRadius: 4, maxBarThickness: 24, borderSkipped: "start" },
-        { label: "Acierto real", data: o.confidence.map((c) => c.hit * 100), backgroundColor: css("--model"), borderRadius: 4, maxBarThickness: 24, borderSkipped: "start" },
+        { label: "Probabilidad que dio el sistema", data: o.confidence.map((c) => c.pred * 100), backgroundColor: css("--official"), borderRadius: 6, maxBarThickness: 24, borderSkipped: "start" },
+        { label: "Acierto real", data: o.confidence.map((c) => c.hit * 100), backgroundColor: css("--model"), borderRadius: 6, maxBarThickness: 24, borderSkipped: "start" },
       ],
     },
     options: baseOptions({
@@ -491,9 +543,9 @@ async function renderBacktest() {
     return {
       type: "scatter",
       data: { datasets: [
-        { label: "Calibración perfecta", data: [{ x: 0, y: 0 }, { x: 100, y: 100 }], showLine: true, borderColor: css("--muted"), borderWidth: 1, pointRadius: 0, borderDash: [] },
-        { label: "Probabilidad oficial", data: pts("official"), showLine: true, borderColor: css("--official"), backgroundColor: css("--official"), borderWidth: 2, pointRadius: 4.5, pointBorderColor: css("--surface"), pointBorderWidth: 2 },
-        { label: "Modelo solo", data: pts("model"), showLine: true, borderColor: css("--model"), backgroundColor: css("--model"), borderWidth: 2, pointRadius: 4.5, pointBorderColor: css("--surface"), pointBorderWidth: 2 },
+        diagonal(),
+        { label: "Probabilidad oficial", data: pts("official"), ...calibStyle(css("--official")) },
+        { label: "Modelo solo", data: pts("model"), ...calibStyle(css("--model")) },
       ] },
       options: baseOptions({
         interaction: { mode: "nearest", intersect: false },
@@ -512,12 +564,14 @@ async function renderBacktest() {
     return {
       type: "scatter",
       data: { datasets: [
-        { label: `Modelo solo (${bm.n.toLocaleString("es-CL")} apuestas)`, data: toPts(bm), showLine: true, borderColor: css("--model"), backgroundColor: css("--model"), borderWidth: 2, pointRadius: 0, pointHoverRadius: 5 },
-        { label: `v2: modelo + mercado, cuota ≤ 4 (${bo.n} apuestas)`, data: toPts(bo), showLine: true, borderColor: css("--official"), backgroundColor: css("--official"), borderWidth: 2, pointRadius: 0, pointHoverRadius: 5 },
+        breakEven("Equilibrio", 0, 100, 0),
+        curveSet(`Modelo solo (${bm.n.toLocaleString("es-CL")} apuestas)`, toPts(bm), css("--model")),
+        curveSet(`v2: modelo + mercado, cuota ≤ 4 (${bo.n} apuestas)`, toPts(bo), css("--official"), 0),
       ] },
       options: baseOptions({
         interaction: { mode: "nearest", intersect: false, axis: "x" },
         plugins: { ...baseOptions().plugins, tooltip: { ...baseOptions().plugins.tooltip,
+          filter: (i) => i.datasetIndex > 0,
           callbacks: { title: (i) => i[0].raw.d, label: (c) => `${c.dataset.label.split(" (")[0]}: ${c.parsed.y > 0 ? "+" : ""}${c.parsed.y} u` } } },
         scales: {
           x: { ...baseOptions().scales.x, type: "linear", min: 0, max: 100, title: { display: true, text: "Avance de la temporada 2026 (% de apuestas)", color: css("--muted") }, ticks: { ...baseOptions().scales.x.ticks, callback: (v) => v + "%" } },
@@ -530,7 +584,7 @@ async function renderBacktest() {
   chart("ch-buckets", () => ({
     type: "bar",
     data: { labels: bm.buckets.map((b) => b.range), datasets: [{ label: "Rendimiento por unidad", data: bm.buckets.map((b) => b.yield * 100),
-      backgroundColor: bm.buckets.map((b) => (b.yield < 0 ? css("--bad") : css("--good"))), borderRadius: 4, maxBarThickness: 24, borderSkipped: "start" }] },
+      backgroundColor: bm.buckets.map((b) => (b.yield < 0 ? css("--bad") : css("--ev-positive"))), borderRadius: 6, maxBarThickness: 24, borderSkipped: "start" }] },
     options: baseOptions({
       plugins: { ...baseOptions().plugins, legend: { display: false }, tooltip: { ...baseOptions().plugins.tooltip,
         callbacks: { label: (c) => `${c.parsed.y.toFixed(1)}% por unidad · ${bm.buckets[c.dataIndex].n} apuestas` } } },

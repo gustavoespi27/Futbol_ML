@@ -338,12 +338,11 @@ function renderComboHistory(h, nUpcoming) {
     stat("Partidos para combinar", nUpcoming, "próximos 3 días"),
   ].join("");
 
-  const calibSet = (label, pts, color) => ({ label, data: pts.map((c) => ({ x: c.pred * 100, y: c.obs * 100, n: c.n })), showLine: true,
-    borderColor: color, backgroundColor: color, borderWidth: 2, pointRadius: 4.5, pointBorderColor: css("--surface"), pointBorderWidth: 2 });
+  const calibSet = (label, pts, color) => ({ label, data: pts.map((c) => ({ x: c.pred * 100, y: c.obs * 100, n: c.n })), ...calibStyle(color) });
   chart("ch-combo-calib", () => ({
     type: "scatter",
     data: { datasets: [
-      { label: "Calibración perfecta", data: [{ x: 0, y: 0 }, { x: 100, y: 100 }], showLine: true, borderColor: css("--muted"), borderWidth: 1, pointRadius: 0 },
+      diagonal(),
       calibSet("Combinadas de 2 a 4 partidos", h.calibration, css("--official")),
       calibSet("Variantes de un mismo partido", h.same_game_calibration, css("--model")),
     ] },
@@ -361,8 +360,8 @@ function renderComboHistory(h, nUpcoming) {
   chart("ch-combo-yield", () => ({
     type: "bar",
     data: { labels: pr.map((r) => (r.legs === 1 ? "Simple" : `${r.legs} partidos`)), datasets: [
-      { label: "Las más probables", data: pr.map((r) => r.yield * 100), backgroundColor: css("--official"), borderRadius: 4, maxBarThickness: 24, borderSkipped: "start" },
-      { label: "Con valor (EV > 0, cuota ≤ 4)", data: va.map((r) => r.yield * 100), backgroundColor: css("--market"), borderRadius: 4, maxBarThickness: 24, borderSkipped: "start" },
+      { label: "Las más probables", data: pr.map((r) => r.yield * 100), backgroundColor: css("--official"), borderRadius: 6, maxBarThickness: 24, borderSkipped: "start" },
+      { label: "Con valor (EV > 0, cuota ≤ 4)", data: va.map((r) => r.yield * 100), backgroundColor: css("--market"), borderRadius: 6, maxBarThickness: 24, borderSkipped: "start" },
     ] },
     options: baseOptions({
       plugins: { ...baseOptions().plugins, tooltip: { ...baseOptions().plugins.tooltip, callbacks: {
