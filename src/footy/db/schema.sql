@@ -150,8 +150,8 @@ CREATE TABLE IF NOT EXISTS api_requests (
     errors          TEXT
 );
 
--- Apuestas sugeridas (footy.betting.suggestions), registradas antes del partido para medir su resultado real.
--- Una fila por pierna; las de una doble comparten group_id.
+-- EXPERIMENTAL, sin uso en producción (footy.prediction.experimental_suggestions): sugerencias de la regla del
+-- modelo propio. Una fila por pierna; las de una combinada comparten group_id. La cartera oficial es pro_bets.
 CREATE TABLE IF NOT EXISTS suggestions (
     id              INTEGER PRIMARY KEY,
     created_at      TEXT NOT NULL,

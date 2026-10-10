@@ -1,3 +1,7 @@
+"""PRODUCCIÓN: apostador profesional (footy.betting.pro) y su cartera oficial (footy.prediction.pro_ledger, tabla
+`pro_bets`): precio justo de Pinnacle, line shopping, regla de valor, topes de Kelly, liquidación y CLV.
+"""
+
 import pytest
 
 from footy.betting import pro
@@ -32,7 +36,7 @@ def test_pick_one_per_match_and_daily_cap():
     assert len({p["match"] for p in picks}) == len(picks)
 
 
-def test_ledger_places_once_settles_and_measures_clv():
+def test_official_ledger_pro_bets_places_once_settles_and_measures_clv():
     conn = connect(":memory:")
     repo.sync_competitions(conn)
     comp = repo.competition_id(conn, "CHL")

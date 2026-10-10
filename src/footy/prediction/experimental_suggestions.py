@@ -1,8 +1,13 @@
-"""Registro prospectivo de las apuestas sugeridas y su resultado real (sin dinero real).
+"""EXPERIMENTAL, sin uso en producción: registro de sugerencias simples y combinadas multiselección.
 
-Cada sugerencia se guarda una sola vez, antes del partido (tabla `suggestions`). Cuando terminan todos los
-partidos de una sugerencia se liquida: gana si se cumplen todas sus selecciones; la cuota es el producto de las
-cuotas de sus piernas.
+Prototipo de la regla de "apuestas sugeridas" según el modelo propio (footy.betting.suggestions, EV ≥ 3%), anterior
+al apostador profesional. Guarda cada sugerencia una sola vez, antes del partido, en la tabla `suggestions` (una fila
+por pierna; las piernas de una combinada comparten group_id) y la liquida cuando terminan todos sus partidos: gana si
+se cumplen todas las selecciones y la cuota es el producto de las cuotas de las piernas.
+
+Ni la tarea diaria ni el dashboard lo llaman: la cartera oficial es footy.prediction.pro_ledger (tabla `pro_bets`),
+que solo apuesta 1X2 con valor frente al precio justo de Pinnacle y mide el CLV. Se conserva para poder seguir
+combinadas del modelo propio si alguna vez se valida esa regla (en 2026 no mostró ventaja; ver docs/decisiones.md).
 """
 
 import sqlite3

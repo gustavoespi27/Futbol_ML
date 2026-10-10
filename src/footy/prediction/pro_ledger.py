@@ -1,7 +1,14 @@
-"""Cartera del apostador profesional: registra sus apuestas antes del partido, las liquida y mide el CLV.
+"""PRODUCCIÓN: cartera oficial del apostador profesional (tabla `pro_bets`).
+
+Registra antes del partido las apuestas que elige footy.betting.pro (1X2 con la mejor cuota ≥ 6% sobre el precio
+justo de Pinnacle, una por partido), las liquida con el resultado y mide el CLV contra Pinnacle al cierre. La llama la
+tarea diaria (scripts/daily.py → service.register_suggestions) y la muestra el Panel en la bitácora.
 
 Es dinero simulado: bankroll inicial 100 unidades; cada apuesta usa la fracción (¼ Kelly con topes) del bankroll
 disponible al momento de liquidarla, en orden de kickoff.
+
+No confundir con footy.prediction.experimental_suggestions (tabla `suggestions`): prototipo de la regla del modelo
+propio, sin uso en producción.
 """
 
 import sqlite3

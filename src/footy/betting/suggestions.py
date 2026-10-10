@@ -1,6 +1,14 @@
-"""Apuestas sugeridas: selecciones con la mejor relación riesgo/recompensa según el sistema.
+"""Reglas de valor según el modelo propio: semáforo, Kelly fraccional y la regla original de "apuestas sugeridas".
 
-Regla fijada ANTES de mirar resultados (ver docs/decisiones.md, 2026-10-09):
+Uso actual en producción:
+  - verdict(): semáforo de los mercados sin referencia de Pinnacle (doble oportunidad, goles, ambos marcan); como
+    ese valor no está validado, el dashboard nunca lo muestra como "Apostar" (máximo amarillo);
+  - growth() y risk_level(): los usa el apostador profesional (footy.betting.pro);
+  - pick_doubles(): arma las dobles a partir de las apuestas simples del profesional.
+pick_singles() es la regla original, que ya no decide apuestas reales: se mantiene para el historial 2026 del
+dashboard (footy.evaluation.live) y para compararla con el apostador profesional, que es quien apuesta.
+
+Regla original, fijada ANTES de mirar resultados (ver docs/decisiones.md, 2026-10-09):
   - recompensa: valor esperado EV = p × cuota − 1 >= MIN_EV;
   - riesgo: cuota entre MIN_ODDS y MAX_ODDS (las cuotas largas son las que más pierden, análisis 01) y p >= MIN_P;
   - solo cuotas reales de una casa (no estimadas) y una selección por partido.

@@ -1,12 +1,15 @@
+"""Reglas de valor del modelo propio (footy.betting.suggestions): Kelly, regla original y semáforo.
+
+La cartera oficial del apostador profesional se prueba en test_pro.py; el registro experimental de sugerencias, en
+test_experimental_suggestions.py.
+"""
+
 import pytest
 
 from footy.betting import suggestions as sg
-from footy.db import repository as repo
-from footy.db.connection import connect
-from footy.prediction import suggested
 
 
-def test_stake_is_fractional_kelly_with_cap():
+def test_kelly_stake_is_fractional_with_cap():
     assert sg.stake_fraction(0.5, 2.2) == pytest.approx(0.25 * (0.5 * 2.2 - 1) / 1.2)
     assert sg.stake_fraction(0.4, 2.0) == 0                      # sin valor no se apuesta
     assert sg.stake_fraction(0.9, 2.0) == sg.MAX_STAKE           # tope
@@ -14,7 +17,7 @@ def test_stake_is_fractional_kelly_with_cap():
     assert sg.growth(0.55, 2.0) > 0
 
 
-def test_pick_singles_applies_rule_and_one_per_match():
+def test_original_rule_pick_singles_one_per_match():
     cands = [
         {"match": 1, "key": "1", "p": 0.55, "odds": 2.0},                       # EV +10%: sí
         {"match": 1, "key": "O2.5", "p": 0.60, "odds": 1.75},                   # EV +5%: mismo partido, crece menos
@@ -37,30 +40,7 @@ def test_pick_doubles_multiplies_and_uses_distinct_matches():
     assert d["legs"][0]["match"] != d["legs"][1]["match"]
 
 
-def test_register_once_and_settle():
-    conn = connect(":memory:")
-    repo.sync_competitions(conn)
-    comp = repo.competition_id(conn, "CHL")
-    h = repo.resolve_team(conn, "x", "A", "A", "Chile")
-    a = repo.resolve_team(conn, "x", "B", "B", "Chile")
-    m1 = repo.upsert_match(conn, source="x", source_match_id="1", competition_id=comp, season="2026",
-                           kickoff_utc="2026-10-10T20:00:00Z", home_team_id=h, away_team_id=a, status="scheduled")
-    m2 = repo.upsert_match(conn, source="x", source_match_id="2", competition_id=comp, season="2026",
-                           kickoff_utc="2026-10-17T20:00:00Z", home_team_id=a, away_team_id=h, status="scheduled")
-    s1 = {"match": m1, "key": "1", "p": 0.55, "odds": 2.0, "book": "Bet365", "stake": 0.02}
-    s2 = {"match": m2, "key": "O2.5", "p": 0.55, "odds": 2.0, "book": "Bet365", "stake": 0.02}
-    double = {"legs": [s1, s2], "stake": 0.01}
-    assert suggested.register(conn, [s1, s2], [double], "v")["suggestions"] == 4
-    assert suggested.register(conn, [s1, s2], [double], "v")["suggestions"] == 0       # no se duplica
-    repo.upsert_match(conn, source="x", source_match_id="1", competition_id=comp, season="2026",
-                      kickoff_utc="2026-10-10T20:00:00Z", home_team_id=h, away_team_id=a, status="finished",
-                      home_goals=2, away_goals=1)
-    rec = suggested.record(conn)
-    assert rec["settled"] == 1 and rec["pending"] == 2                                # la doble espera el 2º partido
-    assert rec["won"] == 1 and rec["units"] == pytest.approx(1.0)
-
-
-def test_verdict_traffic_light():
+def test_traffic_light_verdict_for_markets_without_pinnacle():
     assert sg.verdict(0.55, 2.0)["level"] == "green"                  # +10% de valor, riesgo acotado
     assert sg.verdict(0.55, 2.0, estimated=True)["level"] == "yellow"  # cuota estimada: no se sugiere
     assert sg.verdict(0.20, 6.0)["level"] == "red"                    # probabilidad muy baja
