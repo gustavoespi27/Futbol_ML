@@ -20,6 +20,7 @@ Partidos sin estadísticas usan solo goles. rho siempre se ajusta con goles real
 
 import numpy as np
 import pandas as pd
+from scipy import sparse
 from scipy.optimize import minimize_scalar
 from sklearn.linear_model import PoissonRegressor
 
@@ -71,23 +72,29 @@ class DixonColes:
         out[ok] = self.mix * goals[ok] + (1 - self.mix) * np.stack([sot[ok], off[ok]], axis=1) @ self.shot_coefs
         return out
 
-    def _design(self, home: np.ndarray, away: np.ndarray) -> np.ndarray:
+    def _design(self, home: np.ndarray, away: np.ndarray) -> sparse.csr_matrix:
         """Dos filas por partido (goles local, goles visita). Columnas: [ataque | defensa | localía].
 
-        Equipos desconocidos (sin partidos en la ventana) quedan en 0 = equipo promedio.
+        Dispersa: cada fila tiene a lo sumo 3 valores distintos de cero (+1 ataque, −1 defensa, +1 localía), así que
+        no se reserva la matriz densa 2n × (2k + 1). Equipos desconocidos (sin partidos en la ventana) quedan en
+        0 = equipo promedio.
         """
         n, k = len(home), len(self.teams)
-        X = np.zeros((2 * n, 2 * k + 1))
-        hi = np.array([self.teams.get(t, -1) for t in home])
-        ai = np.array([self.teams.get(t, -1) for t in away])
-        rows = np.arange(n)
+        hi = np.array([self.teams.get(t, -1) for t in home], dtype=np.int64)
+        ai = np.array([self.teams.get(t, -1) for t in away], dtype=np.int64)
+        parts = []                                       # (filas, columnas, valor)
+        r = np.arange(n)
         for r_off, att, dfn in ((0, hi, ai), (n, ai, hi)):
             ok = att >= 0
-            X[rows[ok] + r_off, att[ok]] = 1.0
+            parts.append((r[ok] + r_off, att[ok], 1.0))
             ok = dfn >= 0
-            X[rows[ok] + r_off, k + dfn[ok]] = -1.0
-        X[:n, -1] = 1.0
-        return X
+            parts.append((r[ok] + r_off, k + dfn[ok], -1.0))
+        parts.append((r, np.full(n, 2 * k), 1.0))       # localía: solo en las filas de goles del local
+        rows = np.concatenate([p[0] for p in parts])
+        cols = np.concatenate([p[1] for p in parts])
+        vals = np.concatenate([np.full(len(p[0]), p[2]) for p in parts])
+        return sparse.csr_matrix((vals, (rows, cols)),
+                                 shape=(2 * n, 2 * k + 1))
 
     def expected_goals(self, home: np.ndarray, away: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         pred = self.glm.predict(self._design(np.asarray(home), np.asarray(away)))

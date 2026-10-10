@@ -53,6 +53,39 @@ def test_dixon_coles_recovers_strengths():
     assert 0.1 < home_coef < 0.4                  # ventaja local real = 0.25
 
 
+def _dense_design(model, home, away):
+    """Matriz de diseño densa original (referencia para la versión dispersa)."""
+    n, k = len(home), len(model.teams)
+    X = np.zeros((2 * n, 2 * k + 1))
+    hi = np.array([model.teams.get(t, -1) for t in home])
+    ai = np.array([model.teams.get(t, -1) for t in away])
+    rows = np.arange(n)
+    for r_off, att, dfn in ((0, hi, ai), (n, ai, hi)):
+        ok = att >= 0
+        X[rows[ok] + r_off, att[ok]] = 1.0
+        ok = dfn >= 0
+        X[rows[ok] + r_off, k + dfn[ok]] = -1.0
+    X[:n, -1] = 1.0
+    return X
+
+
+def test_dixon_coles_sparse_design_matches_dense(monkeypatch):
+    from scipy import sparse
+
+    df = synthetic_league(seasons=3)
+    now = df.kickoff.max() + pd.Timedelta(days=1)
+    m = DixonColes(xi=0.002, alpha=1e-3).fit(df, now)
+    home, away = np.array([0, 1, 99]), np.array([1, 99, 0])       # 99: equipo desconocido = promedio
+    X = m._design(home, away)
+    assert sparse.issparse(X) and X.format == "csr"
+    np.testing.assert_array_equal(X.toarray(), _dense_design(m, home, away))
+    monkeypatch.setattr(DixonColes, "_design", lambda self, h, a: _dense_design(self, h, a))
+    ref = DixonColes(xi=0.002, alpha=1e-3).fit(df, now)
+    np.testing.assert_allclose(m.glm.coef_, ref.glm.coef_, rtol=0, atol=1e-10)
+    assert m.glm.intercept_ == pytest.approx(ref.glm.intercept_, abs=1e-10)
+    assert m.rho == pytest.approx(ref.rho, abs=1e-10)
+
+
 def test_walk_forward_has_no_lookahead():
     """Cambiar resultados futuros no puede cambiar predicciones pasadas."""
     df = synthetic_league(seasons=2)
