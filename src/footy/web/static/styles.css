@@ -1004,3 +1004,23 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 .sg-grid small { font-size: 10.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sg-foot { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--text-2); }
 .sg-foot b { color: var(--ev-text); font-family: var(--font-mono); }
+
+/* ================= menú lateral: íconos con vida al pasar el cursor ================= */
+/* Cada ícono hace un gesto corto relacionado con su sección; solo en dispositivos con cursor. */
+.navlink .ico { transform-origin: 50% 50%; transition: transform .25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity .2s; }
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .navlink:hover .ico { opacity: 1; }
+  .navlink[href="#inicio"]:hover .ico { animation: ico-pop .45s cubic-bezier(0.34, 1.56, 0.64, 1); }          /* panel: rebota */
+  .navlink[href="#partidos"]:hover .ico { animation: ico-swing .6s ease-in-out; transform-origin: 50% 10%; }   /* calendario: se mece */
+  .navlink[href="#combinadas"]:hover .ico { animation: ico-lift .5s cubic-bezier(0.34, 1.56, 0.64, 1); }      /* capas: se elevan */
+  .navlink[href="#resultados"]:hover .ico { animation: ico-pop .45s cubic-bezier(0.34, 1.56, 0.64, 1); }      /* check: rebota */
+  .navlink[href="#rendimiento"]:hover .ico { animation: ico-rise .55s ease-out; }                              /* gráfico: sube */
+  .navlink[href="#simulador"]:hover .ico { animation: ico-shake .45s ease-in-out; }                            /* calculadora: tiembla */
+  .navlink[href="#como-funciona"]:hover .ico { animation: ico-spin .6s cubic-bezier(0.34, 1.56, 0.64, 1); }   /* ayuda: gira */
+}
+@keyframes ico-pop { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 70% { transform: scale(.92); } 100% { transform: scale(1); } }
+@keyframes ico-swing { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-12deg); } 50% { transform: rotate(9deg); } 75% { transform: rotate(-5deg); } }
+@keyframes ico-lift { 0%, 100% { transform: translateY(0); } 45% { transform: translateY(-4px); } 75% { transform: translateY(1px); } }
+@keyframes ico-rise { 0% { transform: translate(0, 0); } 40% { transform: translate(2px, -3px); } 100% { transform: translate(0, 0); } }
+@keyframes ico-shake { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-9deg); } 40% { transform: rotate(8deg); } 60% { transform: rotate(-5deg); } 80% { transform: rotate(3deg); } }
+@keyframes ico-spin { 0% { transform: rotate(0); } 100% { transform: rotate(360deg); } }
