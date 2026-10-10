@@ -151,6 +151,15 @@ class MatchOption(Schema):
     p_fair: float | None = Field(None, description="Solo 1X2 con Pinnacle: probabilidad justa sin margen")
 
 
+class OddsDrift(Schema):
+    """Movimiento de la cuota de Pinnacle entre la primera y la última captura antes del partido."""
+    from_: float = Field(alias="from")
+    to: float
+    pct: float = Field(description="to / from − 1 (negativo: el mercado se volcó hacia la selección)")
+    n: int
+    signal: str | None = Field(description="a_favor | en_contra | null (movimiento menor a 3%)")
+
+
 class ProBet(Schema):
     """Oportunidad 1X2 del apostador profesional: precio justo de Pinnacle y la mejor cuota entre casas."""
     key: str
@@ -165,6 +174,7 @@ class ProBet(Schema):
     stake: float
     growth: float
     risk: str
+    drift: OddsDrift | None = None
 
 
 class Recommendation(Schema):

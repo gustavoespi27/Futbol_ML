@@ -25,6 +25,7 @@ MAX_ODDS = 4.0
 KELLY_FRACTION = 0.25
 MAX_STAKE = 0.02
 MAX_DAILY = 0.10
+STEAM = 0.03          # movimiento de la cuota de Pinnacle que se considera señal (3%)
 RULES = {"sharp": SHARP, "min_edge": MIN_EDGE, "max_odds": MAX_ODDS, "kelly_fraction": KELLY_FRACTION,
          "max_stake": MAX_STAKE, "max_daily": MAX_DAILY, "market": "1X2"}
 SEL = ("H", "D", "A")
@@ -103,10 +104,29 @@ def clv(odds_taken: float, closing_1x2: dict[str, dict], sel: str) -> float | No
     return None if p is None else float(odds_taken * p[SEL.index(sel)] - 1)
 
 
+def steam(drift: float | None) -> str | None:
+    """Lectura del movimiento de la cuota de Pinnacle desde nuestra primera captura: "a_favor" si bajó (el mercado
+    se volcó hacia esta selección), "en_contra" si subió (el mercado se aleja). Es informativa: no cambia la regla ni el
+    monto, porque aún no hay suficientes partidos con varias capturas para medir su efecto."""
+    if drift is None:
+        return None
+    return "a_favor" if drift <= -STEAM else "en_contra" if drift >= STEAM else None
+
+
+def drift_note(o: dict) -> str:
+    d = o.get("drift")
+    if not d or not d.get("signal"):
+        return ""
+    move = f"{d['pct'] * 100:+.1f}%".replace(".", ",")
+    if d["signal"] == "a_favor":
+        return f" Pinnacle bajó de {d['from']:.2f} a {d['to']:.2f} ({move}): el mercado se mueve hacia esta opción."
+    return f" Ojo: Pinnacle subió de {d['from']:.2f} a {d['to']:.2f} ({move}): el mercado se aleja de esta opción."
+
+
 def reason(o: dict) -> str:
     """Por qué el apostador profesional hace (o hizo) esta apuesta, en una línea."""
     sel = {"H": "el local", "D": "el empate", "A": "la visita", "1": "el local", "X": "el empate", "2": "la visita"}
     s = sel.get(o.get("sel") or o.get("key"), "esta opción")
     e = f"{o['edge'] * 100:+.1f}%".replace(".", ",")
     return (f"{o['book']} paga {o['odds']:.2f} por {s}; el precio justo de Pinnacle es {1 / o['p_fair']:.2f} "
-            f"({o['p_fair']:.0%}). Ventaja {e} → apuesta {o['stake']:.1%} del bankroll (¼ de Kelly).")
+            f"({o['p_fair']:.0%}). Ventaja {e} → apuesta {o['stake']:.1%} del bankroll (¼ de Kelly).{drift_note(o)}")

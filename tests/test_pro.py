@@ -59,3 +59,28 @@ def test_official_ledger_pro_bets_places_once_settles_and_measures_clv():
     assert rec["bank"] == pytest.approx(100 * (1 + 0.02 * 1.25))
     item = rec["items"][0]
     assert item["clv"] == pytest.approx(2.25 * pro.fair_1x2({"Pinnacle": {"H": 1.9, "D": 3.7, "A": 4.6}})[0] - 1)
+
+
+def test_odds_drift_uses_only_pre_kickoff_snapshots_and_reads_steam():
+    from footy.data import load_odds_drift
+
+    conn = connect(":memory:")
+    repo.sync_competitions(conn)
+    comp = repo.competition_id(conn, "CHL")
+    h = repo.resolve_team(conn, "x", "A", "A", "Chile")
+    a = repo.resolve_team(conn, "x", "B", "B", "Chile")
+    mid = repo.upsert_match(conn, source="x", source_match_id="1", competition_id=comp, season="2026",
+                            kickoff_utc="2026-10-10T20:00:00Z", home_team_id=h, away_team_id=a, status="scheduled")
+    snap = lambda price, at: {"match_id": mid, "source": "api_football", "bookmaker": "Pinnacle", "market": "1X2",  # noqa: E731
+                              "line": 0, "selection": "H", "price": price, "captured_at": at, "is_closing": 0}
+    repo.insert_odds(conn, [snap(2.20, "2026-10-09T10:00:00Z"), snap(2.05, "2026-10-10T12:00:00Z"),
+                            snap(1.50, "2026-10-10T21:00:00Z")])                  # posterior al inicio: se ignora
+    d = load_odds_drift(conn, [mid])
+    assert len(d) == 1 and d.loc[0, "first"] == 2.20 and d.loc[0, "last"] == 2.05 and d.loc[0, "n"] == 2
+    assert d.loc[0, "drift"] == pytest.approx(2.05 / 2.20 - 1)
+    assert load_odds_drift(conn, []).empty
+    assert pro.steam(-0.068) == "a_favor" and pro.steam(0.05) == "en_contra" and pro.steam(0.01) is None
+    o = {"book": "Bet365", "odds": 2.3, "p_fair": 0.48, "edge": 0.1, "stake": 0.02, "key": "1",
+         "drift": {"from": 2.2, "to": 2.05, "pct": -0.068, "n": 2, "signal": "a_favor"}}
+    assert "Pinnacle bajó de 2.20 a 2.05" in pro.reason(o)
+    assert "Ojo" in pro.reason({**o, "drift": {**o["drift"], "signal": "en_contra"}})

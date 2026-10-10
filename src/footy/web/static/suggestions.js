@@ -69,10 +69,13 @@ function drawCurrent(d) {
       <p class="sub" style="margin:10px 0 0">Una doble multiplica probabilidad y cuota: el valor sube, pero también la probabilidad de perder.</p></div>` : "";
 
   const minOdds = (c) => c.min_odds ?? (1 + r.min_edge) / c.p;
+  // Movimiento de Pinnacle desde nuestra primera captura: a favor (bajó) o en contra (subió); solo informativo.
+  const steamTag = (d) => (d && d.signal ? `<span class="steam ${d.signal}" title="Pinnacle ${num(d.from)} → ${num(d.to)}">${
+    d.signal === "a_favor" ? "▼ mercado a favor" : "▲ mercado en contra"} ${signed(d.pct)}</span>` : "");
   $("#sg-closest").innerHTML = d.closest.length ? `<table><thead><tr><th>Partido</th><th>Selección</th><th class="r">Prob.</th>
     <th class="r">Cuota</th><th class="r">Valor</th><th class="r">Cuota mínima</th><th></th></tr></thead><tbody>${d.closest.map((c) => `<tr>
     <td><div class="mt">${matchTag(c, 18)}</div><div style="color:var(--muted);font-size:12px">${leagueLogo(c.league, 12)} ${fmtDate(c.kickoff)}</div></td>
-    <td>${esc(c.label)}</td><td class="r">${pct(c.p)}</td><td class="r">${num(c.odds)}</td>
+    <td>${esc(c.label)}${steamTag(c.drift)}</td><td class="r">${pct(c.p)}</td><td class="r">${num(c.odds)}</td>
     <td class="r">${vchip(c.verdict, signed(c.ev))}</td><td class="r"><b>${num(minOdds(c))}</b></td>
     <td class="r"><button class="add" data-ref="${esc(c.ref)}" data-keys="${c.key}">+</button></td></tr>`).join("")}</tbody></table>`
     : `<div class="empty">Sin partidos con cuotas en los próximos días.</div>`;

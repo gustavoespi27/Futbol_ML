@@ -207,6 +207,8 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
     from footy.betting.suggestions import verdict
 
     pro_opps = {o["key"]: o for o in pro.evaluate(odds["1X2"])}
+    if pro_opps and ref.startswith("m:"):
+        _attach_drift(pro_opps, int(ref[2:]))
     for o in combos.options(M):
         bo = oo.get(o["key"])
         po = pro_opps.get(o["key"])
@@ -231,6 +233,18 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
                 "odds_1x2": {b: [round(float(x), 2) for x in v] for b, v in books.items() if b in DISPLAY_BOOKS},
                 "_M": M})
     return ctx
+
+
+def _attach_drift(pro_opps: dict, match_id: int) -> None:
+    """Movimiento de la cuota de Pinnacle de cada selección desde nuestra primera captura (si hay dos o más)."""
+    from footy.data import load_odds_drift
+
+    d = load_odds_drift(connect(), [match_id], books=(pro.SHARP,))
+    for r in d.itertuples(index=False):
+        o = pro_opps.get(pro.KEYS.get(r.selection))
+        if o is not None:
+            o["drift"] = {"from": round(float(r.first), 3), "to": round(float(r.last), 3),
+                          "pct": round(float(r.drift), 4), "n": int(r.n), "signal": pro.steam(float(r.drift))}
 
 
 def _form(r: dict | None) -> dict | None:

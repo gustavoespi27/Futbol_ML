@@ -118,3 +118,34 @@ def load_ou_closing(conn: sqlite3.Connection, match_ids) -> pd.DataFrame:
     for sel in ("OVER", "UNDER"):
         out[f"b365_{sel.lower()}"] = wide[("Bet365", sel)] if ("Bet365", sel) in wide else np.nan
     return out.dropna(subset=["p_over"])
+
+
+DRIFT_BOOKS = ("Pinnacle", "Bet365")
+
+
+def load_odds_drift(conn: sqlite3.Connection, match_ids, books=DRIFT_BOOKS) -> pd.DataFrame:
+    """Movimiento de la cuota 1X2 entre el primer y el último snapshot PRE-partido (captured_at < kickoff).
+
+    Una fila por partido, casa y selección con al menos dos snapshots: first, last, n y drift = last / first − 1
+    (negativo = la cuota bajó: el mercado se volcó hacia esa selección)."""
+    cols = ["match_id", "bookmaker", "selection", "first", "last", "n", "drift"]
+    ids = [int(i) for i in match_ids]
+    if not ids:
+        return pd.DataFrame(columns=cols)
+    parts = []
+    for k in range(0, len(ids), OU_CHUNK):
+        part = ids[k:k + OU_CHUNK]
+        parts.append(pd.read_sql_query(
+            f"""SELECT o.match_id, o.bookmaker, o.selection, o.price, o.captured_at FROM odds o
+                JOIN matches m ON m.id = o.match_id
+                WHERE o.market = '1X2' AND o.is_closing = 0 AND o.captured_at < m.kickoff_utc
+                  AND o.bookmaker IN ({",".join("?" * len(books))})
+                  AND o.match_id IN ({",".join("?" * len(part))})""", conn, params=[*books, *part]))
+    o = pd.concat(parts, ignore_index=True).sort_values("captured_at")
+    if o.empty:
+        return pd.DataFrame(columns=cols)
+    g = o.groupby(["match_id", "bookmaker", "selection"]).price
+    out = pd.DataFrame({"first": g.first(), "last": g.last(), "n": g.size()}).reset_index()
+    out = out[out.n >= 2]
+    out["drift"] = out["last"] / out["first"] - 1
+    return out[cols].reset_index(drop=True)

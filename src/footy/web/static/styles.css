@@ -850,3 +850,8 @@ details.mx .opt-table .vchip { white-space: nowrap; }
   100% { transform: scale(1); box-shadow: 0 0 0 10px transparent; }
 }
 @media (prefers-reduced-motion: reduce) { .sel-row.enter, .badge.pulse { animation: none; } }
+
+/* movimiento de la cuota de Pinnacle (informativo) */
+.steam { display: inline-block; margin-left: 6px; font: 600 10.5px/1.6 var(--font-mono); padding: 0 6px; border-radius: 999px; white-space: nowrap; }
+.steam.a_favor { color: var(--good); background: var(--good-bg); }
+.steam.en_contra { color: var(--warn); background: var(--warn-bg); }
