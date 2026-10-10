@@ -256,7 +256,7 @@ function mountQuickChips(root, { list, catalog, picker, getSel, onPick }) {
     const sel = getSel();
     root.innerHTML = `<span class="qc-label">${today.length ? "Hoy" : "Próximos días"}</span>${top.map((c) => `
       <button type="button" class="qchip ${sel.type === "league" && sel.code === c ? "on" : ""}" data-c="${esc(c)}">
-        ${leagueLogo(c, 16)}<span>${esc(name(c))}</span><b>${counts[c]}</b></button>`).join("")}
+        ${leagueLogo(c, 16)}<span>${esc(name(c))}</span></button>`).join("")}
       <button type="button" class="qchip more">+ Buscar entre ${nLeagues} ligas…</button>`;
   };
   root.onclick = (e) => {

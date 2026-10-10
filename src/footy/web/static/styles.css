@@ -865,10 +865,8 @@ details.mx .opt-table .vchip { white-space: nowrap; }
   border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font: 600 12.5px/1.2 var(--font-body);
   transition: border-color .15s, background .15s, color .15s;
 }
-.qchip b { font: 700 11px/1 var(--font-mono); color: var(--muted); }
 .qchip:hover { border-color: var(--accent); color: var(--text); }
 .qchip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-.qchip.on b { color: rgba(255, 255, 255, .8); }
 .qchip.more { border-style: dashed; color: var(--accent); }
 .lp-item.dim .lp-cnt { font-size: 10.5px; }
 .empty-action.alt { background: transparent; color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
