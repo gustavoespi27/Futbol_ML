@@ -82,8 +82,11 @@ def test_odds_rows_parses_markets():
                    ("OU", 2.5, "OVER"): 2.05, ("OU", 2.5, "UNDER"): 1.80, ("BTTS", 0.0, "YES"): 1.95}
 
 
-def test_international_backfill_creates_national_teams_once(conn):
+def test_international_backfill_creates_national_teams_once(conn, monkeypatch):
+    from footy import config
     from footy.ingest.collect import backfill_pending
+
+    monkeypatch.setitem(config.settings()["api_football"], "backfill", [["WC", 2022], ["EURO", 2024], ["COPA", 2024]])
 
     class FakeClient:
         calls = 0
