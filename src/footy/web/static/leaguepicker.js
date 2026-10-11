@@ -288,7 +288,11 @@ function mountDateFilter(root, opts) {
   const draw = () => {
     const btn = (type, label) => {
       const n = count({ type });
-      return `<button type="button" class="df-btn ${sel.type === type ? "on" : ""}" data-t="${type}" ${n || type === "all" ? "" : "disabled"}>${label}<span>${n}</span></button>`;
+      // API-Football (plan gratuito) solo entrega el calendario hasta mañana: pasado mañana vacío significa
+      // "aún no descargado", no "sin partidos".
+      const pending = type === "after" && !n;
+      const tip = pending ? ' title="El calendario de este día llega con la actualización de mañana (la API gratuita solo entrega hasta mañana)"' : "";
+      return `<button type="button" class="df-btn ${sel.type === type ? "on" : ""}" data-t="${type}" ${n || type === "all" ? "" : "disabled"}${tip}>${label}<span>${pending ? "—" : n}</span></button>`;
     };
     root.innerHTML = `<div class="df">${btn("all", "Todos")}${btn("today", "Hoy")}${btn("tomorrow", "Mañana")}${btn("after", after[0].toUpperCase() + after.slice(1))}</div>`;
   };
