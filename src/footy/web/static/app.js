@@ -449,6 +449,18 @@ function matchGroups(list) {
     <div class="lg-cols"><span>Hora</span><span>Partido</span><span>1</span><span>X</span><span>2</span><span>Mejor opción</span><span></span></div>
     ${ms.map(matchRow).join("")}</div>`).join("");
 }
+// Fase de copa en español: "League Stage - 3" -> "Fase liga · J3", "Round of 16" -> "Octavos"...
+const STAGES = [
+  [/^League Stage - (\d+)/i, "Fase liga · J$1"], [/^Group Stage - (\d+)/i, "Grupos · J$1"], [/^Group (\w+)/i, "Grupo $1"],
+  [/^Knockout Round Play-offs/i, "Playoff"], [/^Round of 32/i, "Dieciseisavos"], [/^Round of 16/i, "Octavos"],
+  [/^8th Finals/i, "Octavos"], [/^Quarter-finals/i, "Cuartos"], [/^Semi-finals/i, "Semifinal"], [/^Final$/i, "Final"],
+  [/^(\d)\w* Qualifying Round/i, "Clasificación · R$1"], [/^Play-offs/i, "Repechaje"], [/^Preliminary Round/i, "Ronda previa"],
+];
+function stageLabel(round) {
+  if (!round) return "";
+  const hit = STAGES.find(([re]) => re.test(round));
+  return hit ? round.replace(hit[0], hit[1]).replace(/ - .*$/, "") : round;
+}
 function matchRow(m) {
   const p = m.p_official;
   const ops = Object.fromEntries((m.options || []).map((o) => [o.key, o]));
@@ -470,7 +482,7 @@ function matchRow(m) {
   const best = bestOption(m);
   const tag = (id, name, isFav) => `<span class="team ${isFav ? "fav" : ""}">${teamLogo(id, name, 20)}<span>${esc(name)}</span></span>`;
   return `<div class="mrow" data-ref="${esc(m.ref)}">
-    <div class="time"><b>${time}</b><span>${esc(day)}</span></div>
+    <div class="time"><b>${time}</b><span>${esc(day)}</span>${m.round ? `<em class="stage">${esc(stageLabel(m.round))}</em>` : ""}</div>
     <div class="tm">${tag(m.home_id, m.home, fav === 0)}${tag(m.away_id, m.away, fav === 2)}</div>
     ${cell("1", 0, "--home")}${cell("X", 1, "--draw")}${cell("2", 2, "--away")}
     <div class="best">${best ? `${evBadge(best) || vchip(best.verdict)}<span>${esc(best.label)} · ${num(best.odds)}</span>` : `<span>${m.stale ? "datos atrasados" : "sin cuotas aún"}</span>`}</div>

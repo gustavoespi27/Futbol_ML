@@ -36,11 +36,18 @@ FULL = {**BASE, "market_book": "Pinnacle", "home_id": 1, "away_id": 2, "source":
         "recent": {"home": ["W", "D", "L", "W", "W"], "away": ["L", "L", "D"]}}
 NO_DATA = {**BASE, "market_book": None, "home_id": None, "away_id": None, "source": "sin datos", "p_official": None,
            "options": [], "suggestions": [], "recommendation": {"bet": False, "text": "Sin modelo validado ni cuotas"}}
+# Copa sin modelo propio (Champions): probabilidad del mercado (Pinnacle sin margen) y la fase de la copa.
+MARKET = {**BASE, "league": "UCL", "league_name": "UEFA Champions League", "market_book": "Pinnacle", "home_id": 1,
+          "away_id": 2, "source": "mercado", "p_market": [0.45, 0.27, 0.28], "xg": [1.5, 1.2],
+          "recommendation": {"bet": False, "text": "Sin modelo validado en esta liga"}, "pro": [], "has_sharp": False,
+          "p_official": [0.45, 0.27, 0.28], "over25": 0.56, "btts": 0.54, "top_scores": [["1-1", 0.12]],
+          "options": [], "suggestions": [], "odds_1x2": {"Pinnacle": [2.15, 3.6, 3.45]}, "round": "League Stage - 3"}
 ERROR = {**BASE, "source": "error", "error": "equipo sin historial", "options": [], "suggestions": [],
          "recommendation": {"bet": False, "text": "equipo sin historial"}}
 
 
-@pytest.mark.parametrize("match", [FULL, NO_DATA, ERROR], ids=["modelo+mercado", "sin datos", "error"])
+@pytest.mark.parametrize("match", [FULL, MARKET, NO_DATA, ERROR], ids=["modelo+mercado", "mercado", "sin datos",
+                                                                        "error"])
 def test_upcoming_match_shapes_roundtrip_unchanged(match):
     assert roundtrip(list[s.MatchSummary], [match]) == [match]          # sin campos agregados (null) ni perdidos
 
@@ -73,3 +80,15 @@ def test_contract_rejects_unknown_or_missing_fields():
         s.LeagueCatalogItem.model_validate({**item, "nuevo": 1})        # campo no declarado en el contrato
     with pytest.raises(ValidationError):
         s.LeagueCatalogItem.model_validate({k: v for k, v in item.items() if k != "continent"})
+
+
+def test_cup_without_model_uses_pinnacle_fair_price():
+    from footy.web.services.context import _build_context
+
+    odds = {"1X2": {"Pinnacle": {"H": 2.15, "D": 3.6, "A": 3.45}, "Bet365": {"H": 2.4, "D": 3.4, "A": 3.0}},
+            "OU": {}, "BTTS": {}}
+    ctx = _build_context("s:test", "UCL", "Real Madrid", "Paris SG", None, odds)
+    inv = [1 / 2.15, 1 / 3.6, 1 / 3.45]
+    assert ctx["source"] == "mercado" and ctx["market_book"] == "Pinnacle"
+    assert ctx["p_market"] == pytest.approx([x / sum(inv) for x in inv], abs=1e-3)   # sin margen, nunca del modelo
+    assert ctx["has_sharp"] and ctx["recommendation"]["bet"] is False

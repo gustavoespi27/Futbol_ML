@@ -272,14 +272,18 @@ def _cached_context(ref: str, build) -> dict:
 def match_context(conn, match_id: int) -> dict:
     def build():
         r = conn.execute(
-            """SELECT m.id, c.code, m.kickoff_utc, m.home_team_id, m.away_team_id, th.name AS home, ta.name AS away
+            """SELECT m.id, c.code, c.type, m.round, m.kickoff_utc, m.home_team_id, m.away_team_id,
+                      th.name AS home, ta.name AS away
                FROM matches m JOIN competitions c ON c.id = m.competition_id
                JOIN teams th ON th.id = m.home_team_id JOIN teams ta ON ta.id = m.away_team_id WHERE m.id = ?""",
             (match_id,)).fetchone()
         if r is None:
             raise KeyError(f"Partido {match_id} no encontrado")
-        return _build_context(f"m:{match_id}", r["code"], r["home"], r["away"], r["kickoff_utc"],
-                              tracking.latest_market_odds(conn, match_id), r["home_team_id"], r["away_team_id"])
+        ctx = _build_context(f"m:{match_id}", r["code"], r["home"], r["away"], r["kickoff_utc"],
+                             tracking.latest_market_odds(conn, match_id), r["home_team_id"], r["away_team_id"])
+        if r["type"] == "cup" and r["round"]:          # fase de la copa (Champions: "League Stage - 3", "Final"...)
+            ctx["round"] = r["round"]
+        return ctx
     return _cached_context(f"m:{match_id}", build)
 
 
