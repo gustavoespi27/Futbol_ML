@@ -371,3 +371,37 @@ hasta tener datos para medirlo.
 clasificadores; 1X2, más/menos y ambos marcan salen de la misma matriz de marcadores (Dixon-Coles, rho ajustado en
 validación), así que son coherentes entre sí. Mejora el 1X2 y empata en los otros dos mercados. Sigue lejos del
 mercado (1,0034): el sistema mantiene la combinación con las cuotas.
+
+## 2026-10-11 — Champions League y uso de la cuota de API-Football
+
+**Límites reverificados del plan gratuito.** `fixtures?ids=` (detalles de hasta 20 partidos por petición) responde
+"Free plans do not have access to the Ids parameter" y `odds?league=…&season=2026` responde "Free plans do not have
+access to this season". Las dos optimizaciones por lote quedan descartadas: se sigue con una petición por partido.
+
+**Dónde se iba la cuota.** De ~95 peticiones diarias, ~55 eran detalles (`fixtures?id=`). De los detalles los modelos
+solo usan los tiros, y las 22 ligas "main" de football-data ya los traen en su CSV: ya no se piden ahí. Solo 2 de 71
+peticiones de cuotas volvieron vacías, así que no se agrega lógica para saltarlas.
+
+**Las tres corridas comparten cuota.** La cuota se renueva a las 00:00 UTC, así que las corridas de 21:15 (00:15 UTC),
+10:00 y 17:30 (Chile) caen en el mismo día UTC. La de 21:15 gastaba el sobrante en detalles y la de 17:30 quedaba sin
+cuota justo para las cuotas cercanas al cierre y los resultados del día. Ahora, antes de las 18 UTC, los detalles
+dejan 35 peticiones libres (`keep_for_later_runs`, `keep_until_utc_hour`). Además, el calendario por fecha se pide en
+orden de valor (hoy, ayer solo si le faltan resultados, mañana): antes se gastaba en la fecha de ayer ya completa y,
+sin cuota, no alcanzaba para la de hoy.
+
+**Champions, Europa League y Conference.** Ya estaban configuradas, pero sin partidos ni historial. Se carga
+2022-2024 de las tres (9 peticiones, 3 por corrida); sirven para descanso y congestión de las ligas domésticas y para
+estimar la fuerza relativa de cada liga. Los clubes de una copa internacional se vinculan con su equipo de liga
+(nombre idéntico primero, luego emparejamiento tolerante entre todas las ligas seguidas); sin candidato único se
+crean con país `unknown`. Al probarlo apareció un error previo: el id de API del PSG (85) estaba vinculado a Paris FC,
+y el PSG–Le Mans del 10/10 se había guardado como partido de Paris FC. Se corrigió en la base.
+
+**Probabilidad en copas sin modelo (etapa 1).** Elo y Dixon-Coles se ajustan por liga y no comparan equipos de ligas
+distintas. Mientras no haya un modelo entre ligas, la Champions usa el precio de Pinnacle sin margen (el mismo camino
+de cualquier liga sin modelo) y el motor pro busca valor de otras casas contra él. El simulador no la ofrece. Etapa 2
+(pendiente): Elo global por club con ajuste de fuerza por liga, estimado con los cruces europeos 2022-2024 y validado
+walk-forward sobre 2024.
+
+**Horizonte del dashboard.** La API gratuita no entrega calendario más allá de mañana, así que el filtro "pasado
+mañana" casi siempre quedaba en 0. Se reemplaza por **Ayer** (solo en Partidos): resultados y el pronóstico 1X2
+registrado antes del inicio (nunca uno posterior), sin sumar en Todos.

@@ -111,7 +111,9 @@ mañana** (hora de Chile).
   sección *Equipos* con escudo y liga, filtros por continente y país, y ligas sin partidos atenuadas (si tienen
   modelo, el estado vacío ofrece abrir el simulador de esa liga).
 - **Accesos rápidos:** chips con las 5 ligas más populares que juegan hoy y un acceso al buscador completo.
-- **Filtro por día:** Todos, Hoy, Mañana y pasado mañana, con la cantidad de partidos de cada uno.
+- **Filtro por día:** Todos, Hoy y Mañana, con la cantidad de partidos de cada uno. En Partidos, **Ayer** muestra
+  los resultados del día anterior y si acertó el pronóstico que el sistema registró antes de cada partido (no
+  suma en Todos).
 - **Combinadas:** los partidos del boleto aparecen primero, resaltados con la etiqueta *En tu combinada*; el botón
   *↑ Tus partidos* vuelve a ellos desde cualquier punto de la lista. Cada selección del boleto es una fila propia,
   también si pertenece al mismo partido.
