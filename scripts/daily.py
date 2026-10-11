@@ -1,6 +1,7 @@
 """Tarea diaria completa (la ejecuta el Programador de tareas, ver scripts/register_task.ps1).
 
-1. API-Football: calendario, cuotas pre-partido y detalles (Chile, Argentina, Brasil).
+1. ESPN: calendario (7 días), horarios, resultados y tiros. API-Football: cuotas pre-partido, más calendario y
+   detalles de las ligas que ESPN no cubre.
 2. football-data.co.uk: resultados y cuotas de cierre de la temporada en curso (todas las ligas).
 3. Seguimiento: predicciones de los próximos partidos y apuestas sugeridas, registradas antes del kickoff.
 4. Informe docs/seguimiento.md y, si el dashboard está abierto, refresco de sus cachés.
@@ -19,7 +20,7 @@ from footy.db import repository as repo
 from footy.db.connection import connect
 from footy.ingest import football_data as fd
 from footy.ingest.api_football import ApiFootball
-from footy.ingest.collect import run_daily
+from footy.ingest.collect import run_daily, run_espn
 from footy.prediction import ml_predict, recalibration, tracking
 from footy.web import service
 
@@ -51,6 +52,7 @@ def main() -> int:
     repo.sync_competitions(conn)
     conn.commit()
     steps = [
+        ("espn", lambda: log.info("ESPN: %s", run_espn(conn))),
         ("api_football", lambda: log.info("Resumen API: %s", run_daily(conn, ApiFootball(conn)))),
         ("football_data", lambda: update_current_season(conn)),
         ("recalibrate", lambda: log.info("Recalibración: %s", recalibration.update(conn))),

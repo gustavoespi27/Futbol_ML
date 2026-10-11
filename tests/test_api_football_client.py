@@ -144,10 +144,11 @@ def test_collect_odds_keeps_low_budget_for_priority_one_matches_soon(conn, caplo
     assert sorted(p["fixture"] for _, p in c2.session.calls) == ["100", "101", "102"]
 
 
-def test_details_only_for_leagues_without_shots_in_football_data():
+def test_details_only_for_leagues_without_shots_in_football_data_or_espn():
     from footy.ingest import collect, football_data
     codes = collect.detail_codes()
-    assert "CHL" in codes                                          # sin CSV: los tiros vienen de la API
+    assert "POL" in codes                                          # sin CSV ni ESPN: los tiros vienen de la API
+    assert "CHL" not in codes and "CHL" in collect.espn_stat_codes()   # ESPN los entrega sin cuota
     assert not set(codes) & set(football_data.leagues()["main"])   # el CSV "main" ya trae los tiros
 
 

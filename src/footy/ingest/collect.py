@@ -97,9 +97,33 @@ def collect_odds(client: ApiFootball, conn: sqlite3.Connection, horizon_hours: f
 
 def detail_codes() -> list[str]:
     """Ligas donde /fixtures?id= aporta algo: de los detalles los modelos solo usan los tiros, y las ligas "main" de
-    football-data ya los traen en su CSV (pedirlos ahí gasta una petición por partido sin ganar nada)."""
+    football-data ya los traen en su CSV (pedirlos ahí gasta una petición por partido sin ganar nada). Las ligas con
+    slug de ESPN los sacan de ESPN, sin cuota."""
     with_shots = set(fd.leagues()["main"])
-    return [c for c, v in config.settings()["competitions"].items() if v["type"] == "league" and c not in with_shots]
+    return [c for c, v in config.settings()["competitions"].items()
+            if v["type"] == "league" and c not in with_shots and not v.get("espn")]
+
+
+def espn_stat_codes() -> list[str]:
+    """Ligas cuyos tiros se piden a ESPN: con slug y sin CSV "main" de football-data."""
+    with_shots = set(fd.leagues()["main"])
+    return [c for c, v in config.settings()["competitions"].items()
+            if v["type"] == "league" and c not in with_shots and v.get("espn")]
+
+
+def run_espn(conn: sqlite3.Connection, client=None) -> dict:
+    """Calendario (hace 2 días a 7 días más), resultados y tiros desde ESPN. Si ESPN no responde, lo registra y la
+    tarea sigue: API-Football mantiene el calendario por fecha como respaldo."""
+    from footy.ingest import espn
+
+    client = client or espn.Espn()
+    try:
+        summary = espn.sync_calendar(conn, client)
+        summary["stats"] = espn.fetch_stats(conn, client, espn_stat_codes())
+    except espn.EspnUnavailable as e:
+        log.warning("ESPN no disponible: %s", e)
+        summary = {"stopped": "espn_no_disponible"}
+    return summary
 
 
 def collect_details(client: ApiFootball, conn: sqlite3.Connection, codes: list[str] | None = None,
