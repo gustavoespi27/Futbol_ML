@@ -271,27 +271,30 @@ function mountQuickChips(root, { list, catalog, picker, getSel, onPick }) {
   return { sync: draw };
 }
 
-/* ---------- filtro por día (próximos partidos de hoy y mañana; ayer, aparte, con sus resultados) ---------- */
-// Selección: { type: "all" | "yesterday" | "today" | "tomorrow" } (días en hora local).
+/* ---------- filtro por día (próximos partidos de hoy y mañana; ayer y jugados hoy, aparte, con resultados) ---------- */
+// Selección: { type: "all" | "yesterday" | "played" | "today" | "tomorrow" } (días en hora local).
 const localDay = (d) => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`; };
 const dayOffset = (n) => { const t = new Date(); t.setDate(t.getDate() + n); return localDay(t); };
 function dateSelMatch(sel, kickoff) {
   if (!sel || sel.type === "all") return true;
-  const n = { yesterday: -1, today: 0, tomorrow: 1 }[sel.type];
+  const n = { yesterday: -1, played: 0, today: 0, tomorrow: 1 }[sel.type];
   return localDay(kickoff) === dayOffset(n);
 }
 function mountDateFilter(root, opts) {
   const list = opts.list || [];
   let sel = opts.value || { type: "all" };
-  // Ayer (opts.past: partidos ya jugados) solo aparece donde se pasa esa lista, y no suma en "Todos".
-  const past = opts.past || null;
-  const count = (s) => (s.type === "yesterday" ? past : list).filter((m) => dateSelMatch(s, m.kickoff)).length;
+  // Ayer y Jugados hoy (opts.past / opts.played: partidos ya empezados) solo aparecen donde se pasan esas listas y
+  // no suman en "Todos", que cuenta solo los partidos por jugar.
+  const source = { yesterday: opts.past, played: opts.played };
+  const count = (s) => (source[s.type] || list).filter((m) => dateSelMatch(s, m.kickoff)).length;
   const draw = () => {
-    const btn = (type, label) => {
+    const btn = (type, label, extra = "") => {
       const n = count({ type });
-      return `<button type="button" class="df-btn ${sel.type === type ? "on" : ""}" data-t="${type}" ${n || type === "all" ? "" : "disabled"}>${label}<span>${n}</span></button>`;
+      return `<button type="button" class="df-btn ${sel.type === type ? "on" : ""}" data-t="${type}" ${n || type === "all" ? "" : "disabled"}>${extra}${label}<span>${n}</span></button>`;
     };
-    root.innerHTML = `<div class="df">${btn("all", "Todos")}${past ? btn("yesterday", "Ayer") : ""}${btn("today", "Hoy")}${btn("tomorrow", "Mañana")}</div>`;
+    const live = (opts.played || []).some((m) => m.status === "live");
+    root.innerHTML = `<div class="df">${btn("all", "Todos")}${opts.past ? btn("yesterday", "Ayer") : ""}${opts.played
+      ? btn("played", "Jugados hoy", live ? '<i class="live-dot" title="Hay partidos en juego"></i>' : "") : ""}${btn("today", "Hoy")}${btn("tomorrow", "Mañana")}</div>`;
   };
   root.onclick = (e) => {
     const b = e.target.closest(".df-btn"); if (!b || b.disabled) return;

@@ -118,8 +118,20 @@ def test_yesterday_results_use_only_predictions_made_before_kickoff(monkeypatch)
     for created, probs in ((noon - timedelta(hours=3), (0.5, 0.3, 0.2)), (noon + timedelta(hours=1), (0.1, 0.2, 0.7))):
         conn.execute("INSERT INTO predictions (match_id, model_version, created_at, p_home, p_draw, p_away) "
                      "VALUES (?, 'v', ?, ?, ?, ?)", (mid, repo.to_iso(created), *probs))
-    out = context.day_results()
+    day = context.played("yesterday")
+    out = day["matches"]
     assert [r["ref"] for r in out] == [f"m:{mid}"] and cup != mid      # la copa solo-historial no se muestra
-    assert out[0]["score"] == [2, 0]
+    assert out[0]["score"] == [2, 0] and out[0]["status"] == "finished"
     assert out[0]["pick"] == {"sel": "1", "p": 0.5, "hit": True}       # la predicción posterior al inicio no cuenta
-    assert roundtrip(list[s.MatchResult], out) == out
+    assert roundtrip(s.PlayedDay, day) == day
+
+
+def test_play_status_from_stale_database():
+    from datetime import datetime, timezone
+
+    from footy.web.services.context import _play_status
+    now = datetime(2026, 10, 11, 22, 0, tzinfo=timezone.utc)
+    assert _play_status("finished", True, "2026-10-11T19:00:00Z", now) == "finished"
+    assert _play_status("scheduled", False, "2026-10-11T21:00:00Z", now) == "live"     # empezó hace 1 h
+    assert _play_status("live", False, "2026-10-11T18:00:00Z", now) == "pending"       # ya debió terminar
+    assert _play_status("postponed", False, "2026-10-11T21:00:00Z", now) == "postponed"

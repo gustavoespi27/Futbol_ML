@@ -27,7 +27,7 @@ class LeagueCatalogItem(Schema):
     model: bool = Field(description="Tiene modelo validado: se puede usar en el simulador")
 
 
-# --- /api/yesterday ------------------------------------------------------------------
+# --- /api/results ---------------------------------------------------------------------
 
 class ResultPick(Schema):
     sel: str = Field(description="1 | X | 2: el resultado más probable según el sistema antes del partido")
@@ -36,7 +36,7 @@ class ResultPick(Schema):
 
 
 class MatchResult(Schema):
-    """Un partido de ayer con su resultado y el pronóstico registrado antes del inicio (si lo hubo)."""
+    """Un partido ya jugado (o en juego) con su resultado y el pronóstico registrado antes del inicio (si lo hubo)."""
     ref: str
     league: str
     league_name: str
@@ -45,10 +45,15 @@ class MatchResult(Schema):
     home_id: int | None
     away_id: int | None
     kickoff: str
-    status: str = Field(description="finished | scheduled | live | postponed | cancelled")
+    status: str = Field(description="finished | live | pending (sin resultado aún) | postponed | cancelled")
     score: list[int] | None = Field(None, description="[local, visita], solo si terminó")
     round: str | None = None
     pick: ResultPick | None = None
+
+
+class PlayedDay(Schema):
+    updated_at: str | None = Field(description="Última descarga del calendario (UTC): estados y marcadores son de ahí")
+    matches: list[MatchResult]
 
 
 # --- /api/tracking -------------------------------------------------------------------

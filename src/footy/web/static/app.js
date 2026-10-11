@@ -413,20 +413,23 @@ async function renderHome() {
 /* ---------- PRÓXIMOS PARTIDOS ---------- */
 let matchSel = { type: "all" }, matchDate = { type: "all" };
 async function renderMatches() {
-  // Los resultados de ayer son opcionales: si fallan, la vista sigue con los próximos partidos.
-  const [list, catalog, past] = await Promise.all([api("/api/upcoming"), leagueCatalog(), api("/api/yesterday").catch(() => [])]);
+  // Los partidos ya jugados (ayer y hoy) son opcionales: si fallan, la vista sigue con los próximos partidos.
+  const none = { updated_at: null, matches: [] };
+  const [list, catalog, past, today] = await Promise.all([api("/api/upcoming"), leagueCatalog(),
+    api("/api/results?day=yesterday").catch(() => none), api("/api/results?day=today").catch(() => none)]);
   const byRef = Object.fromEntries(list.map((m) => [m.ref, m]));
   const draw = () => {
-    const isPast = matchDate.type === "yesterday";
-    const shown = (isPast ? past : list).filter((m) => leagueSelMatch(matchSel, m, catalog) && dateSelMatch(matchDate, m.kickoff));
+    const done = { yesterday: past, played: today }[matchDate.type];
+    const shown = (done ? done.matches : list).filter((m) => leagueSelMatch(matchSel, m, catalog) && dateSelMatch(matchDate, m.kickoff));
     if (chips) chips.sync();
     if (!shown.length) return emptyMatches($("#matches"), isFiltered(matchSel, matchDate), reset, matchSel, catalog);
-    $("#matches").innerHTML = isPast ? resultGroups(shown) : matchGroups(shown);
+    $("#matches").innerHTML = done ? resultsNote(done.updated_at) + resultGroups(shown) : matchGroups(shown);
   };
   let chips = null;
   const mount = async () => {
     const picker = await mountLeaguePicker($("#league-filter"), { value: matchSel, onChange: (s) => { matchSel = s; draw(); } });
-    mountDateFilter($("#match-date"), { list, past, value: matchDate, onChange: (s) => { matchDate = s; draw(); } });
+    mountDateFilter($("#match-date"), { list, past: past.matches, played: today.matches, value: matchDate,
+      onChange: (s) => { matchDate = s; draw(); } });
     chips = mountQuickChips($("#match-chips"), { list, catalog, picker, getSel: () => matchSel,
       onPick: (s) => { matchSel = s; draw(); } });
   };
@@ -463,8 +466,13 @@ function stageLabel(round) {
   const hit = STAGES.find(([re]) => re.test(round));
   return hit ? round.replace(hit[0], hit[1]).replace(/ - .*$/, "") : round;
 }
-// Resultados de ayer: marcador y el pronóstico 1X2 que el sistema registró antes del partido (acertó o falló).
-const RESULT_STATUS = { scheduled: "sin resultado aún", live: "en juego", postponed: "postergado", cancelled: "cancelado" };
+// Partidos ya jugados: marcador y el pronóstico 1X2 que el sistema registró antes del partido (acertó o falló).
+const RESULT_STATUS = { pending: "esperando resultado", live: "en juego", postponed: "postergado", cancelled: "cancelado" };
+// Los estados vienen de la última descarga del calendario (tarea diaria), no de un marcador en vivo.
+function resultsNote(updated) {
+  const t = updated ? new Intl.DateTimeFormat("es-CL", { weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(updated)) : "–";
+  return `<p class="res-note">Resultados actualizados el ${esc(t)} · se renuevan a las 10:00, 17:30 y 21:15</p>`;
+}
 function resultGroups(list) {
   const groups = new Map();
   list.forEach((m) => { if (!groups.has(m.league)) groups.set(m.league, []); groups.get(m.league).push(m); });
@@ -493,7 +501,7 @@ function resultRow(m) {
   return `<div class="rrow">
     <div class="time"><b>${time}</b>${m.round ? `<em class="stage">${esc(stageLabel(m.round))}</em>` : ""}</div>
     <div class="tm">${tag(m.home_id, m.home, win === 0)}${tag(m.away_id, m.away, win === 2)}</div>
-    <div class="score">${s ? `<b>${s[0]}</b><b>${s[1]}</b>` : `<span>${RESULT_STATUS[m.status] || esc(m.status)}</span>`}</div>
+    <div class="score">${s ? `<b>${s[0]}</b><b>${s[1]}</b>` : `<span class="st-${esc(m.status)}">${m.status === "live" ? '<i class="live-dot"></i>' : ""}${RESULT_STATUS[m.status] || esc(m.status)}</span>`}</div>
     <div class="rp">${pick}</div>
   </div>`;
 }

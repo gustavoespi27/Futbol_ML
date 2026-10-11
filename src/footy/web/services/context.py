@@ -381,17 +381,46 @@ def _upcoming(days: int) -> list[dict]:
     return out
 
 
-# --- resultados de ayer ------------------------------------------------------
+# --- partidos ya jugados (ayer y hoy) ----------------------------------------
+
+LIVE_WINDOW = timedelta(minutes=135)    # 90' + descanso + descuentos: después de esto ya debería haber terminado
 
 def _hidden_codes() -> list[str]:
     return [c for c, v in config.settings()["competitions"].items() if v.get("history_only")]
 
 
-def day_results(offset: int = -1) -> list[dict]:
-    """Partidos de un día local pasado (ayer por defecto) con su resultado y el pronóstico 1X2 que el sistema registró
-    antes del inicio (el último de `predictions` anterior al kickoff; nunca uno posterior), para ver si acertó."""
+def _play_status(status: str, has_score: bool, kickoff: str, now: datetime) -> str:
+    """Estado para mostrar. La base solo se actualiza con cada corrida de la tarea diaria: un partido que ya empezó
+    y sigue como programado está en juego si empezó hace menos de LIVE_WINDOW y, si no, esperando su resultado."""
+    if status == "finished" and has_score:
+        return "finished"
+    if status in ("postponed", "cancelled"):
+        return status
+    return "live" if now - repo.from_iso(kickoff) < LIVE_WINDOW else "pending"
+
+
+def last_fixtures_update(conn, start: datetime, end: datetime) -> str | None:
+    """Hora UTC de la última descarga correcta del calendario de las fechas UTC que cubren [start, end): de ahí salen
+    estados y resultados. Un día de Chile abarca dos fechas UTC; vale la más antigua de las dos."""
+    days = sorted({start.astimezone(timezone.utc).date(), (end - timedelta(seconds=1)).astimezone(timezone.utc).date()})
+    last = [conn.execute("""SELECT MAX(requested_at) FROM api_requests WHERE endpoint = 'fixtures' AND params = ?
+                            AND errors IS NULL""", (json.dumps({"date": d.isoformat()}),)).fetchone()[0] for d in days]
+    return None if None in last else min(last)
+
+
+def played(day: str = "yesterday") -> dict:
+    """Partidos ya jugados de ayer o de hoy (hora de Chile; hoy, solo los que ya empezaron) con su resultado y el
+    pronóstico 1X2 que el sistema registró antes del inicio (el último de `predictions` anterior al kickoff; nunca
+    uno posterior), para ver si acertó."""
     conn = connect()
-    start = datetime.combine(datetime.now(LOCAL_TZ).date() + timedelta(days=offset), datetime.min.time(), LOCAL_TZ)
+    now = datetime.now(timezone.utc)
+    start = datetime.combine(datetime.now(LOCAL_TZ).date() + timedelta(days={"yesterday": -1, "today": 0}[day]),
+                             datetime.min.time(), LOCAL_TZ)
+    end = min(start + timedelta(days=1), now + timedelta(seconds=1))
+    return {"updated_at": last_fixtures_update(conn, start, end), "matches": _played_rows(conn, start, end, now)}
+
+
+def _played_rows(conn, start: datetime, end: datetime, now: datetime) -> list[dict]:
     hidden = _hidden_codes()
     where_hidden = f"AND c.code NOT IN ({','.join('?' * len(hidden))})" if hidden else ""
     rows = conn.execute(
@@ -401,7 +430,7 @@ def day_results(offset: int = -1) -> list[dict]:
             JOIN teams th ON th.id = m.home_team_id JOIN teams ta ON ta.id = m.away_team_id
             WHERE m.kickoff_utc >= ? AND m.kickoff_utc < ? {where_hidden}
             ORDER BY m.kickoff_utc, m.id""",
-        (repo.to_iso(start), repo.to_iso(start + timedelta(days=1)), *hidden)).fetchall()
+        (repo.to_iso(start), repo.to_iso(end), *hidden)).fetchall()
     if not rows:
         return []
     marks = ",".join("?" * len(rows))
@@ -419,8 +448,9 @@ def day_results(offset: int = -1) -> list[dict]:
     for r in rows:
         item = {"ref": f"m:{r['id']}", "league": r["code"], "league_name": names.get(r["code"], r["code"]),
                 "home": r["home"], "away": r["away"], "home_id": r["home_team_id"], "away_id": r["away_team_id"],
-                "kickoff": r["kickoff_utc"], "status": r["status"]}
+                "kickoff": r["kickoff_utc"]}
         finished = r["status"] == "finished" and r["home_goals"] is not None
+        item["status"] = _play_status(r["status"], finished, r["kickoff_utc"], now)
         if finished:
             item["score"] = [r["home_goals"], r["away_goals"]]
         if r["type"] == "cup" and r["round"]:

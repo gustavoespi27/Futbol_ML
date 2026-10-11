@@ -5,6 +5,7 @@ import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
@@ -71,9 +72,9 @@ def upcoming():
     return cached("upcoming", 300, service.upcoming)
 
 
-@app.get("/api/yesterday", response_model=list[schemas.MatchResult], **TYPED)
-def yesterday():
-    return cached("yesterday", 300, service.day_results)
+@app.get("/api/results", response_model=schemas.PlayedDay, **TYPED)
+def results(day: Literal["yesterday", "today"] = "yesterday"):
+    return cached(f"results:{day}", 120, lambda: service.played(day))
 
 
 @app.get("/api/tracking", response_model=schemas.TrackingOverview, **TYPED)
