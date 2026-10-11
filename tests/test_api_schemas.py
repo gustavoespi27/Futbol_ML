@@ -92,3 +92,34 @@ def test_cup_without_model_uses_pinnacle_fair_price():
     assert ctx["source"] == "mercado" and ctx["market_book"] == "Pinnacle"
     assert ctx["p_market"] == pytest.approx([x / sum(inv) for x in inv], abs=1e-3)   # sin margen, nunca del modelo
     assert ctx["has_sharp"] and ctx["recommendation"]["bet"] is False
+
+
+def test_yesterday_results_use_only_predictions_made_before_kickoff(monkeypatch):
+    from datetime import datetime, timedelta
+
+    from footy.db import repository as repo
+    from footy.db.connection import connect
+    from footy.web.services import context
+
+    conn = connect(":memory:")
+    repo.sync_competitions(conn)
+    monkeypatch.setattr(context, "connect", lambda: conn)
+    noon = datetime.combine(datetime.now(context.LOCAL_TZ).date() - timedelta(days=1), datetime.min.time(),
+                            context.LOCAL_TZ) + timedelta(hours=12)
+    kickoff = repo.to_iso(noon)
+    home = repo.resolve_team(conn, "football_data", "Colo Colo", "Colo Colo", "Chile")
+    away = repo.resolve_team(conn, "football_data", "U Chile", "U Chile", "Chile")
+    mid = repo.upsert_match(conn, source="api_football", source_match_id="1", season="2026", status="finished",
+                            competition_id=repo.competition_id(conn, "CHL"), kickoff_utc=kickoff,
+                            home_team_id=home, away_team_id=away, home_goals=2, away_goals=0)
+    cup = repo.upsert_match(conn, source="api_football", source_match_id="2", season="2026", status="finished",
+                            competition_id=repo.competition_id(conn, "COPA_CHL"), kickoff_utc=kickoff,
+                            home_team_id=away, away_team_id=home, home_goals=1, away_goals=1)
+    for created, probs in ((noon - timedelta(hours=3), (0.5, 0.3, 0.2)), (noon + timedelta(hours=1), (0.1, 0.2, 0.7))):
+        conn.execute("INSERT INTO predictions (match_id, model_version, created_at, p_home, p_draw, p_away) "
+                     "VALUES (?, 'v', ?, ?, ?, ?)", (mid, repo.to_iso(created), *probs))
+    out = context.day_results()
+    assert [r["ref"] for r in out] == [f"m:{mid}"] and cup != mid      # la copa solo-historial no se muestra
+    assert out[0]["score"] == [2, 0]
+    assert out[0]["pick"] == {"sel": "1", "p": 0.5, "hit": True}       # la predicción posterior al inicio no cuenta
+    assert roundtrip(list[s.MatchResult], out) == out

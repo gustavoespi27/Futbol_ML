@@ -338,7 +338,7 @@ function renderComboHistory(h, nUpcoming) {
       cal ? `combinadas con ~${pct(cal.pred)} de probabilidad se acertaron el ${pct(cal.obs)}` : ""),
     stat("Dobles más probables", two ? pct(two.hit) : "–", two ? `acertadas en 2026 · rendimiento ${signed(two.yield)}` : ""),
     stat("Triples más probables", three ? pct(three.hit) : "–", three ? `acertadas en 2026 · rendimiento ${signed(three.yield)}` : ""),
-    stat("Partidos para combinar", nUpcoming, "próximos 3 días"),
+    stat("Partidos para combinar", nUpcoming, "hoy y mañana"),
   ].join("");
 
   const calibSet = (label, pts, color) => ({ label, data: pts.map((c) => ({ x: c.pred * 100, y: c.obs * 100, n: c.n })), ...calibStyle(color) });

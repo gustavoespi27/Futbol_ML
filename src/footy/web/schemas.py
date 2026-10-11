@@ -23,8 +23,32 @@ class LeagueCatalogItem(Schema):
     country: str = Field(description="País en español ('Copas UEFA', 'Selecciones'... para torneos)")
     continent: str
     type: str = Field(description="league | cup | international")
-    n: int = Field(description="Partidos en el horizonte del dashboard (hoy, mañana y pasado mañana)")
+    n: int = Field(description="Partidos en el horizonte del dashboard (hoy y mañana)")
     model: bool = Field(description="Tiene modelo validado: se puede usar en el simulador")
+
+
+# --- /api/yesterday ------------------------------------------------------------------
+
+class ResultPick(Schema):
+    sel: str = Field(description="1 | X | 2: el resultado más probable según el sistema antes del partido")
+    p: float | None
+    hit: bool | None = Field(None, description="Solo si el partido terminó")
+
+
+class MatchResult(Schema):
+    """Un partido de ayer con su resultado y el pronóstico registrado antes del inicio (si lo hubo)."""
+    ref: str
+    league: str
+    league_name: str
+    home: str
+    away: str
+    home_id: int | None
+    away_id: int | None
+    kickoff: str
+    status: str = Field(description="finished | scheduled | live | postponed | cancelled")
+    score: list[int] | None = Field(None, description="[local, visita], solo si terminó")
+    round: str | None = None
+    pick: ResultPick | None = None
 
 
 # --- /api/tracking -------------------------------------------------------------------

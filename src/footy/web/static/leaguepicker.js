@@ -271,30 +271,27 @@ function mountQuickChips(root, { list, catalog, picker, getSel, onPick }) {
   return { sync: draw };
 }
 
-/* ---------- filtro por día (los próximos partidos cubren hoy, mañana y pasado mañana) ---------- */
-// Selección: { type: "all" | "today" | "tomorrow" | "after" } (días en hora local).
+/* ---------- filtro por día (próximos partidos de hoy y mañana; ayer, aparte, con sus resultados) ---------- */
+// Selección: { type: "all" | "yesterday" | "today" | "tomorrow" } (días en hora local).
 const localDay = (d) => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`; };
 const dayOffset = (n) => { const t = new Date(); t.setDate(t.getDate() + n); return localDay(t); };
 function dateSelMatch(sel, kickoff) {
   if (!sel || sel.type === "all") return true;
-  const n = { today: 0, tomorrow: 1, after: 2 }[sel.type];
+  const n = { yesterday: -1, today: 0, tomorrow: 1 }[sel.type];
   return localDay(kickoff) === dayOffset(n);
 }
 function mountDateFilter(root, opts) {
   const list = opts.list || [];
   let sel = opts.value || { type: "all" };
-  const count = (s) => list.filter((m) => dateSelMatch(s, m.kickoff)).length;
-  const after = new Intl.DateTimeFormat("es-CL", { weekday: "long" }).format(new Date(Date.now() + 2 * 864e5));
+  // Ayer (opts.past: partidos ya jugados) solo aparece donde se pasa esa lista, y no suma en "Todos".
+  const past = opts.past || null;
+  const count = (s) => (s.type === "yesterday" ? past : list).filter((m) => dateSelMatch(s, m.kickoff)).length;
   const draw = () => {
     const btn = (type, label) => {
       const n = count({ type });
-      // API-Football (plan gratuito) solo entrega el calendario hasta mañana: pasado mañana vacío significa
-      // "aún no descargado", no "sin partidos".
-      const pending = type === "after" && !n;
-      const tip = pending ? ' title="El calendario de este día llega con la actualización de mañana (la API gratuita solo entrega hasta mañana)"' : "";
-      return `<button type="button" class="df-btn ${sel.type === type ? "on" : ""}" data-t="${type}" ${n || type === "all" ? "" : "disabled"}${tip}>${label}<span>${pending ? "—" : n}</span></button>`;
+      return `<button type="button" class="df-btn ${sel.type === type ? "on" : ""}" data-t="${type}" ${n || type === "all" ? "" : "disabled"}>${label}<span>${n}</span></button>`;
     };
-    root.innerHTML = `<div class="df">${btn("all", "Todos")}${btn("today", "Hoy")}${btn("tomorrow", "Mañana")}${btn("after", after[0].toUpperCase() + after.slice(1))}</div>`;
+    root.innerHTML = `<div class="df">${btn("all", "Todos")}${past ? btn("yesterday", "Ayer") : ""}${btn("today", "Hoy")}${btn("tomorrow", "Mañana")}</div>`;
   };
   root.onclick = (e) => {
     const b = e.target.closest(".df-btn"); if (!b || b.disabled) return;

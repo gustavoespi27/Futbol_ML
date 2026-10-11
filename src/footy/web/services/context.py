@@ -9,6 +9,7 @@ Todas las demás selecciones (doble oportunidad, otras líneas, ambos marcan, co
 salen de la matriz de marcadores ajustada a esas probabilidades oficiales (footy.markets.combos).
 """
 
+import json
 import pickle
 import threading
 import time
@@ -35,7 +36,7 @@ CONTEXT_TTL = 600
 DISPLAY_BOOKS = ("Bet365", "Pinnacle", "Betfair Exchange", "Betfair", "Market Avg")   # cuota que se muestra
 REFERENCE_BOOKS = ("Pinnacle", "Betfair Exchange", "Market Avg", "Bet365")             # para quitar el margen
 STALE_DAYS = 12
-HORIZON_DAYS = 3          # el dashboard muestra partidos de hoy, mañana y pasado mañana
+HORIZON_DAYS = 2          # hoy y mañana: el plan gratuito de API-Football no entrega calendario más allá
 LOCAL_TZ = ZoneInfo("America/Santiago")
 PREDICTOR_DIR = config.PROJECT_ROOT / "data" / "cache" / "predictors"
 
@@ -345,10 +346,10 @@ def recent_form(conn, team_ids, n: int = FORM_N) -> dict[int, list[str]]:
 def _upcoming(days: int) -> list[dict]:
     conn = connect()
     now = datetime.now(timezone.utc)
-    # Hasta el final del día `days - 1` desde hoy en hora local (hoy, mañana y pasado mañana con days=3).
+    # Hasta el final del día `days - 1` desde hoy en hora local (hoy y mañana con days=2).
     local_today = datetime.now(LOCAL_TZ).date()
     end = datetime.combine(local_today + timedelta(days=days), datetime.min.time(), LOCAL_TZ)
-    hidden = [c for c, v in config.settings()["competitions"].items() if v.get("history_only")]
+    hidden = _hidden_codes()
     where_hidden = f"AND c.code NOT IN ({','.join('?' * len(hidden))})" if hidden else ""
     ids = [r[0] for r in conn.execute(
         f"""SELECT m.id FROM matches m JOIN competitions c ON c.id = m.competition_id
@@ -377,4 +378,59 @@ def _upcoming(days: int) -> list[dict]:
         h, a = form.get(c.get("home_id")), form.get(c.get("away_id"))
         if h or a:
             c["recent"] = {"home": h or [], "away": a or []}
+    return out
+
+
+# --- resultados de ayer ------------------------------------------------------
+
+def _hidden_codes() -> list[str]:
+    return [c for c, v in config.settings()["competitions"].items() if v.get("history_only")]
+
+
+def day_results(offset: int = -1) -> list[dict]:
+    """Partidos de un día local pasado (ayer por defecto) con su resultado y el pronóstico 1X2 que el sistema registró
+    antes del inicio (el último de `predictions` anterior al kickoff; nunca uno posterior), para ver si acertó."""
+    conn = connect()
+    start = datetime.combine(datetime.now(LOCAL_TZ).date() + timedelta(days=offset), datetime.min.time(), LOCAL_TZ)
+    hidden = _hidden_codes()
+    where_hidden = f"AND c.code NOT IN ({','.join('?' * len(hidden))})" if hidden else ""
+    rows = conn.execute(
+        f"""SELECT m.id, c.code, c.type, m.round, m.kickoff_utc, m.status, m.home_goals, m.away_goals,
+                   m.home_team_id, m.away_team_id, th.name AS home, ta.name AS away
+            FROM matches m JOIN competitions c ON c.id = m.competition_id
+            JOIN teams th ON th.id = m.home_team_id JOIN teams ta ON ta.id = m.away_team_id
+            WHERE m.kickoff_utc >= ? AND m.kickoff_utc < ? {where_hidden}
+            ORDER BY m.kickoff_utc, m.id""",
+        (repo.to_iso(start), repo.to_iso(start + timedelta(days=1)), *hidden)).fetchall()
+    if not rows:
+        return []
+    marks = ",".join("?" * len(rows))
+    preds = {}
+    for r in conn.execute(
+            f"""SELECT p.match_id, p.p_home, p.p_draw, p.p_away, p.extra_json FROM predictions p
+                JOIN matches m ON m.id = p.match_id
+                WHERE p.match_id IN ({marks}) AND p.created_at < m.kickoff_utc
+                ORDER BY p.created_at""", [r["id"] for r in rows]):
+        extra = json.loads(r["extra_json"] or "{}")
+        # La probabilidad oficial de ese momento (modelo + mercado) si había cuotas; si no, la del modelo.
+        preds[r["match_id"]] = extra.get("p_final") or [r["p_home"], r["p_draw"], r["p_away"]]
+    names = league_names()
+    out = []
+    for r in rows:
+        item = {"ref": f"m:{r['id']}", "league": r["code"], "league_name": names.get(r["code"], r["code"]),
+                "home": r["home"], "away": r["away"], "home_id": r["home_team_id"], "away_id": r["away_team_id"],
+                "kickoff": r["kickoff_utc"], "status": r["status"]}
+        finished = r["status"] == "finished" and r["home_goals"] is not None
+        if finished:
+            item["score"] = [r["home_goals"], r["away_goals"]]
+        if r["type"] == "cup" and r["round"]:
+            item["round"] = r["round"]
+        p = preds.get(r["id"])
+        if p:
+            k = int(np.argmax(p))
+            item["pick"] = {"sel": "1X2"[k], "p": _f(p[k])}
+            if finished:
+                diff = r["home_goals"] - r["away_goals"]
+                item["pick"]["hit"] = k == (0 if diff > 0 else 1 if diff == 0 else 2)
+        out.append(item)
     return out

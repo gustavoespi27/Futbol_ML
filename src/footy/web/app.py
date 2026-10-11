@@ -71,6 +71,11 @@ def upcoming():
     return cached("upcoming", 300, service.upcoming)
 
 
+@app.get("/api/yesterday", response_model=list[schemas.MatchResult], **TYPED)
+def yesterday():
+    return cached("yesterday", 300, service.day_results)
+
+
 @app.get("/api/tracking", response_model=schemas.TrackingOverview, **TYPED)
 def tracking():
     return cached("tracking", 300, service.tracking_data)

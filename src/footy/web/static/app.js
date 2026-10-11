@@ -138,7 +138,7 @@ function emptyMatches(box, filtered, reset, sel = null, catalog = []) {
     ? emptyState({ icon: "search", title: league ? `${esc(league.name)} no tiene partidos para este filtro` : "Sin partidos para este filtro",
       text: canSimulate ? "Puedes simular cualquier partido de esta liga o volver a ver todos." : "Prueba con otra liga, equipo o día.",
       action: "Ver todos los partidos" })
-    : emptyState({ title: "No hay partidos programados en los próximos 3 días",
+    : emptyState({ title: "No hay partidos programados para hoy ni mañana",
       text: "Puede ser fecha FIFA. La tarea diaria agrega partidos y cuotas a medida que se publican." });
   const b = box.querySelector(".empty-action");
   if (b) b.onclick = reset;
@@ -413,18 +413,20 @@ async function renderHome() {
 /* ---------- PRÓXIMOS PARTIDOS ---------- */
 let matchSel = { type: "all" }, matchDate = { type: "all" };
 async function renderMatches() {
-  const [list, catalog] = await Promise.all([api("/api/upcoming"), leagueCatalog()]);
+  // Los resultados de ayer son opcionales: si fallan, la vista sigue con los próximos partidos.
+  const [list, catalog, past] = await Promise.all([api("/api/upcoming"), leagueCatalog(), api("/api/yesterday").catch(() => [])]);
   const byRef = Object.fromEntries(list.map((m) => [m.ref, m]));
   const draw = () => {
-    const shown = list.filter((m) => leagueSelMatch(matchSel, m, catalog) && dateSelMatch(matchDate, m.kickoff));
+    const isPast = matchDate.type === "yesterday";
+    const shown = (isPast ? past : list).filter((m) => leagueSelMatch(matchSel, m, catalog) && dateSelMatch(matchDate, m.kickoff));
     if (chips) chips.sync();
     if (!shown.length) return emptyMatches($("#matches"), isFiltered(matchSel, matchDate), reset, matchSel, catalog);
-    $("#matches").innerHTML = matchGroups(shown);
+    $("#matches").innerHTML = isPast ? resultGroups(shown) : matchGroups(shown);
   };
   let chips = null;
   const mount = async () => {
     const picker = await mountLeaguePicker($("#league-filter"), { value: matchSel, onChange: (s) => { matchSel = s; draw(); } });
-    mountDateFilter($("#match-date"), { list, value: matchDate, onChange: (s) => { matchDate = s; draw(); } });
+    mountDateFilter($("#match-date"), { list, past, value: matchDate, onChange: (s) => { matchDate = s; draw(); } });
     chips = mountQuickChips($("#match-chips"), { list, catalog, picker, getSel: () => matchSel,
       onPick: (s) => { matchSel = s; draw(); } });
   };
@@ -460,6 +462,40 @@ function stageLabel(round) {
   if (!round) return "";
   const hit = STAGES.find(([re]) => re.test(round));
   return hit ? round.replace(hit[0], hit[1]).replace(/ - .*$/, "") : round;
+}
+// Resultados de ayer: marcador y el pronóstico 1X2 que el sistema registró antes del partido (acertó o falló).
+const RESULT_STATUS = { scheduled: "sin resultado aún", live: "en juego", postponed: "postergado", cancelled: "cancelado" };
+function resultGroups(list) {
+  const groups = new Map();
+  list.forEach((m) => { if (!groups.has(m.league)) groups.set(m.league, []); groups.get(m.league).push(m); });
+  return [...groups.values()].map((ms) => {
+    const done = ms.filter((m) => m.pick && m.pick.hit != null);
+    const hits = done.filter((m) => m.pick.hit).length;
+    return `<div class="lg-block">
+    <div class="lg-head">${leagueLogo(ms[0].league, 20)}<span>${esc(ms[0].league_name)}</span>
+      <span class="cnt">${done.length ? `${hits} de ${done.length} acertados · ` : ""}${ms.length} ${ms.length === 1 ? "partido" : "partidos"}</span></div>
+    <div class="lg-cols res"><span>Hora</span><span>Partido</span><span>Resultado</span><span>Pronóstico del sistema</span></div>
+    ${ms.map(resultRow).join("")}</div>`;
+  }).join("");
+}
+function resultRow(m) {
+  const time = new Intl.DateTimeFormat("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(m.kickoff));
+  const s = m.score;
+  const win = s ? (s[0] > s[1] ? 0 : s[0] < s[1] ? 2 : 1) : -1;
+  const tag = (id, name, won) => `<span class="team ${won ? "fav" : ""}">${teamLogo(id, name, 20)}<span>${esc(name)}</span></span>`;
+  const label = { 1: "Local", X: "Empate", 2: "Visita" };
+  const p = m.pick;
+  const state = !p || p.hit == null ? "" : p.hit ? "hit" : "miss";
+  const pick = p
+    ? `<span class="rpick ${state}" title="${state ? (p.hit ? "Acertó" : "Falló") : "Partido sin resultado"}">${state ? (p.hit ? "✓" : "✗") : ""}
+        <b>${label[p.sel]}</b><span>${pct(p.p)}</span></span>`
+    : `<span class="rnone">sin pronóstico</span>`;
+  return `<div class="rrow">
+    <div class="time"><b>${time}</b>${m.round ? `<em class="stage">${esc(stageLabel(m.round))}</em>` : ""}</div>
+    <div class="tm">${tag(m.home_id, m.home, win === 0)}${tag(m.away_id, m.away, win === 2)}</div>
+    <div class="score">${s ? `<b>${s[0]}</b><b>${s[1]}</b>` : `<span>${RESULT_STATUS[m.status] || esc(m.status)}</span>`}</div>
+    <div class="rp">${pick}</div>
+  </div>`;
 }
 function matchRow(m) {
   const p = m.p_official;

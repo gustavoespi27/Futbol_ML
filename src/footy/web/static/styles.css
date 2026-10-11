@@ -319,6 +319,27 @@ footer { color: var(--muted); font-size: 12px; padding: 18px 28px 28px; border-t
 .mrow .tm .team.fav > span:last-child { color: var(--text); font-weight: 700; }
 .mrow .best { display: grid; gap: 3px; justify-items: start; font-size: 11.5px; color: var(--muted); }
 .mrow .chev { color: var(--muted); transition: transform .15s; width: 18px; height: 18px; }
+/* resultados de ayer: marcador y pronóstico previo del sistema */
+.lg-cols.res, .rrow { grid-template-columns: 64px minmax(0, 1fr) 76px 180px; }
+.lg-cols.res span:nth-child(3) { text-align: center; }
+.lg-cols.res span:nth-child(4) { text-align: left; }
+.rrow { display: grid; gap: 10px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--grid); }
+.rrow .time { display: grid; color: var(--text-2); font-size: 12px; line-height: 1.3; }
+.rrow .time b { color: var(--text); font-size: 13px; }
+.rrow .time .stage { font-style: normal; font-size: 10.5px; font-weight: 650; color: var(--accent); white-space: nowrap; }
+.rrow .tm { display: grid; gap: 6px; min-width: 0; }
+.rrow .tm .team { font-weight: 550; font-size: 13.5px; min-width: 0; color: var(--text-2); }
+.rrow .tm .team > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rrow .tm .team.fav { color: var(--text); font-weight: 700; }
+.rrow .score { display: grid; gap: 6px; justify-items: center; font: 700 15px/20px var(--font-mono); }
+.rrow .score span { font-size: 11px; font-weight: 600; line-height: 1.3; font-family: var(--font-body); color: var(--muted); text-align: center; }
+.rpick { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 8px; font-size: 12.5px;
+  background: var(--surface-2); border: 1px solid var(--border); }
+.rpick span { color: var(--muted); font-family: var(--font-mono); font-size: 11.5px; }
+.rpick.hit { color: var(--good); background: var(--good-bg); border-color: color-mix(in srgb, var(--good) 35%, transparent); }
+.rpick.miss { color: var(--bad); background: var(--bad-bg); border-color: color-mix(in srgb, var(--bad) 30%, transparent); }
+.rpick.hit b, .rpick.miss b { color: var(--text); }
+.rnone { color: var(--muted); font-size: 12px; }
 .mrow.open .chev { transform: rotate(180deg); }
 .pcell {                                         /* botón de cuota de mercado */
   display: grid; justify-items: center; gap: 0; padding: 4px 4px 6px; border-radius: 8px; background: var(--surface-2);
@@ -514,6 +535,7 @@ table.sem td.m:hover .team span { color: var(--accent); }
 /* ================= responsive ================= */
 @media (max-width: 1180px) {
   .lg-cols, .mrow { grid-template-columns: 56px minmax(0, 1fr) repeat(3, 66px) 22px; }
+  .lg-cols.res, .rrow { grid-template-columns: 56px minmax(0, 1fr) 66px 150px; }
   .lg-cols span:nth-child(6), .mrow .best { display: none; }
 }
 @media (max-width: 980px) {
@@ -547,6 +569,8 @@ table.sem td.m:hover .team span { color: var(--accent); }
   dl.gloss dd { margin-bottom: 8px; }
   .lg-cols { display: none; }
   .mrow { grid-template-columns: 46px minmax(0, 1fr) repeat(3, 54px); gap: 6px; padding: 10px 12px; }
+  .rrow { grid-template-columns: 46px minmax(0, 1fr) 40px auto; gap: 6px; padding: 10px 12px; }
+  .rpick span { display: none; }
   .mrow .chev { display: none; }
   .pcell b { font-size: 12.5px; }
 }
