@@ -160,6 +160,25 @@ def backfill_pending(client: ApiFootball, conn: sqlite3.Connection, limit: int) 
     return done
 
 
+def has_pending_results(conn: sqlite3.Connection, day: str) -> bool:
+    """¿Quedan partidos de API-Football de ese día UTC sin resultado final (programados o en juego)?"""
+    return conn.execute(
+        """SELECT 1 FROM matches m JOIN match_sources ms ON ms.match_id = m.id AND ms.source = ?
+           WHERE m.status IN ('scheduled', 'live') AND m.kickoff_utc >= ? AND m.kickoff_utc < ? LIMIT 1""",
+        (SOURCE, f"{day}T00:00:00Z", f"{(datetime.fromisoformat(day) + timedelta(days=1)).date()}T00:00:00Z"),
+    ).fetchone() is not None
+
+
+def fixture_dates(conn: sqlite3.Connection, today) -> list[str]:
+    """Fechas UTC a pedir, de la más a la menos valiosa por si la cuota se acaba a mitad de camino: hoy (resultados y
+    horarios del día), ayer solo si le faltan resultados (partidos nocturnos) y mañana (calendario nuevo)."""
+    yesterday = (today - timedelta(days=1)).isoformat()
+    dates = [today.isoformat()]
+    if has_pending_results(conn, yesterday):
+        dates.append(yesterday)
+    return dates + [(today + timedelta(days=1)).isoformat()]
+
+
 def details_budget(remaining: int, now: datetime, cfg: dict) -> int:
     """Peticiones disponibles para detalles. Las corridas de 10:00 y 17:30 (hora de Chile) comparten el mismo día UTC
     de cuota: antes de `keep_until_utc_hour` se guardan `keep_for_later_runs` para que la de la tarde pueda capturar
@@ -172,7 +191,7 @@ def run_daily(conn: sqlite3.Connection, client: ApiFootball) -> dict:
     cfg = config.settings()["api_football"]
     now = datetime.now(timezone.utc)
     today = now.date()
-    dates = [(today + timedelta(days=k)).isoformat() for k in (-1, 0, 1)]
+    dates = fixture_dates(conn, today)
     summary = {"start_remaining": client.remaining}
     try:
         # El calendario va primero porque las cuotas se piden por partido ya conocido.

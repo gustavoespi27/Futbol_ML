@@ -81,7 +81,7 @@ def test_run_daily_stops_cleanly_when_quota_runs_out(conn, caplog):
         summary = run_daily(conn, c)
     assert summary["stopped"] == "presupuesto" and summary["end_remaining"] == 0
     assert "presupuesto agotado" in caplog.text and "Traceback" not in caplog.text
-    assert len(c.session.calls) == 2                              # ayer y hoy; mañana ya no se pide
+    assert len(c.session.calls) == 2                              # hoy y mañana; nada después de agotarse
 
 
 def test_network_failure_and_html_502_stop_collection(conn):
@@ -161,3 +161,17 @@ def test_details_budget_keeps_requests_for_the_afternoon_run():
     assert collect.details_budget(60, morning, cfg) == 25
     assert collect.details_budget(20, morning, cfg) == 0
     assert collect.details_budget(60, afternoon, cfg) == 60          # última corrida del día UTC: se usa todo
+
+
+def test_fixture_dates_today_first_and_yesterday_only_with_pending_results(conn):
+    from datetime import date
+
+    from footy.ingest import collect
+    today = date(2026, 10, 11)
+    assert collect.fixture_dates(conn, today) == ["2026-10-11", "2026-10-12"]      # ayer completo: no se gasta
+    home = repo.resolve_team(conn, "api_football", "1", "A", "USA")
+    away = repo.resolve_team(conn, "api_football", "2", "B", "USA")
+    repo.upsert_match(conn, source="api_football", source_match_id="9", competition_id=repo.competition_id(conn, "USA"),
+                      season="2026", kickoff_utc="2026-10-10T23:30:00Z", home_team_id=home, away_team_id=away,
+                      status="scheduled")
+    assert collect.fixture_dates(conn, today) == ["2026-10-11", "2026-10-10", "2026-10-12"]
