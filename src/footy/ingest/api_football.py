@@ -217,6 +217,32 @@ def _country_league_codes(country: str) -> list[str]:
     return codes
 
 
+def _all_league_codes() -> list[str]:
+    from footy.ingest.football_data import leagues as fd_leagues
+
+    fd = fd_leagues()
+    codes = [c for c, v in config.settings()["competitions"].items() if v["type"] == "league"]
+    return codes + [c for g in ("main", "extra") for c in fd[g] if c not in codes]
+
+
+def _link_international_club(conn, name: str) -> int | None:
+    """Club nuevo en una copa internacional (Champions, Libertadores...): el fixture no trae su país, así que se busca
+    en todas las ligas seguidas y se acepta solo un candidato único (o, entre varios, el de nombre idéntico).
+    Sin esto cada club entra como duplicado con país 'unknown' y la copa queda desconectada de su liga.
+    Primero el nombre idéntico: el emparejamiento tolerante puede encontrar un candidato "único" en otra liga
+    ("Paris SG" ~ Paris FC en la Ligue 2, donde no hay otro "Paris")."""
+    canonical = repo._manual_aliases().get(SOURCE, {}).get(name, name)
+    target = repo.normalize_name(canonical)
+    exact = [r["id"] for r in conn.execute(
+        "SELECT t.id, t.name FROM teams t WHERE t.country NOT IN ('World', 'unknown') AND EXISTS "
+        "(SELECT 1 FROM team_aliases a WHERE a.team_id = t.id AND a.source = 'football_data')")
+        if repo.normalize_name(r["name"]) == target]
+    if len(exact) == 1:
+        return exact[0]
+    hits = {m for code in _all_league_codes() if (m := repo.fuzzy_team_match(conn, canonical, code)) is not None}
+    return next(iter(hits)) if len(hits) == 1 else None
+
+
 def _resolve_api_team(conn, team: dict, country: str, comp_type: str, comp_code: str | None = None) -> int:
     alias = str(team["id"])
     known = conn.execute("SELECT 1 FROM team_aliases WHERE source = ? AND alias = ?", (SOURCE, alias)).fetchone()
@@ -245,13 +271,17 @@ def _resolve_api_team(conn, team: dict, country: str, comp_type: str, comp_code:
                     return match
         return repo.resolve_team(conn, SOURCE, alias, team["name"], country)
     if comp_type == "cup":
-        # En copas internacionales el país del equipo no viene en el fixture: solo enlazamos
-        # por id ya conocido; si es nuevo, se crea con país 'unknown' para revisión manual.
+        # Copa internacional: id ya conocido (el club juega una liga que seguimos con API-Football) o, si es nuevo,
+        # emparejamiento entre todas las ligas. Sin candidato único se crea con país 'unknown' para revisión manual.
         row = conn.execute(
             "SELECT team_id FROM team_aliases WHERE source = ? AND alias = ?", (SOURCE, alias)
         ).fetchone()
         if row:
             return row["team_id"]
+        match = _link_international_club(conn, team["name"])
+        if match is not None:
+            conn.execute("INSERT INTO team_aliases (source, alias, team_id) VALUES (?, ?, ?)", (SOURCE, alias, match))
+            return match
         country = "unknown"
     return repo.resolve_team(conn, SOURCE, alias, team["name"], country)
 

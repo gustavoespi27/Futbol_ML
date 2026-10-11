@@ -126,3 +126,29 @@ def test_history_only_cups_are_not_offered_in_the_league_search():
 
     codes = {r["code"] for r in league_catalog([])}
     assert {"E1", "JPN", "USA"} <= codes and not {"CDR", "FACUP", "COPA_CHL"} & codes
+
+
+def test_champions_links_clubs_across_leagues_by_exact_name_first(conn):
+    def league_team(code, name, country, n):
+        tid = repo.resolve_team(conn, "football_data", name, name, country)
+        other = repo.resolve_team(conn, "football_data", f"Rival {n}", f"Rival {n}", country)
+        repo.upsert_match(conn, source="football_data", source_match_id=str(n), season="2026",
+                          competition_id=repo.competition_id(conn, code), status="finished", home_goals=1,
+                          away_goals=0, kickoff_utc=repo.utc_now()[:10] + "T00:00:00Z", home_team_id=tid,
+                          away_team_id=other)
+        return tid
+
+    psg = league_team("F1", "Paris SG", "France", 1)
+    league_team("F2", "Paris FC", "France", 2)                    # único "Paris" de la Ligue 2: no debe capturarlo
+    madrid = league_team("SP1", "Real Madrid", "Spain", 3)
+    item = fixture_item(status="NS", home_goals=None, away_goals=None)
+    item["league"] = {"id": 2, "season": 2026, "round": "League Stage - 3", "country": "World"}     # Champions
+    item["teams"] = {"home": {"id": 85, "name": "Paris Saint Germain"}, "away": {"id": 541, "name": "Real Madrid"}}
+    row = conn.execute("SELECT home_team_id, away_team_id FROM matches WHERE id = ?",
+                       (store_fixture(conn, item),)).fetchone()
+    assert (row["home_team_id"], row["away_team_id"]) == (psg, madrid)
+    item["fixture"]["id"] = 1000
+    item["teams"] = {"home": {"id": 572, "name": "Dynamo Kyiv"}, "away": {"id": 541, "name": "Real Madrid"}}
+    row = conn.execute("SELECT t.country FROM matches m JOIN teams t ON t.id = m.home_team_id WHERE m.id = ?",
+                       (store_fixture(conn, item),)).fetchone()
+    assert row["country"] == "unknown"                            # liga no seguida: club nuevo, a revisión manual
