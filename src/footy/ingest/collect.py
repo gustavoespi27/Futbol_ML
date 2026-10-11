@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 from footy import config
 from footy.db import repository as repo
+from footy.ingest import football_data as fd
 from footy.ingest.api_football import (
     SOURCE,
     ApiError,
@@ -94,10 +95,17 @@ def collect_odds(client: ApiFootball, conn: sqlite3.Connection, horizon_hours: f
     return n_matches, n_rows
 
 
+def detail_codes() -> list[str]:
+    """Ligas donde /fixtures?id= aporta algo: de los detalles los modelos solo usan los tiros, y las ligas "main" de
+    football-data ya los traen en su CSV (pedirlos ahí gasta una petición por partido sin ganar nada)."""
+    with_shots = set(fd.leagues()["main"])
+    return [c for c, v in config.settings()["competitions"].items() if v["type"] == "league" and c not in with_shots]
+
+
 def collect_details(client: ApiFootball, conn: sqlite3.Connection, codes: list[str] | None = None,
                     limit: int | None = None) -> int:
     """Descarga detalles de partidos terminados que aún no los tienen (más recientes primero)."""
-    codes = codes or [c for c, v in config.settings()["competitions"].items() if v["type"] == "league"]
+    codes = codes or detail_codes()
     rows = conn.execute(
         f"""SELECT ms.source_match_id FROM match_sources ms
             JOIN matches m ON m.id = ms.match_id
@@ -152,9 +160,18 @@ def backfill_pending(client: ApiFootball, conn: sqlite3.Connection, limit: int) 
     return done
 
 
+def details_budget(remaining: int, now: datetime, cfg: dict) -> int:
+    """Peticiones disponibles para detalles. Las corridas de 10:00 y 17:30 (hora de Chile) comparten el mismo día UTC
+    de cuota: antes de `keep_until_utc_hour` se guardan `keep_for_later_runs` para que la de la tarde pueda capturar
+    cuotas cercanas al cierre, que se pierden si no se piden a tiempo (los detalles se pueden pedir cualquier día)."""
+    keep = cfg.get("keep_for_later_runs", 0) if now.hour < cfg.get("keep_until_utc_hour", 0) else 0
+    return max(0, remaining - keep)
+
+
 def run_daily(conn: sqlite3.Connection, client: ApiFootball) -> dict:
     cfg = config.settings()["api_football"]
-    today = datetime.now(timezone.utc).date()
+    now = datetime.now(timezone.utc)
+    today = now.date()
     dates = [(today + timedelta(days=k)).isoformat() for k in (-1, 0, 1)]
     summary = {"start_remaining": client.remaining}
     try:
@@ -162,7 +179,7 @@ def run_daily(conn: sqlite3.Connection, client: ApiFootball) -> dict:
         summary["fixtures"] = collect_fixtures_by_date(client, conn, dates)
         summary["odds_matches"], summary["odds_rows"] = collect_odds(client, conn, cfg["odds_horizon_hours"])
         summary["backfill"] = backfill_pending(client, conn, cfg.get("backfill_per_run", 0))
-        summary["details"] = collect_details(client, conn)
+        summary["details"] = collect_details(client, conn, limit=details_budget(client.remaining, now, cfg))
     except BudgetExhausted as e:
         # Sin cuota se detiene la cola: lo ya guardado queda y la tarea diaria sigue con los pasos que no usan la API.
         log.warning("Recolección detenida, presupuesto agotado: %s", e)

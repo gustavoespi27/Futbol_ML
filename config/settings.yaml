@@ -412,6 +412,10 @@ api_football:
   min_seconds_between: 6.5   # plan Free: 10 peticiones/minuto
   odds_horizon_hours: 36     # snapshots de cuotas para partidos que empiezan dentro de este plazo
   odds_refresh_hours: 10     # no se vuelve a pedir la cuota de un partido antes de este plazo
+  # Las corridas de 10:00 y 17:30 (Chile) comparten el día UTC de cuota (ver scripts/register_task.ps1): antes de esta
+  # hora UTC los detalles dejan libres estas peticiones para las cuotas de la tarde.
+  keep_for_later_runs: 35
+  keep_until_utc_hour: 18    # entre la corrida de 10:00 (13-14 UTC) y la de 17:30 (20:30-21:30 UTC)
   bookmakers_keep: []        # vacío = guardar todas las casas
   # Historial a cargar una vez (plan Free: temporadas 2022-2024). La tarea diaria carga hasta
   # backfill_per_run temporadas por ejecución, solo si sobra presupuesto después de cuotas y calendario.

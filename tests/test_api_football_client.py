@@ -142,3 +142,22 @@ def test_collect_odds_keeps_low_budget_for_priority_one_matches_soon(conn, caplo
     c2 = client(conn, *[FakeResponse({"errors": [], "results": 0, "response": []}) for _ in range(3)])
     collect.collect_odds(c2, conn, horizon_hours=36)            # con presupuesto normal se piden todos
     assert sorted(p["fixture"] for _, p in c2.session.calls) == ["100", "101", "102"]
+
+
+def test_details_only_for_leagues_without_shots_in_football_data():
+    from footy.ingest import collect, football_data
+    codes = collect.detail_codes()
+    assert "CHL" in codes                                          # sin CSV: los tiros vienen de la API
+    assert not set(codes) & set(football_data.leagues()["main"])   # el CSV "main" ya trae los tiros
+
+
+def test_details_budget_keeps_requests_for_the_afternoon_run():
+    from datetime import datetime, timezone
+
+    from footy.ingest import collect
+    cfg = {"keep_for_later_runs": 35, "keep_until_utc_hour": 18}
+    morning = datetime(2026, 10, 12, 13, 0, tzinfo=timezone.utc)
+    afternoon = datetime(2026, 10, 12, 20, 30, tzinfo=timezone.utc)
+    assert collect.details_budget(60, morning, cfg) == 25
+    assert collect.details_budget(20, morning, cfg) == 0
+    assert collect.details_budget(60, afternoon, cfg) == 60          # última corrida del día UTC: se usa todo
