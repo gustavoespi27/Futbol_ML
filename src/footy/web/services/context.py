@@ -384,19 +384,29 @@ def _upcoming(days: int) -> list[dict]:
 # --- partidos ya jugados (ayer y hoy) ----------------------------------------
 
 LIVE_WINDOW = timedelta(minutes=135)    # 90' + descanso + descuentos: después de esto ya debería haber terminado
+LIVE_FRESH = timedelta(minutes=10)      # marcador parcial de ESPN que todavía se considera actual
+LIVE_ON = timedelta(minutes=3)          # el servidor está actualizando en vivo si sincronizó hace menos de esto
 
 def _hidden_codes() -> list[str]:
     return [c for c, v in config.settings()["competitions"].items() if v.get("history_only")]
 
 
-def _play_status(status: str, has_score: bool, kickoff: str, now: datetime) -> str:
-    """Estado para mostrar. La base solo se actualiza con cada corrida de la tarea diaria: un partido que ya empezó
-    y sigue como programado está en juego si empezó hace menos de LIVE_WINDOW y, si no, esperando su resultado."""
+def _play_status(status: str, has_score: bool, kickoff: str, now: datetime, live: bool = False) -> str:
+    """Estado para mostrar. Con marcador en vivo reciente (ESPN), en juego. Si no, la base puede estar atrasada: un
+    partido que ya empezó y sigue como programado está en juego si empezó hace menos de LIVE_WINDOW y, si no,
+    esperando su resultado."""
     if status == "finished" and has_score:
         return "finished"
     if status in ("postponed", "cancelled"):
         return status
+    if live:
+        return "live"
     return "live" if now - repo.from_iso(kickoff) < LIVE_WINDOW else "pending"
+
+
+def _synced(conn, name: str) -> str | None:
+    row = conn.execute("SELECT synced_at FROM sync_log WHERE name = ?", (name,)).fetchone()
+    return row[0] if row else None
 
 
 def last_fixtures_update(conn, start: datetime, end: datetime) -> str | None:
@@ -417,7 +427,11 @@ def played(day: str = "yesterday") -> dict:
     start = datetime.combine(datetime.now(LOCAL_TZ).date() + timedelta(days={"yesterday": -1, "today": 0}[day]),
                              datetime.min.time(), LOCAL_TZ)
     end = min(start + timedelta(days=1), now + timedelta(seconds=1))
-    return {"updated_at": last_fixtures_update(conn, start, end), "matches": _played_rows(conn, start, end, now)}
+    live_at = _synced(conn, "espn_live")
+    stamps = [s for s in (last_fixtures_update(conn, start, end), _synced(conn, "espn_calendar"), live_at) if s]
+    return {"updated_at": max(stamps) if stamps else None,
+            "live": bool(live_at and now - repo.from_iso(live_at) < LIVE_ON),
+            "matches": _played_rows(conn, start, end, now)}
 
 
 def _played_rows(conn, start: datetime, end: datetime, now: datetime) -> list[dict]:
@@ -434,12 +448,16 @@ def _played_rows(conn, start: datetime, end: datetime, now: datetime) -> list[di
     if not rows:
         return []
     marks = ",".join("?" * len(rows))
+    ids = [r["id"] for r in rows]
+    fresh = repo.to_iso(now - LIVE_FRESH)
+    live = {r["match_id"]: r for r in conn.execute(
+        f"SELECT * FROM live_scores WHERE match_id IN ({marks}) AND updated_at >= ?", (*ids, fresh))}
     preds = {}
     for r in conn.execute(
             f"""SELECT p.match_id, p.p_home, p.p_draw, p.p_away, p.extra_json FROM predictions p
                 JOIN matches m ON m.id = p.match_id
                 WHERE p.match_id IN ({marks}) AND p.created_at < m.kickoff_utc
-                ORDER BY p.created_at""", [r["id"] for r in rows]):
+                ORDER BY p.created_at""", ids):
         extra = json.loads(r["extra_json"] or "{}")
         # La probabilidad oficial de ese momento (modelo + mercado) si había cuotas; si no, la del modelo.
         preds[r["match_id"]] = extra.get("p_final") or [r["p_home"], r["p_draw"], r["p_away"]]
@@ -450,9 +468,14 @@ def _played_rows(conn, start: datetime, end: datetime, now: datetime) -> list[di
                 "home": r["home"], "away": r["away"], "home_id": r["home_team_id"], "away_id": r["away_team_id"],
                 "kickoff": r["kickoff_utc"]}
         finished = r["status"] == "finished" and r["home_goals"] is not None
-        item["status"] = _play_status(r["status"], finished, r["kickoff_utc"], now)
+        ls = None if finished else live.get(r["id"])
+        item["status"] = _play_status(r["status"], finished, r["kickoff_utc"], now, live=ls is not None)
         if finished:
             item["score"] = [r["home_goals"], r["away_goals"]]
+        elif ls is not None and item["status"] == "live":                 # marcador parcial y minuto (ESPN)
+            item["score"] = [ls["home_goals"], ls["away_goals"]]
+            if ls["clock"]:
+                item["clock"] = ls["clock"]
         if r["type"] == "cup" and r["round"]:
             item["round"] = r["round"]
         p = preds.get(r["id"])

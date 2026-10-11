@@ -1,5 +1,6 @@
 """Servidor del dashboard (FastAPI). Arranque: python scripts/serve.py  ->  http://127.0.0.1:8000"""
 
+import logging
 import re
 import threading
 import time
@@ -15,6 +16,7 @@ from pydantic import BaseModel, Field
 from footy.web import logos, schemas, service
 
 STATIC = Path(__file__).with_name("static")
+log = logging.getLogger(__name__)
 _cache: dict[str, tuple[float, object]] = {}
 _locks: dict[str, threading.Lock] = {}
 _locks_guard = threading.Lock()
@@ -33,9 +35,30 @@ def _prewarm():
             pass
 
 
+LIVE_EVERY = 60          # segundos entre actualizaciones de marcadores en vivo
+
+
+def _live_loop():
+    """Marcadores en vivo desde ESPN mientras el dashboard está abierto: cada minuto, solo para las ligas con partidos
+    en juego o por empezar (sin ellos no se pide nada). Si ESPN falla, se reintenta en el próximo ciclo."""
+    from footy.db.connection import connect
+    from footy.ingest import espn
+
+    client = espn.Espn()
+    while True:
+        time.sleep(LIVE_EVERY)
+        try:
+            if espn.refresh_live(connect(), client):
+                _cache.pop("results:today", None)
+                _cache.pop("results:yesterday", None)
+        except Exception as e:  # noqa: BLE001 - ESPN caído o base ocupada: no debe tumbar el servidor
+            log.warning("Marcadores en vivo: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(_app):
     threading.Thread(target=_prewarm, daemon=True).start()
+    threading.Thread(target=_live_loop, daemon=True, name="espn-live").start()
     yield
 
 
@@ -74,7 +97,7 @@ def upcoming():
 
 @app.get("/api/results", response_model=schemas.PlayedDay, **TYPED)
 def results(day: Literal["yesterday", "today"] = "yesterday"):
-    return cached(f"results:{day}", 120, lambda: service.played(day))
+    return cached(f"results:{day}", 30, lambda: service.played(day))
 
 
 @app.get("/api/tracking", response_model=schemas.TrackingOverview, **TYPED)

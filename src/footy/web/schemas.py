@@ -46,13 +46,15 @@ class MatchResult(Schema):
     away_id: int | None
     kickoff: str
     status: str = Field(description="finished | live | pending (sin resultado aún) | postponed | cancelled")
-    score: list[int] | None = Field(None, description="[local, visita], solo si terminó")
+    score: list[int] | None = Field(None, description="[local, visita]: final, o parcial si está en juego")
+    clock: str | None = Field(None, description="Minuto de juego (\"67'\", \"HT\") si está en juego")
     round: str | None = None
     pick: ResultPick | None = None
 
 
 class PlayedDay(Schema):
-    updated_at: str | None = Field(description="Última descarga del calendario (UTC): estados y marcadores son de ahí")
+    updated_at: str | None = Field(description="Última actualización (UTC): estados y marcadores son de ahí")
+    live: bool = Field(description="El servidor está actualizando marcadores en vivo (ESPN, cada minuto)")
     matches: list[MatchResult]
 
 

@@ -412,19 +412,29 @@ async function renderHome() {
 
 /* ---------- PRÓXIMOS PARTIDOS ---------- */
 let matchSel = { type: "all" }, matchDate = { type: "all" };
+let liveTimer = null;
+const LIVE_REFRESH_MS = 60000;           // el servidor actualiza los marcadores desde ESPN cada minuto
 async function renderMatches() {
   // Los partidos ya jugados (ayer y hoy) son opcionales: si fallan, la vista sigue con los próximos partidos.
   const none = { updated_at: null, matches: [] };
-  const [list, catalog, past, today] = await Promise.all([api("/api/upcoming"), leagueCatalog(),
+  const [list, catalog, past, firstToday] = await Promise.all([api("/api/upcoming"), leagueCatalog(),
     api("/api/results?day=yesterday").catch(() => none), api("/api/results?day=today").catch(() => none)]);
+  let today = firstToday;
   const byRef = Object.fromEntries(list.map((m) => [m.ref, m]));
   const draw = () => {
     const done = { yesterday: past, played: today }[matchDate.type];
     const shown = (done ? done.matches : list).filter((m) => leagueSelMatch(matchSel, m, catalog) && dateSelMatch(matchDate, m.kickoff));
     if (chips) chips.sync();
     if (!shown.length) return emptyMatches($("#matches"), isFiltered(matchSel, matchDate), reset, matchSel, catalog);
-    $("#matches").innerHTML = done ? resultsNote(done.updated_at) + resultGroups(shown) : matchGroups(shown);
+    $("#matches").innerHTML = done ? resultsNote(done) + resultGroups(shown) : matchGroups(shown);
   };
+  // Jugados hoy a la vista: se vuelve a pedir cada minuto (solo con la pestaña visible) y se repinta.
+  clearInterval(liveTimer);
+  liveTimer = setInterval(async () => {
+    if (document.hidden || location.hash !== "#partidos" || matchDate.type !== "played") return;
+    delete cache["/api/results?day=today"];
+    try { today = await api("/api/results?day=today"); draw(); } catch (e) { /* se reintenta en el próximo ciclo */ }
+  }, LIVE_REFRESH_MS);
   let chips = null;
   const mount = async () => {
     const picker = await mountLeaguePicker($("#league-filter"), { value: matchSel, onChange: (s) => { matchSel = s; draw(); } });
@@ -468,10 +478,12 @@ function stageLabel(round) {
 }
 // Partidos ya jugados: marcador y el pronóstico 1X2 que el sistema registró antes del partido (acertó o falló).
 const RESULT_STATUS = { pending: "esperando resultado", live: "en juego", postponed: "postergado", cancelled: "cancelado" };
-// Los estados vienen de la última descarga del calendario (tarea diaria), no de un marcador en vivo.
-function resultsNote(updated) {
-  const t = updated ? new Intl.DateTimeFormat("es-CL", { weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(updated)) : "–";
-  return `<p class="res-note">Resultados actualizados el ${esc(t)} · se renuevan a las 10:00, 17:30 y 21:15</p>`;
+// Con el servidor abierto, los marcadores llegan de ESPN cada minuto; si no, de la última corrida de la tarea diaria.
+function resultsNote(day) {
+  const t = day.updated_at ? new Intl.DateTimeFormat("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(day.updated_at)) : "–";
+  return day.live
+    ? `<p class="res-note"><i class="live-dot"></i> En vivo · marcadores actualizados cada minuto (último: ${esc(t)})</p>`
+    : `<p class="res-note">Resultados actualizados a las ${esc(t)} · con el dashboard abierto se actualizan en vivo</p>`;
 }
 function resultGroups(list) {
   const groups = new Map();
@@ -501,7 +513,8 @@ function resultRow(m) {
   return `<div class="rrow">
     <div class="time"><b>${time}</b>${m.round ? `<em class="stage">${esc(stageLabel(m.round))}</em>` : ""}</div>
     <div class="tm">${tag(m.home_id, m.home, win === 0)}${tag(m.away_id, m.away, win === 2)}</div>
-    <div class="score">${s ? `<b>${s[0]}</b><b>${s[1]}</b>` : `<span class="st-${esc(m.status)}">${m.status === "live" ? '<i class="live-dot"></i>' : ""}${RESULT_STATUS[m.status] || esc(m.status)}</span>`}</div>
+    <div class="score ${m.status === "live" ? "is-live" : ""}">${s ? `<b>${s[0]}</b><b>${s[1]}</b>${m.status === "live" ? `<em class="clock"><i class="live-dot"></i>${esc(m.clock || "en juego")}</em>` : ""}`
+      : `<span class="st-${esc(m.status)}">${m.status === "live" ? '<i class="live-dot"></i>' : ""}${RESULT_STATUS[m.status] || esc(m.status)}</span>`}</div>
     <div class="rp">${pick}</div>
   </div>`;
 }

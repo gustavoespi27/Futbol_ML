@@ -135,3 +135,30 @@ def test_play_status_from_stale_database():
     assert _play_status("scheduled", False, "2026-10-11T21:00:00Z", now) == "live"     # empezó hace 1 h
     assert _play_status("live", False, "2026-10-11T18:00:00Z", now) == "pending"       # ya debió terminar
     assert _play_status("postponed", False, "2026-10-11T21:00:00Z", now) == "postponed"
+    assert _play_status("live", False, "2026-10-11T18:00:00Z", now, live=True) == "live"  # marcador ESPN reciente
+
+
+def test_played_today_shows_live_score_and_minute(monkeypatch):
+    from datetime import datetime, timedelta, timezone
+
+    from footy.db import repository as repo
+    from footy.db.connection import connect
+    from footy.web.services import context
+
+    conn = connect(":memory:")
+    repo.sync_competitions(conn)
+    monkeypatch.setattr(context, "connect", lambda: conn)
+    now = datetime.now(timezone.utc)
+    kickoff = max(now - timedelta(minutes=50), datetime.combine(now.astimezone(context.LOCAL_TZ).date(),
+                                                                 datetime.min.time(), context.LOCAL_TZ))
+    h = repo.resolve_team(conn, "espn", "1", "Colo Colo", "Chile")
+    a = repo.resolve_team(conn, "espn", "2", "U Chile", "Chile")
+    mid = repo.upsert_match(conn, source="espn", source_match_id="9", season="2026", status="live",
+                            competition_id=repo.competition_id(conn, "CHL"), kickoff_utc=repo.to_iso(kickoff),
+                            home_team_id=h, away_team_id=a)
+    conn.execute("INSERT INTO live_scores VALUES (?, 1, 0, ?, ?)", (mid, "50" + chr(39), repo.utc_now()))
+    conn.execute("INSERT INTO sync_log VALUES ('espn_live', ?)", (repo.utc_now(),))
+    day = context.played("today")
+    assert day["live"] is True
+    assert day["matches"][0] == {**day["matches"][0], "status": "live", "score": [1, 0], "clock": "50'"}
+    assert roundtrip(s.PlayedDay, day) == day
