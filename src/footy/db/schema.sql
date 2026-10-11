@@ -181,3 +181,18 @@ CREATE TABLE IF NOT EXISTS daily_picks (
     book            TEXT,
     reason          TEXT
 );
+
+-- Marcador en vivo (ESPN) mientras el partido se juega; el resultado final queda en matches.
+CREATE TABLE IF NOT EXISTS live_scores (
+    match_id        INTEGER PRIMARY KEY REFERENCES matches(id),
+    home_goals      INTEGER NOT NULL,
+    away_goals      INTEGER NOT NULL,
+    clock           TEXT,                  -- "67'", "HT", "90'+3'"
+    updated_at      TEXT NOT NULL
+);
+
+-- Última sincronización correcta de cada tarea (espn_calendar, espn_live): desde cuándo vienen los datos.
+CREATE TABLE IF NOT EXISTS sync_log (
+    name            TEXT PRIMARY KEY,
+    synced_at       TEXT NOT NULL
+);

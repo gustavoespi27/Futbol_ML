@@ -2,6 +2,15 @@
 # Solo hace falta cuando el nombre normalizado no coincide entre fuentes.
 # Revisar con: python scripts/check_teams.py
 
+espn:
+  AGF: Aarhus
+  Deportivo: La Coruna
+  Hamarkameratene: HamKam
+  # Ligas que ESPN no cubre (Finlandia, Polonia, Rumania): sus clubes solo aparecen en las copas europeas.
+  CSU Craiova: Univ. Craiova
+  Jagiellonia Bialystok: Jagiellonia
+  KuPS Kuopio: KuPS
+
 api_football:
   # Argentina
   Atletico Tucuman: Atl. Tucuman

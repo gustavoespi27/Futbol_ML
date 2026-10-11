@@ -208,11 +208,13 @@ def upsert_match(
         ).lastrowid
     else:
         conn.execute(
-            """UPDATE matches SET kickoff_utc = ?, status = ?,
+            # Un partido terminado no vuelve a programado/en juego si otra fuente llega atrasada.
+            """UPDATE matches SET kickoff_utc = ?,
+                   status = CASE WHEN status = 'finished' AND ? IN ('scheduled', 'live') THEN status ELSE ? END,
                    home_goals = COALESCE(?, home_goals), away_goals = COALESCE(?, away_goals),
                    round = COALESCE(?, round), venue = COALESCE(?, venue), updated_at = ?
                WHERE id = ?""",
-            (kickoff_utc, status, home_goals, away_goals, round, venue, now, match_id),
+            (kickoff_utc, status, status, home_goals, away_goals, round, venue, now, match_id),
         )
 
     conn.execute(
