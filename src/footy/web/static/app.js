@@ -47,8 +47,13 @@ function leagueLogo(code, size = 16) {
 const teamTag = (id, name, size = 20) => `<span class="team">${teamLogo(id, name, size)}<span>${esc(name)}</span></span>`;
 const matchTag = (o, size = 20) => `${teamTag(o.home_id, o.home, size)} <span class="vs-s">vs</span> ${teamTag(o.away_id, o.away, size)}`;
 // Fila grande local – visita para tarjetas.
-const teamsRow = (o) => `<div class="teams"><div class="t">${teamLogo(o.home_id, o.home, 34)}<span>${esc(o.home)}</span></div>
-  <div class="vs">vs</div><div class="t r"><span>${esc(o.away)}</span>${teamLogo(o.away_id, o.away, 34)}</div></div>`;
+// Posición en la tabla (#2) junto al nombre, si la liga tiene tabla.
+const posTag = (pos) => (pos ? `<em class="tpos" title="Posición en la tabla">#${pos}</em>` : "");
+const teamsRow = (o) => {
+  const st = o.standings_summary || {};
+  return `<div class="teams"><div class="t">${teamLogo(o.home_id, o.home, 34)}<span>${esc(o.home)}</span>${posTag(st.home_pos)}</div>
+  <div class="vs">vs</div><div class="t r">${posTag(st.away_pos)}<span>${esc(o.away)}</span>${teamLogo(o.away_id, o.away, 34)}</div></div>`;
+};
 
 const cache = {};
 async function api(path, opts) {
@@ -550,10 +555,11 @@ function matchRow(m) {
       <i>${k}</i><b>${odds || "–"}</b><span>${pct(p[i])}</span></div>`;
   };
   const best = bestOption(m);
-  const tag = (id, name, isFav) => `<span class="team ${isFav ? "fav" : ""}">${teamLogo(id, name, 20)}<span>${esc(name)}</span></span>`;
+  const st = m.standings_summary || {};
+  const tag = (id, name, isFav, pos) => `<span class="team ${isFav ? "fav" : ""}">${teamLogo(id, name, 20)}<span>${esc(name)}</span>${posTag(pos)}</span>`;
   return `<div class="mrow" data-ref="${esc(m.ref)}">
     <div class="time"><b>${time}</b><span>${esc(day)}</span>${m.round ? `<em class="stage">${esc(stageLabel(m.round))}</em>` : ""}</div>
-    <div class="tm">${tag(m.home_id, m.home, fav === 0)}${tag(m.away_id, m.away, fav === 2)}</div>
+    <div class="tm">${tag(m.home_id, m.home, fav === 0, st.home_pos)}${tag(m.away_id, m.away, fav === 2, st.away_pos)}</div>
     ${cell("1", 0, "--home")}${cell("X", 1, "--draw")}${cell("2", 2, "--away")}
     <div class="best">${best ? `${evBadge(best) || vchip(best.verdict)}<span>${esc(best.label)} · ${num(best.odds)}</span>` : `<span>${m.stale ? "datos atrasados" : "sin cuotas aún"}</span>`}</div>
     <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
@@ -632,6 +638,29 @@ function statsBlock(m) {
     </div>${st ? h2h : ""}
   </section>`;
 }
+// Tabla de posiciones de la liga dentro del detalle del partido, con el local y la visita destacados.
+async function toggleStandings(btn) {
+  const sec = btn.closest(".st-sec"), box = sec.querySelector(".st-box");
+  if (box.innerHTML) { box.innerHTML = ""; btn.textContent = "Ver tabla de posiciones"; return; }
+  box.innerHTML = `<div class="st-loading">Cargando tabla…</div>`;
+  try {
+    const d = await api(`/api/standings?league=${encodeURIComponent(sec.dataset.league)}`);
+    const mark = { [sec.dataset.home]: "home", [sec.dataset.away]: "away" };
+    box.innerHTML = `<p class="mc-note">Temporada ${esc(d.season)} · desde ${fmtDate(d.since, false)} · tabla única (sin zonas ni conferencias)</p>
+      <div class="lt-wrap"><table class="lt"><thead><tr><th>#</th><th class="l">Equipo</th><th>PJ</th><th class="opt">G</th><th class="opt">E</th>
+        <th class="opt">P</th><th class="opt">GF</th><th class="opt">GC</th><th>DG</th><th>Pts</th><th class="opt">Últimos 5</th></tr></thead><tbody>
+      ${d.rows.map((r) => `<tr class="${mark[r.team_id] ? `hl ${mark[r.team_id]}` : ""}"><td>${r.pos}</td>
+        <td class="l"><span class="team">${teamLogo(r.team_id, r.name, 16)}<span>${esc(r.name)}</span></span></td>
+        <td>${r.played}</td><td class="opt">${r.won}</td><td class="opt">${r.drawn}</td><td class="opt">${r.lost}</td>
+        <td class="opt">${r.gf}</td><td class="opt">${r.ga}</td><td>${r.gd > 0 ? "+" : ""}${r.gd}</td><td><b>${r.points}</b></td>
+        <td class="opt">${formDots(r.recent)}</td></tr>`).join("")}</tbody></table></div>`;
+    btn.textContent = "Ocultar tabla";
+    const first = box.querySelector("tr.hl");
+    if (first) box.querySelector(".lt-wrap").scrollTop = Math.max(0, first.offsetTop - 60);
+  } catch (e) {
+    box.innerHTML = `<div class="mc-note">No se pudo cargar la tabla: ${esc(e.message)}</div>`;
+  }
+}
 function matchCard(m) {
   const p = m.p_official;
   const r = m.recommendation || {};
@@ -658,6 +687,9 @@ function matchCard(m) {
     ${teamsRow(m)}
     ${predictionBlock(m)}
     ${statsBlock(m)}
+    ${m.standings_summary ? `<section class="mc-sec st-sec" data-league="${esc(m.league)}" data-home="${m.home_id}" data-away="${m.away_id}">
+      <button type="button" class="chip st-toggle" onclick="toggleStandings(this)">Ver tabla de posiciones</button>
+      <div class="st-box"></div></section>` : ""}
     <section class="mc-sec"><h4>Cuotas y valor</h4>
       <div class="reco"><span class="pill ${SOURCE_PILL[m.source] ?? ""}">${esc(m.source)}</span>
         ${m.options && m.options.length ? `<span class="sem-legend">${["1", "X", "2"].map((k) => {

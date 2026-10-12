@@ -38,7 +38,8 @@ FULL = {**BASE, "market_book": "Pinnacle", "home_id": 1, "away_id": 2, "source":
                      "odds": None, "book": None, "estimated": False, "ev": None, "verdict": VERDICT}],
         "suggestions": [{"keys": ["1", "O1.5"], "label": "Gana local y más de 1,5", "p": 0.4, "fair": 2.5}],
         "odds_1x2": {"Bet365": [2.1, 3.4, 3.6], "Pinnacle": [2.0, 3.5, 3.9]},
-        "recent": {"home": ["W", "D", "L", "W", "W"], "away": ["L", "L", "D"]}}
+        "recent": {"home": ["W", "D", "L", "W", "W"], "away": ["L", "L", "D"]},
+        "standings_summary": {"home_pos": 2, "home_pts": 54, "away_pos": None, "away_pts": None}}
 NO_DATA = {**BASE, "market_book": None, "home_id": None, "away_id": None, "source": "sin datos", "p_official": None,
            "options": [], "suggestions": [], "recommendation": {"bet": False, "text": "Sin modelo validado ni cuotas"}}
 # Copa sin modelo propio (Champions): probabilidad del mercado (Pinnacle sin margen) y la fase de la copa.
@@ -194,3 +195,35 @@ def test_tracking_with_a_match_without_any_reference_odds(monkeypatch):
     data = evaluation.tracking_data()
     assert {m["close_kind"] is None for m in data["matches"]} == {True, False}   # uno con cuota y otro sin ninguna
     s.TrackingOverview.model_validate(data)
+
+
+def test_league_standings_order_points_recent_and_mixed_season_labels(monkeypatch):
+    from footy.db import repository as repo
+    from footy.db.connection import connect
+    from footy.web.services import standings
+
+    conn = connect(":memory:")
+    repo.sync_competitions(conn)
+    standings.clear_cache()
+    comp = repo.competition_id(conn, "E0")
+    t = {n: repo.resolve_team(conn, "football_data", n, n, "England") for n in ("Arsenal", "Chelsea", "Everton")}
+    games = [  # (fuente, etiqueta, fecha, local, visita, goles)
+        ("football_data", "2025/2026", "2026-05-10", "Everton", "Arsenal", (3, 0)),          # campaña anterior
+        ("football_data", "2026/2027", "2026-08-20", "Arsenal", "Chelsea", (2, 0)),
+        ("football_data", "2026/2027", "2026-08-27", "Chelsea", "Everton", (1, 1)),
+        ("api_football", "2026", "2026-09-03", "Everton", "Arsenal", (0, 1)),   # otra etiqueta, misma campaña
+        ("api_football", "2026", "2026-09-10", "Chelsea", "Arsenal", (0, 0))]
+    for i, (src, season, day, h, a, (hg, ag)) in enumerate(games):
+        repo.upsert_match(conn, source=src, source_match_id=str(i), competition_id=comp, season=season,
+                          kickoff_utc=f"{day}T15:00:00Z", home_team_id=t[h], away_team_id=t[a], status="finished",
+                          home_goals=hg, away_goals=ag)
+    rows = standings.league_standings(conn, "E0")
+    table = [(r["name"], r["played"], r["points"], r["gd"]) for r in rows]
+    # la derrota de Arsenal en mayo es de la campaña anterior: no cuenta; los partidos "2026" sí
+    assert table == [("Arsenal", 3, 7, 3), ("Chelsea", 3, 2, -2), ("Everton", 2, 1, -1)]
+    assert rows[0]["recent"] == ["W", "W", "D"] and [r["pos"] for r in rows] == [1, 2, 3]
+    assert standings.summary(conn, "E0", t["Arsenal"], t["Everton"]) == {
+        "home_pos": 1, "home_pts": 7, "away_pos": 3, "away_pts": 1}
+    assert standings.league_standings(conn, "UCL") == []                      # las copas no tienen tabla
+    data = standings.standings(conn, "E0")
+    assert data["season"] == "2026/2027" and roundtrip(s.LeagueStandingsResponse, data) == data

@@ -95,6 +95,14 @@ def upcoming():
     return cached("upcoming", 300, service.upcoming)
 
 
+@app.get("/api/standings", response_model=schemas.LeagueStandingsResponse, **TYPED)
+def standings(league: str):
+    data = service.standings(league)
+    if data is None:
+        raise HTTPException(404, f"Sin tabla para {league}: no es una liga o no tiene partidos jugados")
+    return data
+
+
 @app.get("/api/results", response_model=schemas.PlayedDay, **TYPED)
 def results(day: Literal["yesterday", "today"] = "yesterday"):
     return cached(f"results:{day}", 30, lambda: service.played(day))

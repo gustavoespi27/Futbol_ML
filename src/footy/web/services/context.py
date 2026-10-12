@@ -326,6 +326,12 @@ def match_context(conn, match_id: int) -> dict:
                              tracking.latest_market_odds(conn, match_id), r["home_team_id"], r["away_team_id"])
         if r["type"] == "cup" and r["round"]:          # fase de la copa (Champions: "League Stage - 3", "Final"...)
             ctx["round"] = r["round"]
+        if r["type"] == "league":                      # posición y puntos de ambos en la tabla vigente
+            from footy.web.services import standings
+
+            summary = standings.summary(conn, r["code"], r["home_team_id"], r["away_team_id"])
+            if summary:
+                ctx["standings_summary"] = summary
         return ctx
     return _cached_context(f"m:{match_id}", build)
 

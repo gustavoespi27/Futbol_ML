@@ -11,6 +11,7 @@ from footy.web.services import betting as _betting
 from footy.web.services import catalog as _catalog
 from footy.web.services import context as _context
 from footy.web.services import evaluation as _evaluation
+from footy.web.services import standings as _standings
 from footy.web.services.catalog import CONTINENT, COUNTRY_ES, league_names
 from footy.web.services.combos import combo, combo_history
 from footy.web.services.common import data_through, public, to_json
@@ -38,7 +39,7 @@ __all__ = [
     "PREDICTOR_TTL", "REFERENCE_BOOKS", "STALE_DAYS",
     "backtest", "clear_caches", "combo", "combo_history", "context", "current_suggestions", "data_through",
     "league_catalog", "league_names", "leagues_list", "match_context", "ml_report", "overview", "played", "predict",
-    "predictor", "public", "register_reliable", "register_suggestions", "reliable_data", "sim_context",
+    "predictor", "public", "register_reliable", "register_suggestions", "reliable_data", "sim_context", "standings",
     "suggestions_data", "teams", "to_json", "tracking_data", "upcoming",
 ]
 
@@ -46,6 +47,13 @@ __all__ = [
 def clear_caches() -> None:
     _context.clear_caches()
     _evaluation.clear_caches()
+    _standings.clear_cache()
+
+
+def standings(league: str) -> dict | None:
+    from footy.db.connection import connect
+
+    return _standings.standings(connect(), league)
 
 
 def league_catalog() -> list[dict]:

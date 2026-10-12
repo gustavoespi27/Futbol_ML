@@ -1088,3 +1088,23 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 .kv .sc-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .kv .sc-list .sc-chip { display: inline-flex; color: var(--muted); font-size: 11px; }
 .st-row.st-form { grid-template-columns: auto minmax(0, 1fr) auto; }
+
+/* ================= tabla de posiciones ================= */
+.tpos { font: 700 10.5px/1 var(--font-mono); font-style: normal; color: var(--muted); padding: 2px 5px; border-radius: 5px;
+  background: var(--surface-3); margin-left: 6px; flex: none; }
+.teams .t.r .tpos { margin: 0 6px 0 0; }
+.st-sec .chip { justify-self: start; }
+.st-loading { font-size: 12.5px; color: var(--muted); }
+.lt-wrap { max-height: 420px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; }
+.lt { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.lt th { position: sticky; top: 0; background: var(--surface-2); color: var(--muted); font-size: 10.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .05em; padding: 7px 8px; text-align: center; }
+.lt td { padding: 6px 8px; text-align: center; border-top: 1px solid var(--grid); font-family: var(--font-mono); }
+.lt .l { text-align: left; font-family: inherit; }
+.lt .team { min-width: 0; }
+.lt .team > span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+.lt tr.hl td { background: var(--accent-soft); font-weight: 700; }
+.lt tr.hl.home td:first-child { box-shadow: inset 3px 0 0 var(--home, var(--accent)); }
+.lt tr.hl.away td:first-child { box-shadow: inset 3px 0 0 var(--away, var(--accent-2)); }
+.lt .form-dots { justify-content: center; }
+@media (max-width: 640px) { .lt .opt { display: none; } .lt .team > span:last-child { max-width: 120px; } }

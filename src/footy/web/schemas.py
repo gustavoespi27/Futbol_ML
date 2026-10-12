@@ -27,6 +27,31 @@ class LeagueCatalogItem(Schema):
     model: bool = Field(description="Tiene modelo validado: se puede usar en el simulador")
 
 
+# --- /api/standings -------------------------------------------------------------------
+
+class StandingRow(Schema):
+    pos: int
+    team_id: int
+    name: str
+    played: int
+    won: int
+    drawn: int
+    lost: int
+    gf: int
+    ga: int
+    gd: int
+    points: int
+    recent: list[str] = Field(description="Últimos 5 resultados en la liga (W/D/L, del más antiguo al más reciente)")
+
+
+class LeagueStandingsResponse(Schema):
+    league: str
+    league_name: str
+    season: str = Field(description="Etiqueta de la campaña (football-data si existe)")
+    since: str = Field(description="Primer partido de la campaña (UTC)")
+    rows: list[StandingRow]
+
+
 # --- /api/results ---------------------------------------------------------------------
 
 class ResultPick(Schema):
@@ -270,6 +295,14 @@ class MatchStats(Schema):
     h2h: HeadToHead
 
 
+class StandingsSummary(Schema):
+    """Posición y puntos de ambos equipos en la tabla vigente (None si el equipo aún no juega en la temporada)."""
+    home_pos: int | None
+    home_pts: int | None
+    away_pos: int | None
+    away_pts: int | None
+
+
 class MatchSummary(Schema):
     """Un partido próximo. Los campos de probabilidades faltan si la liga no tiene modelo ni cuotas, y en un
     partido que no se pudo calcular llegan `source: "error"` y `error`."""
@@ -302,5 +335,6 @@ class MatchSummary(Schema):
     odds_1x2: dict[str, list[float]] | None = None
     error: str | None = None
     round: str | None = Field(None, description="Fase de una copa tal como la entrega API-Football (solo copas)")
+    standings_summary: StandingsSummary | None = Field(None, description="Solo ligas con tabla")
     recent: dict[str, list[str]] | None = Field(
         None, description="Últimos 5 resultados de cada equipo (W/D/L, del más antiguo al más reciente)")
