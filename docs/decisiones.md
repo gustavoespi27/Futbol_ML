@@ -464,3 +464,26 @@ LaLiga +141, Serie A +124, Ligue 1 +87, Brasil +83 ... Escocia −129, Irlanda �
 **Uso.** Sin cuotas, la probabilidad oficial de una copa es la del modelo. Con cuotas manda Pinnacle sin margen (no
 hay pesos validados para combinar ambos) y el modelo se muestra al lado. Los pronósticos se registran antes de cada
 partido con versión propia (`cross_elo_v1`) para medirlos en vivo. La tarea diaria lo reentrena (6 s).
+
+## 2026-10-11 — Precisión: cuotas cercanas al inicio y cobertura de mercado
+
+**Diagnóstico.** La probabilidad oficial ya es casi el mercado: en las 38 ligas la combinación validada le da al
+mercado peso 0,9-1,2 y a Elo/Dixon-Coles ~0. En vivo (287 partidos) el oficial tiene log loss 0,9454 contra 0,9482
+de la última cuota capturada y 0,967 del modelo solo. Mejorar el modelo propio casi no mueve la precisión oficial
+(análisis 03-05, fase 9). Lo que sí la mueve es qué cuota se usa y cuántos partidos tienen cuota.
+
+**Evidencia.** En 18.369 partidos 2023-2026 (CSV de football-data), Pinnacle de cierre frente a Pinnacle de días
+antes: log loss 0,9957 vs 0,9989 (−0,0032, IC95% [−0,0044; −0,0021]) y acierto 50,9% vs 50,4%. Nuestro pronóstico se
+fijaba ~20 h antes del inicio (mediana). Sin cuota, el modelo solo pierde ~0,06 frente al mercado.
+
+**Decisiones.**
+- Pronóstico final: `scripts/prekickoff.py` cada 30 min toma una cuota en las últimas 2 h de cada partido y registra
+  otro pronóstico (solo si llegó una cuota posterior al último). Se evalúa el más cercano al inicio. El informe compara
+  temprano vs final en los mismos partidos; con pocos partidos la diferencia es ruido (se espera ~0,003).
+- Cuotas (prioridad 3) para Rumania, Suiza, Polonia, Finlandia e Irlanda, que no tienen ESPN ni cuotas pre-partido de
+  football-data (~6% de los pronósticos quedaban sin mercado).
+- Esperado: +0,3-0,5 puntos de acierto y −0,002/−0,003 de log loss, y mejor medición del CLV. Pasar claramente al
+  mercado requiere información que el mercado aún no tiene; no hay fuente gratuita para eso.
+
+**Corrección.** Resultados fallaba (500) con partidos evaluados sin ninguna cuota de referencia: pandas convertía
+`close_kind` None en NaN y el contrato estricto lo rechazaba.
