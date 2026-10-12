@@ -17,6 +17,8 @@ from footy.models import ml
 
 CACHE = config.path("processed") / "ml" / "upcoming.pkl"
 MAX_AGE = 26 * 3600          # la tarea diaria lo recalcula dos veces al día
+STAT_FEATURES = ("pts_5", "gf_10", "ga_10", "sf_10", "sa_10", "tf_10", "venue_pts5", "season_ppg", "season_gd",
+                 "season_n", "rest", "unbeaten", "winless")
 
 
 def compute(days_ahead: int = 10) -> pd.DataFrame:
@@ -55,10 +57,13 @@ def compute(days_ahead: int = 10) -> pd.DataFrame:
     # Competiciones que el modelo no vio al entrenar (selecciones, copas internacionales): sin pronóstico ML.
     unseen = ~up.comp.isin(model.comps).to_numpy()
     out.loc[unseen, ["ml_H", "ml_D", "ml_A", "ml_over25", "ml_btts"]] = np.nan
-    out["form_h"], out["form_a"] = up.h_pts_5.to_numpy(), up.a_pts_5.to_numpy()
-    out["gf_h"], out["ga_h"] = up.h_gf_10.to_numpy(), up.h_ga_10.to_numpy()
-    out["gf_a"], out["ga_a"] = up.a_gf_10.to_numpy(), up.a_ga_10.to_numpy()
-    out["h2h_n"], out["h2h_pts"] = up.h2h_n.to_numpy(), up.h2h_pts.to_numpy()
+    # Estadísticas previas para mostrar en el dashboard (las mismas variables que usa el modelo, de partidos ya
+    # jugados): también en competiciones que el modelo no vio, porque salen del historial de cada equipo.
+    for side in ("h", "a"):
+        for f in STAT_FEATURES:
+            out[f"st_{side}_{f}"] = up[f"{side}_{f}"].to_numpy()
+    for f in ("h2h_n", "h2h_pts", "h2h_gd"):
+        out[f"st_{f}"] = up[f].to_numpy()
     return out
 
 

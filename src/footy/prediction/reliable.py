@@ -30,9 +30,10 @@ def reason(ctx: dict, opt: dict) -> str:
     pm = ctx.get("p_market")
     if pm and opt["key"] in ("1", "X", "2"):
         parts.append(f"el mercado le da {pm['1X2'.index(opt['key'])]:.0%}")
-    f = ctx.get("form") or {}
-    if f.get("form_h") is not None and f.get("form_a") is not None:
-        parts.append(f"forma últimos 5: {f['form_h']:.1f} vs {f['form_a']:.1f} pts")
+    st = ctx.get("stats") or {}
+    h, a = (st.get("home") or {}).get("pts5"), (st.get("away") or {}).get("pts5")
+    if h is not None and a is not None:
+        parts.append(f"forma últimos 5: {h:.1f} vs {a:.1f} pts")
     if ctx.get("xg"):
         parts.append(f"goles esperados {ctx['xg'][0]:.1f}–{ctx['xg'][1]:.1f}")
     if opt.get("odds"):

@@ -240,15 +240,34 @@ class Variant(Schema):
     fair: float | None
 
 
-class Form(Schema):
-    form_h: float | None
-    form_a: float | None
-    gf_h: float | None
-    ga_h: float | None
-    gf_a: float | None
-    ga_a: float | None
-    h2h_n: float | None
-    h2h_pts: float | None
+class TeamStats(Schema):
+    """Promedios por partido de un equipo, solo con partidos jugados antes de este (las variables del modelo)."""
+    pts5: float | None = Field(description="Puntos por partido, últimos 5")
+    gf10: float | None = Field(description="Goles a favor, últimos 10")
+    ga10: float | None = Field(description="Goles en contra, últimos 10")
+    sot10: float | None = Field(description="Tiros al arco, últimos 10")
+    sot_against10: float | None = Field(description="Tiros al arco recibidos, últimos 10")
+    shots10: float | None = Field(description="Tiros totales, últimos 10")
+    venue_pts5: float | None = Field(description="Puntos por partido en su condición (local o visita), últ. 5")
+    season_ppg: float | None
+    season_gd: float | None = Field(description="Diferencia de gol por partido en la temporada")
+    season_n: float | None
+    rest: float | None = Field(description="Días desde su último partido (tope 30)")
+    unbeaten: float | None
+    winless: float | None
+    elo: int | None = Field(None, description="Rating Elo en la liga (solo ligas con modelo)")
+
+
+class HeadToHead(Schema):
+    n: int
+    pts: float | None = Field(description="Puntos por partido del local en los enfrentamientos")
+    gd: float | None
+
+
+class MatchStats(Schema):
+    home: TeamStats
+    away: TeamStats
+    h2h: HeadToHead
 
 
 class MatchSummary(Schema):
@@ -273,7 +292,7 @@ class MatchSummary(Schema):
     p_model: Prob3 | None = None
     p_market: Prob3 | None = None
     model_name: str | None = None
-    form: Form | None = None
+    stats: MatchStats | None = None
     xg: list[float | None] | None = None
     pro: list[ProBet] | None = None
     has_sharp: bool | None = None

@@ -571,23 +571,75 @@ function formDots(seq) {
   const lab = { W: ["G", "Ganó"], D: ["E", "Empató"], L: ["P", "Perdió"] };
   return `<span class="form-dots">${(seq || []).map((r) => `<span class="form-dot ${r}" title="${lab[r][1]}">${lab[r][0]}</span>`).join("")}</span>`;
 }
+// Fila comparativa local / visita: el mejor valor se destaca (better: "high" o "low"; null = sin comparar).
+function statRow(label, h, a, { better = "high", fmt = (x) => num(x, 1), hint = "" } = {}) {
+  if (h == null && a == null) return "";
+  const cls = (x, y) => (better && x != null && y != null && x !== y
+    && ((better === "high") === (x > y)) ? "better" : "");
+  return `<div class="st-row" ${hint ? `title="${esc(hint)}"` : ""}><b class="${cls(h, a)}">${h == null ? "–" : fmt(h)}</b>
+    <span>${label}</span><b class="${cls(a, h)}">${a == null ? "–" : fmt(a)}</b></div>`;
+}
+// Lo que el sistema espera del partido: resultado más probable, goles esperados y marcadores probables.
+function predictionBlock(m) {
+  const p = m.p_official;
+  if (!p) return "";
+  const fav = p.indexOf(Math.max(...p));
+  const who = fav === 1 ? "Empate" : `Gana ${fav === 0 ? m.home : m.away}`;
+  const goals = m.xg ? m.xg[0] + m.xg[1] : null;
+  const scores = (m.top_scores || []).map(([sc, q]) => `<span class="sc-chip"><b>${esc(sc)}</b>${pct(q)}</span>`).join("");
+  return `<section class="mc-sec"><h4>Predicción del sistema</h4>
+    <div>${probBar(p, m.p_market)}</div>
+    <p class="mc-lead">Lo más probable: <b>${esc(who)}</b> (${pct(p[fav])})${goals != null ? ` · se esperan <b>${num(goals, 1)}</b> goles` : ""}${m.top_scores && m.top_scores[0] ? ` · marcador más probable <b>${esc(m.top_scores[0][0])}</b>` : ""}.</p>
+    ${m.xg ? `<div class="kv">
+      <div class="xg-cell"><span>Goles esperados</span>${xgGauge(m.xg[0], m.xg[1])}</div>
+      <div><span>Más de 2,5 goles</span><b class="num">${pct(m.over25)}</b></div>
+      <div><span>Ambos marcan</span><b class="num">${pct(m.btts)}</b></div>
+      <div><span>Marcadores más probables</span><span class="sc-list">${scores}</span></div></div>` : ""}
+    ${m.p_model && m.p_market ? `<div class="compare">
+      <div class="row"><span></span><span>Local</span><span>Empate</span><span>Visita</span></div>
+      <div class="row"><span>${esc(m.model_name === "ML historial" ? "Modelo ML" : "Modelo")}</span>${m.p_model.map((x) => `<span class="num">${pct(x)}</span>`).join("")}</div>
+      <div class="row"><span>Mercado</span>${m.p_market.map((x) => `<span class="num">${pct(x)}</span>`).join("")}</div></div>` : ""}
+    ${m.p_model && !m.p_market && m.model_name === "ML historial" ? `<div class="reco"><span class="pill">pronóstico ML</span> sin cuotas aún: probabilidades del modelo entrenado con el historial de los equipos</div>` : ""}
+  </section>`;
+}
+// Estadísticas previas: las mismas variables que usa el modelo, calculadas solo con partidos anteriores.
+function statsBlock(m) {
+  const st = m.stats, rec = m.recent;
+  if (!st && !rec) return "";
+  const H = (st && st.home) || {}, A = (st && st.away) || {};
+  const signed1 = (x) => (x > 0 ? "+" : "") + num(x, 2);
+  const int = (x) => Math.round(x).toLocaleString("es-CL");
+  const streak = (t) => (t.unbeaten >= 3 ? `invicto ${int(t.unbeaten)}` : t.winless >= 3 ? `${int(t.winless)} sin ganar` : "–");
+  const h2h = st && st.h2h && st.h2h.n
+    ? `<p class="mc-note">Últimos ${st.h2h.n} enfrentamientos: ${esc(m.home)} sumó ${num(st.h2h.pts, 1)} pts por partido${st.h2h.gd != null ? ` (dif. de gol ${signed1(st.h2h.gd)})` : ""}.</p>`
+    : `<p class="mc-note">Sin enfrentamientos recientes entre ambos.</p>`;
+  return `<section class="mc-sec"><h4>Estadísticas previas</h4>
+    <div class="st-head"><span>${teamLogo(m.home_id, m.home, 18)}${esc(m.home)}</span><span>${esc(m.away)}${teamLogo(m.away_id, m.away, 18)}</span></div>
+    <div class="st-table">
+      ${rec ? `<div class="st-row st-form"><b>${formDots(rec.home)}</b><span>Últimos 5</span><b>${formDots(rec.away)}</b></div>` : ""}
+      ${statRow("Fuerza (Elo)", H.elo, A.elo, { fmt: int, hint: "Rating Elo dentro de la liga: más alto = más fuerte (solo comparable entre equipos de la misma liga)" })}
+      ${statRow("Puntos por partido (últ. 5)", H.pts5, A.pts5, { fmt: (x) => num(x, 2) })}
+      ${statRow("Puntos por partido (temporada)", H.season_ppg, A.season_ppg, { fmt: (x) => num(x, 2) })}
+      ${statRow("Dif. de gol por partido (temporada)", H.season_gd, A.season_gd, { fmt: signed1 })}
+      ${statRow("Goles a favor (últ. 10)", H.gf10, A.gf10)}
+      ${statRow("Goles en contra (últ. 10)", H.ga10, A.ga10, { better: "low" })}
+      ${statRow("Tiros al arco (últ. 10)", H.sot10, A.sot10)}
+      ${statRow("Tiros al arco recibidos (últ. 10)", H.sot_against10, A.sot_against10, { better: "low" })}
+      ${statRow("Tiros totales (últ. 10)", H.shots10, A.shots10)}
+      ${statRow("Pts. de local / de visita (últ. 5)", H.venue_pts5, A.venue_pts5, { fmt: (x) => num(x, 2), hint: "El local en sus partidos en casa; la visita en sus partidos fuera" })}
+      ${statRow("Días de descanso", H.rest, A.rest, { better: null, fmt: int })}
+      ${st ? `<div class="st-row"><b>${streak(H)}</b><span>Racha</span><b>${streak(A)}</b></div>` : ""}
+    </div>${st ? h2h : ""}
+  </section>`;
+}
 function matchCard(m) {
   const p = m.p_official;
-  const fav = p ? p.indexOf(Math.max(...p)) : null;
   const r = m.recommendation || {};
   // Recomendación = la mejor opción del partido según el semáforo (misma regla que el panel).
   const best = bestOption(m);
   const reco = best
     ? `${vchip(best.verdict)} <span>Mejor opción: <b style="color:var(--text)">${esc(best.label)}</b> a ${num(best.odds)} · ${esc(best.verdict.reason)}</span>`
     : `${vchip({ level: "none", label: "Sin cuota", reason: "" })} <span>${esc(r.text || "Aún no hay cuotas para evaluar el retorno.")}</span>`;
-  let extra = "";
-  if (m.xg) {
-    extra = `<div class="kv">
-      <div class="xg-cell"><span>Goles esperados</span>${xgGauge(m.xg[0], m.xg[1])}</div>
-      <div><span>Marcador más probable</span><b class="num">${esc(m.top_scores[0][0])}</b></div>
-      <div><span>Más de 2,5 goles</span><b class="num">${pct(m.over25)}</b></div>
-      <div><span>Ambos marcan</span><b class="num">${pct(m.btts)}</b></div></div>`;
-  }
   let oddsHtml = "";
   const book = m.odds_1x2 && (m.odds_1x2.Bet365 ? "Bet365" : Object.keys(m.odds_1x2)[0]);
   if (book) {
@@ -601,45 +653,22 @@ function matchCard(m) {
     oddsHtml = `<div class="compare"><div class="odds-row"><span>Cuota justa</span>${p.map((x) => `<span>${num(1 / x)}</span>`).join("")}</div>
       <div style="color:var(--muted)">Cuotas de la casa: aún no publicadas o no recolectadas.</div></div>`;
   }
-  let form = "";
-  if (m.recent) {
-    form = `<div class="compare">
-      <div class="odds-row form-row"><span>Últimos 5</span><span>${formDots(m.recent.home)}</span><span></span>
-        <span>${formDots(m.recent.away)}</span></div>
-      ${m.form && m.form.form_h != null ? `<div class="odds-row"><span>Goles (últ. 10)</span><span>${num(m.form.gf_h, 1)}–${num(m.form.ga_h, 1)}</span><span></span><span>${num(m.form.gf_a, 1)}–${num(m.form.ga_a, 1)}</span></div>` : ""}
-      ${m.form && m.form.h2h_n ? `<div style="color:var(--muted)">Últimos ${m.form.h2h_n} enfrentamientos: ${esc(m.home)} sumó ${num(m.form.h2h_pts, 1)} pts por partido</div>` : ""}</div>`;
-  } else if (m.form && m.form.form_h != null) {
-    const f = m.form;
-    form = `<div class="compare">
-      <div class="odds-row"><span>Forma (últ. 5)</span><span>${num(f.form_h, 1)} pts</span><span></span><span>${num(f.form_a, 1)} pts</span></div>
-      <div class="odds-row"><span>Goles (últ. 10)</span><span>${num(f.gf_h, 1)}–${num(f.ga_h, 1)}</span><span></span><span>${num(f.gf_a, 1)}–${num(f.ga_a, 1)}</span></div>
-      ${f.h2h_n ? `<div style="color:var(--muted)">Últimos ${f.h2h_n} enfrentamientos: ${esc(m.home)} sumó ${num(f.h2h_pts, 1)} pts por partido</div>` : ""}</div>`;
-  }
-  let mlOnly = "";
-  if (m.p_model && !m.p_market && m.model_name === "ML historial") {
-    mlOnly = `<div class="reco"><span class="pill">pronóstico ML</span> sin cuotas aún: probabilidades del modelo entrenado con el historial de los equipos</div>`;
-  }
-  let compare = "";
-  if (m.p_model && m.p_market) {
-    compare = `<div class="compare">
-      <div class="row"><span></span><span>Local</span><span>Empate</span><span>Visita</span></div>
-      <div class="row"><span>${esc(m.model_name === "ML historial" ? "ML" : "Modelo")}</span>${m.p_model.map((x) => `<span class="num">${pct(x)}</span>`).join("")}</div>
-      <div class="row"><span>Mercado</span>${m.p_market.map((x) => `<span class="num">${pct(x)}</span>`).join("")}</div></div>`;
-  }
   return `<article class="card match">
     <div class="meta"><span class="lg">${leagueLogo(m.league, 16)}${esc(m.league_name)}</span><span>${fmtDate(m.kickoff)}</span></div>
     ${teamsRow(m)}
-    <div>${probBar(p, m.p_market)}</div>
-    <div class="reco"><span class="pill ${SOURCE_PILL[m.source] ?? ""}">${esc(m.source)}</span>
-      ${fav != null ? `<span>Más probable: <b style="color:var(--text)">${fav === 1 ? "empate" : fav === 0 ? esc(m.home) : esc(m.away)}</b></span>` : ""}</div>
-    ${m.options && m.options.length ? `<div class="sem-legend">${["1", "X", "2"].map((k) => {
-      const op = m.options.find((x) => x.key === k);
-      return op ? vchip(op.verdict, `${k === "1" ? "Local" : k === "X" ? "Empate" : "Visita"} ${pct(op.p)}`) : "";
-    }).join("")}</div>` : ""}
-    ${oddsHtml}${extra}${form}${compare}${mlOnly}
+    ${predictionBlock(m)}
+    ${statsBlock(m)}
+    <section class="mc-sec"><h4>Cuotas y valor</h4>
+      <div class="reco"><span class="pill ${SOURCE_PILL[m.source] ?? ""}">${esc(m.source)}</span>
+        ${m.options && m.options.length ? `<span class="sem-legend">${["1", "X", "2"].map((k) => {
+          const op = m.options.find((x) => x.key === k);
+          return op ? vchip(op.verdict, `${k === "1" ? "Local" : k === "X" ? "Empate" : "Visita"} ${pct(op.p)}`) : "";
+        }).join("")}</span>` : ""}</div>
+      ${oddsHtml}
+      <div class="reco">${reco}</div>
+      ${m.options && m.options.length ? `<button class="chip" style="justify-self:start" onclick="goToCombos('${esc(m.ref)}')">Ver todas las opciones y combinar →</button>` : ""}
+    </section>
     ${m.stale ? `<div class="stale">⚠ Datos de la liga hasta ${fmtDate(m.data_through, false)}: faltan fechas recientes (la fuente se atrasó).</div>` : ""}
-    <div class="reco">${reco}</div>
-    ${m.options && m.options.length ? `<button class="chip" style="justify-self:start" onclick="goToCombos('${esc(m.ref)}')">Ver todas las opciones y combinar →</button>` : ""}
   </article>`;
 }
 

@@ -138,8 +138,8 @@ def _option_odds(odds: dict) -> dict[str, dict]:
 
 # --- contexto ------------------------------------------------------------------
 
-def _ml_row(match_id: int | None) -> dict | None:
-    """Predicción del modelo de machine learning para un partido programado (None si no hay)."""
+def _upcoming_row(match_id: int | None) -> dict | None:
+    """Fila de ml_predict.upcoming() de un partido programado: predicción ML y estadísticas previas (None si no hay)."""
     if match_id is None:
         return None
     try:
@@ -150,14 +150,36 @@ def _ml_row(match_id: int | None) -> dict | None:
         return None
     if df.empty or match_id not in df.index:
         return None
-    r = df.loc[match_id]
-    return None if np.isnan(r.ml_H) else r.to_dict()
+    return df.loc[match_id].to_dict()
+
+
+# Estadísticas previas de cada equipo que se muestran (nombre en la API -> variable del historial).
+STAT_KEYS = {"pts5": "pts_5", "gf10": "gf_10", "ga10": "ga_10", "sot10": "sf_10", "sot_against10": "sa_10",
+             "shots10": "tf_10", "venue_pts5": "venue_pts5", "season_ppg": "season_ppg", "season_gd": "season_gd",
+             "season_n": "season_n", "rest": "rest", "unbeaten": "unbeaten", "winless": "winless"}
+
+
+def _stats(r: dict | None) -> dict | None:
+    """Estadísticas previas (solo partidos ya jugados antes de este): forma, goles, tiros, temporada, descanso,
+    rachas y enfrentamientos directos."""
+    if not r or "st_h_pts_5" not in r:
+        return None
+
+    def v(k):
+        x = r.get(k)
+        return None if x is None or np.isnan(x) else round(float(x), 2)
+
+    out = {side: {k: v(f"st_{p}_{f}") for k, f in STAT_KEYS.items()} for side, p in (("home", "h"), ("away", "a"))}
+    out["h2h"] = {"n": int(v("st_h2h_n") or 0), "pts": v("st_h2h_pts"), "gd": v("st_h2h_gd")}
+    return out
 
 
 def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | None, odds: dict,
                    home_id: int | None = None, away_id: int | None = None) -> dict:
     params, names = load_params(), league_names()
-    mlr = _ml_row(int(ref[2:])) if ref.startswith("m:") else None
+    row = _upcoming_row(int(ref[2:])) if ref.startswith("m:") else None
+    mlr = None if row is None or np.isnan(row.get("ml_H", np.nan)) else row
+    stats = _stats(row)
     books = _books_1x2(odds)
     ref_book = next((b for b in REFERENCE_BOOKS if b in books), None) or next(iter(books), None)
     p_mkt_over = _market_over(odds)
@@ -183,9 +205,12 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
                                                  params[code].get("ou"))[0])
         M = combos.fit_matrix(pr["lam"], pr["mu"], pred.dc.rho, p_off, p_over,
                               p_btts=float(mlr["ml_btts"]) if mlr else None)
+        if stats:                                  # fuerza Elo de cada equipo (escala del predictor de la liga)
+            for side, tid in (("home", home_id), ("away", away_id)):
+                stats[side]["elo"] = round(float(pred.ratings[tid])) if tid in pred.ratings else None
         ctx.update({"source": "modelo + mercado" if ref_book else ("ML" if mlr else "modelo"),
                     "p_model": _probs(p_model), "model_name": "ML historial" if mlr else "Elo + Dixon-Coles",
-                    "form": _form(mlr),
+                    "stats": stats,
                     "p_market": _probs(pr.get("p_market")), "xg": [_f(pr["lam"], 2), _f(pr["mu"], 2)]})
         ctx["recommendation"] = paper_bet(params[code], p_off, books) if ref_book else {
             "bet": False, "text": "Sin cuotas: no se puede evaluar valor."}
@@ -194,8 +219,8 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
         lam, mu = combos.implied_goals(p_off, p_mkt_over)
         M = combos.fit_matrix(lam, mu, 0.0, p_off, p_mkt_over)
         if mlr:
-            ctx.update({"p_model": _probs([mlr["ml_H"], mlr["ml_D"], mlr["ml_A"]]), "model_name": "ML historial",
-                        "form": _form(mlr)})
+            ctx.update({"p_model": _probs([mlr["ml_H"], mlr["ml_D"], mlr["ml_A"]]), "model_name": "ML historial"})
+        ctx["stats"] = stats
         ctx.update({"source": "mercado", "p_market": _probs(p_off), "xg": [_f(lam, 2), _f(mu, 2)],
                     "recommendation": {"bet": False, "text": "Sin modelo validado en esta liga: se muestra la "
                                                               "probabilidad del mercado."}})
@@ -246,14 +271,6 @@ def _attach_drift(pro_opps: dict, match_id: int) -> None:
         if o is not None:
             o["drift"] = {"from": round(float(r.first), 3), "to": round(float(r.last), 3),
                           "pct": round(float(r.drift), 4), "n": int(r.n), "signal": pro.steam(float(r.drift))}
-
-
-def _form(r: dict | None) -> dict | None:
-    """Forma reciente que usa el ML (para mostrarla): puntos por partido últimos 5, goles a favor/en contra (10)."""
-    if not r:
-        return None
-    return {k: (None if r.get(k) is None or np.isnan(r[k]) else round(float(r[k]), 2))
-            for k in ("form_h", "form_a", "gf_h", "ga_h", "gf_a", "ga_a", "h2h_n", "h2h_pts")}
 
 
 def top_scores(M: np.ndarray, n: int = 3) -> list:
