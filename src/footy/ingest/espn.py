@@ -110,14 +110,18 @@ def _goals(side: dict) -> int | None:
 
 
 def final_goals(ev: dict) -> tuple[int | None, int | None]:
-    """Resultado a los 90' (como guarda la base). Con alargue o penales ESPN entrega el marcador final: se usan los
-    dos primeros tiempos si vienen; si no, se deja vacío y lo completa API-Football."""
+    """Resultado a los 90' (como guarda la base). Con alargue ESPN entrega el marcador con el alargue: se usan los dos
+    primeros tiempos si vienen; si no, se deja vacío (los modelos ignoran los terminados sin goles). Definido por
+    penales sin alargue (J1 2026): el marcador no incluye la tanda, así que es el de los 90'."""
     home, away = _sides(ev)
-    if any(w in ev["status"]["type"].get("name", "") for w in ("AET", "PEN", "EXTRA", "SHOOTOUT")):
-        def ninety(side):
-            ls = side.get("linescores") or []
-            return int(sum(float(p["value"]) for p in ls[:2])) if len(ls) >= 2 else None
-        return ninety(home), ninety(away)
+    name = ev["status"]["type"].get("name", "")
+    if any(w in name for w in ("AET", "PEN", "EXTRA", "SHOOTOUT")):
+        ls_h, ls_a = home.get("linescores") or [], away.get("linescores") or []
+        if len(ls_h) >= 2 and len(ls_a) >= 2:
+            return tuple(int(sum(float(p["value"]) for p in ls[:2])) for ls in (ls_h, ls_a))
+        if "PEN" in name and "AET" not in name and _goals(home) == _goals(away):
+            return _goals(home), _goals(away)
+        return None, None
     return _goals(home), _goals(away)
 
 

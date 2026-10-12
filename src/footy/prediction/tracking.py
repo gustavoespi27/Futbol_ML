@@ -244,7 +244,8 @@ def timing_gain(conn: sqlite3.Connection, early_hours: float = 12, late_hours: f
     df = pd.read_sql_query(
         """SELECT p.match_id, p.created_at, p.p_home, p.p_draw, p.p_away, p.extra_json, m.kickoff_utc,
                   m.home_goals, m.away_goals FROM predictions p JOIN matches m ON m.id = p.match_id
-           WHERE m.status = 'finished' AND p.model_version = ? AND p.created_at < m.kickoff_utc
+           WHERE m.status = 'finished' AND m.home_goals IS NOT NULL AND p.model_version = ?
+             AND p.created_at < m.kickoff_utc
            ORDER BY p.created_at""", conn, params=(MODEL_VERSION,))
     if df.empty:
         return {"n": 0}
@@ -281,7 +282,8 @@ def evaluate(conn: sqlite3.Connection,
                    m.home_team_id AS home_id, m.away_team_id AS away_id
             FROM predictions p JOIN matches m ON m.id = p.match_id
             JOIN teams th ON th.id = m.home_team_id JOIN teams ta ON ta.id = m.away_team_id
-            WHERE m.status = 'finished' AND p.created_at < m.kickoff_utc AND p.model_version IN ({q})""",
+            WHERE m.status = 'finished' AND m.home_goals IS NOT NULL AND p.created_at < m.kickoff_utc
+              AND p.model_version IN ({q})""",
         conn, params=versions)
     if preds.empty:
         return pd.DataFrame(), pd.DataFrame()

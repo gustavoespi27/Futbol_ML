@@ -130,3 +130,17 @@ def test_history_gets_the_season_of_the_nearest_match_and_skips_all_stars(conn):
                                               state="post", name="STATUS_FULL_TIME", score=("1", "0"), completed=True))
     assert conn.execute("SELECT season FROM matches WHERE id = ?", (feb,)).fetchone()[0] == "2025/2026"
     assert espn.store_event(conn, "USA", event(2, team(90, "MLS All-Stars"), team(91, "Liga MX All-Stars"))) is None
+
+
+def test_penalties_keep_the_match_score_and_unknown_extra_time_stays_empty():
+    pen = event(1, team(1, "A"), team(2, "B"), state="post", name="STATUS_FINAL_PEN", score=("1", "1"), completed=True)
+    assert espn.final_goals(pen) == (1, 1)                       # la tanda va aparte: 1-1 es el de los 90'
+    aet = event(2, team(1, "A"), team(2, "B"), state="post", name="STATUS_FINAL_AET", score=("2", "1"), completed=True)
+    assert espn.final_goals(aet) == (None, None)                 # sin detalle por tiempos no se sabe el de los 90'
+
+
+def test_finished_match_without_goals_does_not_break_the_league_model(conn):
+    from footy.data import load_matches
+    league_match(conn, "E1", "Leeds", "Hull", "2026-05-12T19:00:00Z", "England")
+    conn.execute("UPDATE matches SET status = 'finished'")      # terminado con marcador desconocido (alargue)
+    assert load_matches(conn, ["E1"]).empty

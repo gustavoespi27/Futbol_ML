@@ -27,7 +27,7 @@ def load_matches(conn: sqlite3.Connection, comps: list[str], with_stats: bool = 
             JOIN competitions c ON c.id = m.competition_id
             JOIN teams th ON th.id = m.home_team_id
             JOIN teams ta ON ta.id = m.away_team_id
-            WHERE m.status = 'finished' AND c.code IN ({q})
+            WHERE m.status = 'finished' AND m.home_goals IS NOT NULL AND c.code IN ({q})
             ORDER BY m.kickoff_utc, m.id""",
         conn, params=comps,
     )

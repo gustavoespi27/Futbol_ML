@@ -154,7 +154,7 @@ def implied_goals(p1x2, p_over25: float | None = None) -> tuple[float, float]:
     target = np.asarray(p1x2, dtype=float)
 
     def loss(x):
-        lam, mu = np.exp(x)
+        lam, mu = np.exp(np.clip(x, -4, 2.5))     # 0,02 a 12 goles: fuera de eso la matriz se anula (0/0)
         m = score_matrix(lam, mu)
         err = sum((m[SELECTIONS[k][2]].sum() - t) ** 2 for k, t in zip("1X2", target))
         if p_over25 is not None:
@@ -162,5 +162,5 @@ def implied_goals(p1x2, p_over25: float | None = None) -> tuple[float, float]:
         return err
 
     x = minimize(loss, np.log([1.4, 1.1]), method="Nelder-Mead", options={"xatol": 1e-4, "fatol": 1e-9}).x
-    lam, mu = np.exp(x)
+    lam, mu = np.exp(np.clip(x, -4, 2.5))
     return float(lam), float(mu)
