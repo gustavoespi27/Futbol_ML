@@ -45,7 +45,8 @@ FULL = {**BASE, "market_book": "Pinnacle", "home_id": 1, "away_id": 2, "source":
                              "date": "2026-10-05T14:00:00Z", "league": "E0", "league_name": "Premier League"}],
                    "away": [{"outcome": "L", "score": [0, 2], "opponent": "Liverpool", "opponent_id": 9,
                              "is_home": False, "date": "2026-09-28T14:00:00Z", "league": "E0",
-                             "league_name": "Premier League"}]},
+                             "league_name": "Premier League"}],
+                   "home_venue": [], "away_venue": []},
         "standings_summary": {"home_pos": 2, "home_pts": 54, "away_pos": None, "away_pts": None}}
 NO_DATA = {**BASE, "market_book": None, "home_id": None, "away_id": None, "source": "sin datos", "p_official": None,
            "options": [], "suggestions": [], "recommendation": {"bet": False, "text": "Sin modelo validado ni cuotas"}}
@@ -285,4 +286,7 @@ def test_recent_form_details_and_no_leakage():
     assert form[b][1] == {"outcome": "W", "score": [2, 0], "opponent": "Arsenal", "opponent_id": a, "is_home": True,
                           "date": "2026-09-20T15:00:00Z", "league": "E0", "league_name": "Premier League"}
     assert len(recent_form(conn, [a])[a]) == 3                                           # sin corte: entra el futuro
+    venue = recent_form(conn, [a, b], before_kickoff="2026-10-15T15:00:00Z", venue_only=True)
+    assert [f["date"][:10] for f in venue[a]] == ["2026-09-01"] and all(f["is_home"] for f in venue[a])
+    assert [f["date"][:10] for f in venue[b]] == ["2026-09-01"] and not any(f["is_home"] for f in venue[b])
     assert roundtrip(s.FormMatch, form[a][0]) == form[a][0]

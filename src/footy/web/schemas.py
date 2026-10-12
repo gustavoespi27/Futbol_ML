@@ -321,6 +321,14 @@ class FormMatch(Schema):
     league_name: str
 
 
+class RecentForm(Schema):
+    """Últimos 5 partidos de cada equipo (del más antiguo al más reciente): en general y en su condición de hoy."""
+    home: list[FormMatch]
+    away: list[FormMatch]
+    home_venue: list[FormMatch] = Field(description="Solo partidos del local jugando en casa")
+    away_venue: list[FormMatch] = Field(description="Solo partidos de la visita jugando fuera")
+
+
 class StandingsSummary(Schema):
     """Posición y puntos de ambos equipos en la tabla vigente (None si el equipo aún no juega en la temporada)."""
     home_pos: int | None
@@ -362,5 +370,4 @@ class MatchSummary(Schema):
     error: str | None = None
     round: str | None = Field(None, description="Fase de una copa tal como la entrega API-Football (solo copas)")
     standings_summary: StandingsSummary | None = Field(None, description="Solo ligas con tabla")
-    recent: dict[str, list[FormMatch]] | None = Field(
-        None, description="Últimos 5 partidos de cada equipo (del más antiguo al más reciente)")
+    recent: RecentForm | None = None

@@ -362,10 +362,13 @@ def match_context(conn, match_id: int) -> dict:
         # Forma reciente de ambos (puntos G/E/P y detalle): solo partidos que empezaron antes de este partido y de
         # ahora (nunca uno en juego ni futuro).
         before = min(r["kickoff_utc"], repo.utc_now())
-        form = recent_form(conn, [r["home_team_id"], r["away_team_id"]], before_kickoff=before)
+        teams = [r["home_team_id"], r["away_team_id"]]
+        form = recent_form(conn, teams, before_kickoff=before)
         h, a = form.get(r["home_team_id"]), form.get(r["away_team_id"])
         if h or a:
-            ctx["recent"] = {"home": h or [], "away": a or []}
+            venue = recent_form(conn, teams, before_kickoff=before, venue_only=True)   # local en casa, visita fuera
+            ctx["recent"] = {"home": h or [], "away": a or [], "home_venue": venue.get(r["home_team_id"], []),
+                             "away_venue": venue.get(r["away_team_id"], [])}
         if r["type"] == "league":                      # posición y puntos de ambos en la tabla vigente
             from footy.web.services import standings
 
@@ -429,28 +432,35 @@ def upcoming(days: int = HORIZON_DAYS) -> list[dict]:
 FORM_N = 5
 
 
-def recent_form(conn, team_ids, before_kickoff: str | None = None, n: int = FORM_N) -> dict[int, list[dict]]:
+def recent_form(conn, team_ids, before_kickoff: str | None = None, n: int = FORM_N,
+                venue_only: bool = False) -> dict[int, list[dict]]:
     """Últimos `n` partidos terminados con marcador de cada equipo, del más antiguo al más reciente, en cualquier
     competición: resultado (W/D/L), marcador propio [a favor, en contra], rival, condición, fecha y competición.
     Anti-filtración: con `before_kickoff` solo cuentan partidos que empezaron antes. Una sola consulta para todos los
-    equipos (ROW_NUMBER por equipo)."""
-    ids = sorted({int(t) for t in team_ids if t is not None})
-    if not ids:
+    equipos (ROW_NUMBER por equipo).
+    Con `venue_only`, `team_ids` es (local, visita) del partido actual: el local solo cuenta sus partidos como local y
+    la visita solo los de visita."""
+    if venue_only:
+        home, away = (int(t) for t in team_ids)
+        home_ids, away_ids = [home], [away]
+    else:
+        home_ids = away_ids = sorted({int(t) for t in team_ids if t is not None})
+    if not home_ids and not away_ids:
         return {}
-    marks = ",".join("?" * len(ids))
+    hmarks, amarks = ",".join("?" * len(home_ids)), ",".join("?" * len(away_ids))
     before = before_kickoff or "9999"
     rows = conn.execute(
         f"""WITH t AS (
               SELECT home_team_id AS team, away_team_id AS opp, 1 AS is_home, kickoff_utc, competition_id,
                      home_goals AS gf, away_goals AS ga FROM matches
-              WHERE status = 'finished' AND home_goals IS NOT NULL AND kickoff_utc < ? AND home_team_id IN ({marks})
+              WHERE status = 'finished' AND home_goals IS NOT NULL AND kickoff_utc < ? AND home_team_id IN ({hmarks})
               UNION ALL
               SELECT away_team_id, home_team_id, 0, kickoff_utc, competition_id, away_goals, home_goals FROM matches
-              WHERE status = 'finished' AND home_goals IS NOT NULL AND kickoff_utc < ? AND away_team_id IN ({marks}))
+              WHERE status = 'finished' AND home_goals IS NOT NULL AND kickoff_utc < ? AND away_team_id IN ({amarks}))
             SELECT x.team, x.opp, o.name AS opp_name, x.is_home, x.kickoff_utc, c.code, x.gf, x.ga FROM (
               SELECT *, ROW_NUMBER() OVER (PARTITION BY team ORDER BY kickoff_utc DESC) AS rn FROM t) x
             JOIN teams o ON o.id = x.opp JOIN competitions c ON c.id = x.competition_id
-            WHERE x.rn <= ? ORDER BY x.team, x.kickoff_utc""", (before, *ids, before, *ids, n)).fetchall()
+            WHERE x.rn <= ? ORDER BY x.team, x.kickoff_utc""", (before, *home_ids, before, *away_ids, n)).fetchall()
     names = league_names()
     out: dict[int, list[dict]] = {}
     for r in rows:

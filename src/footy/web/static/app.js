@@ -595,6 +595,12 @@ function formList(seq) {
     <b class="rf-score">${r.score[0]}-${r.score[1]}</b>
     <span class="rf-date" title="${esc(r.league_name)}">${esc(shortDay(r.date))}</span></div>`).join("")}</div>`;
 }
+// Conmutador de la forma reciente: todos los partidos o solo en la condición de hoy (local en casa, visita fuera).
+function setRecentView(btn) {
+  const box = btn.closest(".rf-detail");
+  box.querySelectorAll(".rf-switch .t-chip").forEach((b) => b.classList.toggle("on", b === btn));
+  box.querySelectorAll(".rf-view").forEach((v) => { v.hidden = v.dataset.view !== btn.dataset.view; });
+}
 function toggleRecent(btn) {
   const box = btn.nextElementSibling;
   box.hidden = !box.hidden;
@@ -669,9 +675,15 @@ function statsBlock(m) {
     <div class="st-head"><span>${teamLogo(m.home_id, m.home, 18)}${esc(m.home)}</span><span>${esc(m.away)}${teamLogo(m.away_id, m.away, 18)}</span></div>
     <div class="st-table">
       ${rec ? `<div class="st-row st-form"><b>${formDots(rec.home)}</b><span>Últimos 5</span><b>${formDots(rec.away)}</b></div>` : ""}
-      ${rec && typeof (rec.home[0] || rec.away[0]) === "object" ? `<div class="st-row rf-toggle-row"><button type="button" class="link-btn"
+      ${rec ? `<div class="st-row rf-toggle-row"><button type="button" class="link-btn"
         onclick="toggleRecent(this)">Ver detalle de partidos recientes</button><div class="rf-detail" hidden>
-        <div><h5>${esc(m.home)}</h5>${formList(rec.home)}</div><div><h5>${esc(m.away)}</h5>${formList(rec.away)}</div></div></div>` : ""}
+        <div class="rf-switch">
+          <button type="button" class="t-chip on" data-view="all" onclick="setRecentView(this)">Todos los partidos</button>
+          <button type="button" class="t-chip" data-view="venue" onclick="setRecentView(this)">Local en casa / Visita fuera</button></div>
+        <div class="rf-view" data-view="all"><div><h5>${esc(m.home)}</h5>${formList(rec.home)}</div>
+          <div><h5>${esc(m.away)}</h5>${formList(rec.away)}</div></div>
+        <div class="rf-view" data-view="venue" hidden><div><h5>${esc(m.home)} en casa</h5>${formList(rec.home_venue)}</div>
+          <div><h5>${esc(m.away)} fuera</h5>${formList(rec.away_venue)}</div></div></div></div>` : ""}
       ${statRow("Fuerza (Elo)", H.elo, A.elo, { fmt: int, hint: "Rating Elo dentro de la liga: más alto = más fuerte (solo comparable entre equipos de la misma liga)" })}
       ${statRow("Puntos por partido (últ. 5)", H.pts5, A.pts5, { fmt: (x) => num(x, 2) })}
       ${statRow("Puntos por partido (temporada)", H.season_ppg, A.season_ppg, { fmt: (x) => num(x, 2) })}
@@ -713,6 +725,7 @@ async function toggleStandings(btn) {
 // "Market Avg" es un promedio, no una casa donde apostar: se muestra, pero no compite por la mejor cuota ni el +EV.
 const NOT_BETTABLE = new Set(["Market Avg"]);
 const BOOK_ORDER = ["Pinnacle", "Bet365", "Betfair Exchange", "Betfair", "Market Avg"];
+const MIN_EDGE = 0.06;   // mismo umbral que pro.MIN_EDGE: desde aquí el semáforo recomienda apostar
 function oddsTable(odds, p) {
   const names = Object.keys(odds).sort((a, b) => {
     const ia = BOOK_ORDER.indexOf(a), ib = BOOK_ORDER.indexOf(b);
@@ -726,8 +739,10 @@ function oddsTable(odds, p) {
   const payout = (o) => 1 / o.reduce((s, x) => s + 1 / x, 0);
   const cell = (b, x, i) => {
     const isBest = bettable.length > 1 && !NOT_BETTABLE.has(b) && x === best[i];
-    const ev = fair && !NOT_BETTABLE.has(b) && x > fair[i];
-    const tip = ev ? ` title="Paga más que la cuota justa (${num(fair[i])}): +${pct(x / fair[i] - 1, 1)} de valor esperado"` : "";
+    const edge = fair && !NOT_BETTABLE.has(b) ? x / fair[i] - 1 : 0;
+    const ev = edge >= MIN_EDGE;
+    const tip = edge > 0 ? ` title="Paga +${pct(edge, 1)} sobre la cuota justa (${num(fair[i])})${ev ? ": supera el umbral de seguridad de +6%"
+      : " (marginal: bajo el umbral de seguridad de +6%)"}"` : "";
     return `<td class="num${isBest ? " best-odd" : ""}"${tip}>${num(x)}${ev ? '<span class="ev-tag">+EV</span>' : ""}</td>`;
   };
   return `<div class="compare"><div class="odds-wrap"><table class="odds-table">
