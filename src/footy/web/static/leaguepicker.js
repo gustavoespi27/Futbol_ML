@@ -272,11 +272,13 @@ function mountQuickChips(root, { list, catalog, picker, getSel, onPick }) {
 }
 
 /* ---------- filtro por día (próximos partidos de hoy y mañana; ayer y jugados hoy, aparte, con resultados) ---------- */
-// Selección: { type: "all" | "yesterday" | "played" | "today" | "tomorrow" } (días en hora local).
+// Selección: { type: "all" | "yesterday" | "played" | "today" | "tomorrow" } o { type: "day", day: "YYYY-MM-DD" }
+// para un día posterior a mañana (días en hora local).
 const localDay = (d) => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`; };
 const dayOffset = (n) => { const t = new Date(); t.setDate(t.getDate() + n); return localDay(t); };
 function dateSelMatch(sel, kickoff) {
   if (!sel || sel.type === "all") return true;
+  if (sel.type === "day") return localDay(kickoff) === sel.day;
   const n = { yesterday: -1, played: 0, today: 0, tomorrow: 1 }[sel.type];
   return localDay(kickoff) === dayOffset(n);
 }
@@ -287,18 +289,30 @@ function mountDateFilter(root, opts) {
   // no suman en "Todos", que cuenta solo los partidos por jugar.
   const source = { yesterday: opts.past, played: opts.played };
   const count = (s) => (source[s.type] || list).filter((m) => dateSelMatch(s, m.kickoff)).length;
+  // Días siguientes a mañana que tienen partidos en la lista (hasta MAX_EXTRA_DAYS), con etiqueta "Sáb 17".
+  const MAX_EXTRA_DAYS = 3;
+  const tomorrow = dayOffset(1);
+  const extraDays = [...new Set(list.map((m) => localDay(m.kickoff)))].filter((d) => d > tomorrow).sort().slice(0, MAX_EXTRA_DAYS);
+  const dayLabel = (d) => {
+    const x = new Date(`${d}T12:00:00`);
+    const wd = new Intl.DateTimeFormat("es-CL", { weekday: "short" }).format(x).replace(".", "");
+    return `${wd.charAt(0).toUpperCase()}${wd.slice(1)} ${x.getDate()}`;
+  };
   const draw = () => {
     const btn = (type, label, extra = "") => {
       const n = count({ type });
       return `<button type="button" class="df-btn ${sel.type === type ? "on" : ""}" data-t="${type}" ${n || type === "all" ? "" : "disabled"}>${extra}${label}<span>${n}</span></button>`;
     };
+    const dayBtn = (d) => `<button type="button" class="df-btn ${sel.type === "day" && sel.day === d ? "on" : ""}" data-t="day"
+      data-day="${d}">${dayLabel(d)}<span>${count({ type: "day", day: d })}</span></button>`;
     const live = (opts.played || []).some((m) => m.status === "live");
     root.innerHTML = `<div class="df">${btn("all", "Todos")}${opts.past ? btn("yesterday", "Ayer") : ""}${opts.played
-      ? btn("played", "Jugados hoy", live ? '<i class="live-dot" title="Hay partidos en juego"></i>' : "") : ""}${btn("today", "Hoy")}${btn("tomorrow", "Mañana")}</div>`;
+      ? btn("played", "Jugados hoy", live ? '<i class="live-dot" title="Hay partidos en juego"></i>' : "") : ""}${btn("today", "Hoy")}${btn("tomorrow", "Mañana")}${extraDays.map(dayBtn).join("")}</div>`;
   };
   root.onclick = (e) => {
     const b = e.target.closest(".df-btn"); if (!b || b.disabled) return;
-    sel = { type: b.dataset.t }; draw(); opts.onChange(sel);
+    sel = b.dataset.t === "day" ? { type: "day", day: b.dataset.day } : { type: b.dataset.t };
+    draw(); opts.onChange(sel);
   };
   draw();
 }
