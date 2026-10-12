@@ -322,3 +322,24 @@ def test_team_profile_league_table_form_upcoming_and_contract(monkeypatch):
     assert (season["played"], season["gf_pg"], season["ga_pg"], season["sot_pg"]) == (2, 1.5, 1.0, None)
     assert roundtrip(s.TeamProfileResponse, p) == p
     assert teams.team_profile(conn, 999_999) is None
+
+
+def test_teams_route_serves_profile_by_id_and_league_teams_by_code(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from footy.web import app as web
+    from footy.web import service
+
+    profile = {"id": 1, "name": "Arsenal", "country": "Inglaterra", "league": "E0", "league_name": "Premier League",
+               "elo": 1650, "season": None, "recent": [], "upcoming": []}
+    monkeypatch.setattr(service, "team_profile", lambda team_id: profile if team_id == 1 else None)
+    monkeypatch.setattr(service, "teams", lambda code: [{"id": 1, "name": "Arsenal"}] if code == "E0" else {}[code])
+    web._cache.clear()
+    client = TestClient(web.app)                                   # sin `with`: no corre el precalentado
+    r = client.get("/api/teams/1")
+    assert r.status_code == 200 and r.json() == profile                  # sin `standing`: no se agrega como null
+    r = client.get("/api/teams/E0")
+    assert r.status_code == 200 and r.json() == [{"id": 1, "name": "Arsenal"}]
+    assert client.get("/api/teams/2").status_code == 404
+    assert client.get("/api/teams/XX").status_code == 404
+    web._cache.clear()

@@ -103,14 +103,6 @@ def standings(league: str):
     return data
 
 
-@app.get("/api/teams/{team_id}", response_model=schemas.TeamProfileResponse, **TYPED)
-def team(team_id: int):
-    data = cached(f"team:{team_id}", 120, lambda: service.team_profile(team_id))
-    if data is None:
-        raise HTTPException(404, f"No existe el equipo {team_id}")
-    return data
-
-
 @app.get("/api/results", response_model=schemas.PlayedDay, **TYPED)
 def results(day: Literal["yesterday", "today"] = "yesterday"):
     return cached(f"results:{day}", 30, lambda: service.played(day))
@@ -136,12 +128,20 @@ def league_catalog():
     return cached("league_catalog", 300, service.league_catalog)
 
 
-@app.get("/api/teams/{code}")
-def teams(code: str):
+@app.get("/api/teams/{ref}")
+def team_or_league_teams(ref: str):
+    """Un id numérico es la ficha de un club; un código de liga, sus equipos (simulador). Una sola ruta: con dos,
+    la primera captura a la otra (/api/teams/E0 respondía 422)."""
+    if ref.isdigit():
+        data = cached(f"team:{ref}", 120, lambda: service.team_profile(int(ref)))
+        if data is None:
+            raise HTTPException(404, f"No existe el equipo {ref}")
+        # Mismo contrato estricto que las rutas tipadas (sin claves no definidas por el servicio)
+        return schemas.TeamProfileResponse.model_validate(data).model_dump(exclude_unset=True)
     try:
-        return cached(f"teams{code}", 3600, lambda: service.teams(code))
+        return cached(f"teams{ref}", 3600, lambda: service.teams(ref))
     except KeyError:
-        raise HTTPException(404, f"Liga {code} sin modelo")
+        raise HTTPException(404, f"Liga {ref} sin modelo")
 
 
 class PredictIn(BaseModel):
