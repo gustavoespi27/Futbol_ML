@@ -436,3 +436,31 @@ con partidos en juego. API-Football: cuotas, más el calendario por fecha (2-3 p
 de cada partido al pedir sus cuotas) y los detalles de las ligas que ESPN no cubre. El marcador parcial se guarda
 aparte (`live_scores`) y nunca como resultado; un partido terminado no vuelve a programado si otra fuente llega
 atrasada. Nada de esto entra a los modelos antes del inicio del partido.
+
+## 2026-10-11 — Modelo entre ligas para copas de clubes
+
+**Problema.** Elo y Dixon-Coles se ajustan por liga: cada liga es un sistema cerrado y no comparan un club inglés con
+uno portugués. La Champions y las demás copas de clubes solo tenían el precio del mercado.
+
+**Datos.** Historial de Champions, Europa League, Conference, Libertadores y Sudamericana desde 2022-08, desde ESPN
+(sin cuota; ESPN no trae las rondas previas de julio, que llegaron de API-Football para la Champions 2022-2024).
+Al cargarlo aparecieron homónimos mal enlazados ("River Plate" y "Liverpool" de Uruguay con los de Argentina e
+Inglaterra): regla nueva, un equipo que ya tiene id de ESPN no recibe otro. Se fusionaron 28 partidos duplicados entre
+ESPN y API-Football y 6 clubes repetidos.
+
+**Validación** (entrenado con copas 2022-08 a 2024-06; prueba: 1.806 partidos de copa posteriores):
+
+| Modelo | Log loss | RPS | Acierto |
+|---|---:|---:|---:|
+| Ingenuo (frecuencias) | 1,0382 | 0,2283 | 49,4% |
+| Elo global (k=30, local 80) | 0,9881 | 0,2103 | 53,7% |
+| **Elo global + ajuste por liga** (L2=5) | **0,9699** | **0,2042** | **54,2%** |
+
+El ajuste por liga mejora al Elo global en −0,018 [−0,030; −0,006] (bootstrap 95%) y gana en las cinco copas
+(Champions: 0,943 vs 1,022 del ingenuo). Calibración en prueba: predicho 0,849 → real 0,843 en el tramo 80-100%,
+0,568 → 0,565 en 50-65%. Ajustes estimados (puntos Elo, con todos los datos): Premier +209, Bundesliga +145,
+LaLiga +141, Serie A +124, Ligue 1 +87, Brasil +83 ... Escocia −129, Irlanda −190.
+
+**Uso.** Sin cuotas, la probabilidad oficial de una copa es la del modelo. Con cuotas manda Pinnacle sin margen (no
+hay pesos validados para combinar ambos) y el modelo se muestra al lado. Los pronósticos se registran antes de cada
+partido con versión propia (`cross_elo_v1`) para medirlos en vivo. La tarea diaria lo reentrena (6 s).
