@@ -24,7 +24,10 @@ FULL = {**BASE, "market_book": "Pinnacle", "home_id": 1, "away_id": 2, "source":
                    "away": {"pts5": None, "gf10": None, "ga10": None, "sot10": None, "sot_against10": None,
                             "shots10": None, "venue_pts5": None, "season_ppg": None, "season_gd": None,
                             "season_n": 0.0, "rest": None, "unbeaten": 0.0, "winless": 0.0, "elo": None},
-                   "h2h": {"n": 0, "pts": None, "gd": None}},
+                   "h2h": {"n": 1, "pts": 3.0, "gd": 1.0,
+                           "matches": [{"date": "2026-03-01T15:00:00Z", "league": "E0", "league_name": "Premier League",
+                                        "home": "B", "away": "A", "home_id": 2, "away_id": 1, "score": [0, 1],
+                                        "outcome": "W"}]}},
         "p_market": [0.48, 0.3, 0.22], "xg": [1.6, 1.1],
         "recommendation": {"bet": True, "sel": 0, "book": "Bet365", "odds": 2.1, "ev": 0.03, "text": "Valor"},
         "pro": [{"key": "1", "sel": "H", "p_fair": 0.48, "fair_odds": 2.08, "pinnacle": 2.0, "odds": 2.1,
@@ -227,3 +230,30 @@ def test_league_standings_order_points_recent_and_mixed_season_labels(monkeypatc
     assert standings.league_standings(conn, "UCL") == []                      # las copas no tienen tabla
     data = standings.standings(conn, "E0")
     assert data["season"] == "2026/2027" and roundtrip(s.LeagueStandingsResponse, data) == data
+
+
+def test_recent_h2h_matches_only_finished_and_before_kickoff():
+    from footy.db import repository as repo
+    from footy.db.connection import connect
+    from footy.web.services.context import recent_h2h_matches
+
+    conn = connect(":memory:")
+    repo.sync_competitions(conn)
+    a = repo.resolve_team(conn, "football_data", "Arsenal", "Arsenal", "England")
+    b = repo.resolve_team(conn, "football_data", "Chelsea", "Chelsea", "England")
+    c = repo.resolve_team(conn, "football_data", "Everton", "Everton", "England")
+    games = [("2026-01-10", a, b, "finished", 2, 0), ("2026-03-15", b, a, "finished", 3, 1),    # visita: Arsenal pierde
+             ("2026-04-01", a, c, "finished", 1, 1),                                            # otro rival
+             ("2026-05-01", a, b, "finished", None, None),                                      # terminado sin marcador
+             ("2026-06-01", a, b, "scheduled", None, None),                                     # no jugado
+             ("2026-10-20", a, b, "finished", 5, 0)]                                            # posterior al partido
+    for i, (day, h, w, st, hg, ag) in enumerate(games):
+        repo.upsert_match(conn, source="football_data", source_match_id=str(i), season="2026", status=st,
+                          competition_id=repo.competition_id(conn, "E0"), kickoff_utc=f"{day}T15:00:00Z",
+                          home_team_id=h, away_team_id=w, home_goals=hg, away_goals=ag)
+    out = recent_h2h_matches(conn, a, b, "2026-10-18T15:00:00Z")
+    assert [(m["date"][:10], m["score"], m["outcome"]) for m in out] == [("2026-03-15", [3, 1], "L"),
+                                                                        ("2026-01-10", [2, 0], "W")]
+    assert out[0]["home"] == "Chelsea" and out[0]["league_name"] == "Premier League"
+    assert recent_h2h_matches(conn, b, a, "2026-10-18T15:00:00Z")[0]["outcome"] == "W"   # perspectiva del local de hoy
+    assert len(recent_h2h_matches(conn, a, b, "2026-10-18T15:00:00Z", limit=1)) == 1

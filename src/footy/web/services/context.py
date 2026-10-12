@@ -176,9 +176,36 @@ STAT_KEYS = {"pts5": "pts_5", "gf10": "gf_10", "ga10": "ga_10", "sot10": "sf_10"
              "season_n": "season_n", "rest": "rest", "unbeaten": "unbeaten", "winless": "winless"}
 
 
-def _stats(r: dict | None) -> dict | None:
+def recent_h2h_matches(conn, home_id: int, away_id: int, before_kickoff: str, limit: int = 5) -> list[dict]:
+    """Últimos enfrentamientos entre ambos clubes, en cualquier competición y condición. Anti-filtración: solo partidos
+    terminados con marcador y con inicio estrictamente anterior a `before_kickoff`. `outcome` es desde la perspectiva
+    del local del partido actual: W ganó, D empate, L ganó el rival de hoy."""
+    names = league_names()
+    rows = conn.execute(
+        """SELECT m.kickoff_utc, c.code, m.home_team_id, m.away_team_id, th.name AS home, ta.name AS away,
+                  m.home_goals, m.away_goals
+           FROM matches m JOIN competitions c ON c.id = m.competition_id
+           JOIN teams th ON th.id = m.home_team_id JOIN teams ta ON ta.id = m.away_team_id
+           WHERE m.status = 'finished' AND m.home_goals IS NOT NULL AND m.kickoff_utc < ?
+             AND ((m.home_team_id = ? AND m.away_team_id = ?) OR (m.home_team_id = ? AND m.away_team_id = ?))
+           ORDER BY m.kickoff_utc DESC LIMIT ?""",
+        (before_kickoff, home_id, away_id, away_id, home_id, limit)).fetchall()
+    out = []
+    for r in rows:
+        diff = r["home_goals"] - r["away_goals"]
+        if r["home_team_id"] != home_id:                 # el local de hoy jugó de visita en ese partido
+            diff = -diff
+        out.append({"date": r["kickoff_utc"], "league": r["code"], "league_name": names.get(r["code"], r["code"]),
+                    "home": r["home"], "away": r["away"], "home_id": r["home_team_id"], "away_id": r["away_team_id"],
+                    "score": [r["home_goals"], r["away_goals"]],
+                    "outcome": "W" if diff > 0 else "D" if diff == 0 else "L"})
+    return out
+
+
+def _stats(r: dict | None, conn=None, home_id: int | None = None, away_id: int | None = None,
+           kickoff: str | None = None) -> dict | None:
     """Estadísticas previas (solo partidos ya jugados antes de este): forma, goles, tiros, temporada, descanso,
-    rachas y enfrentamientos directos."""
+    rachas y enfrentamientos directos (con la lista de los últimos partidos entre ambos si se pasan ids y kickoff)."""
     if not r or "st_h_pts_5" not in r:
         return None
 
@@ -188,6 +215,8 @@ def _stats(r: dict | None) -> dict | None:
 
     out = {side: {k: v(f"st_{p}_{f}") for k, f in STAT_KEYS.items()} for side, p in (("home", "h"), ("away", "a"))}
     out["h2h"] = {"n": int(v("st_h2h_n") or 0), "pts": v("st_h2h_pts"), "gd": v("st_h2h_gd")}
+    if conn is not None and home_id is not None and away_id is not None and kickoff:
+        out["h2h"]["matches"] = recent_h2h_matches(conn, int(home_id), int(away_id), kickoff)
     return out
 
 
@@ -199,7 +228,7 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
     params, names = load_params(), league_names()
     row = _upcoming_row(int(ref[2:])) if ref.startswith("m:") else None
     mlr = None if row is None or np.isnan(row.get("ml_H", np.nan)) else row
-    stats = _stats(row)
+    stats = _stats(row, connect(), home_id, away_id, kickoff) if row else None
     books = _books_1x2(odds)
     ref_book = next((b for b in REFERENCE_BOOKS if b in books), None) or next(iter(books), None)
     p_mkt_over = _market_over(odds)

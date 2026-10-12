@@ -1115,3 +1115,25 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 /* entre ligas: liga y equipo del local en una fila, liga y equipo de la visita en la otra */
 .fields.cross { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .fields .cross-only[hidden] { display: none; }
+
+/* ================= enfrentamientos directos ================= */
+.h2h-strip { display: grid; gap: 4px; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.h2h-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12.5px; margin-bottom: 4px; }
+.h2h-sum { color: var(--text-2); }
+.h2h-gd { margin-left: auto; font: 700 11px/1 var(--font-mono); padding: 4px 8px; border-radius: 6px; background: var(--surface-3);
+  color: var(--text-2); }
+.h2h-gd.pos { color: var(--good); background: var(--good-bg); }
+.h2h-gd.neg { color: var(--bad); background: var(--bad-bg); }
+.h2h-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 56px minmax(0, 1fr) 22px; align-items: center; gap: 8px;
+  padding: 6px 0; border-top: 1px solid var(--grid); font-size: 12.5px; }
+.h2h-date { display: grid; gap: 2px; color: var(--muted); font-size: 11.5px; }
+.h2h-lg { display: inline-flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.h2h-team { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--text-2); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.h2h-team.r { justify-content: flex-end; }
+.h2h-team.today-home { color: var(--text); font-weight: 650; }
+.h2h-score { font: 700 14px/1 var(--font-mono); text-align: center; }
+@media (max-width: 640px) {
+  .h2h-row { grid-template-columns: minmax(0, 1fr) 46px minmax(0, 1fr) 20px; }
+  .h2h-date { grid-column: 1 / -1; display: flex; gap: 8px; }
+}

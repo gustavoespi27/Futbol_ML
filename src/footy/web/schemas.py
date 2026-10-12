@@ -283,10 +283,24 @@ class TeamStats(Schema):
     elo: int | None = Field(None, description="Rating Elo en la liga (solo ligas con modelo)")
 
 
+class H2HMatch(Schema):
+    """Un enfrentamiento anterior entre ambos clubes (siempre previo al inicio del partido actual)."""
+    date: str
+    league: str
+    league_name: str
+    home: str = Field(description="Local en ese partido (puede ser la visita de hoy)")
+    away: str
+    home_id: int
+    away_id: int
+    score: list[int] = Field(description="[local, visita] de ese partido")
+    outcome: str = Field(description="W | D | L desde la perspectiva del local del partido actual")
+
+
 class HeadToHead(Schema):
     n: int
     pts: float | None = Field(description="Puntos por partido del local en los enfrentamientos")
     gd: float | None
+    matches: list[H2HMatch] = Field(default_factory=list, description="Últimos 5, del más reciente al más antiguo")
 
 
 class MatchStats(Schema):

@@ -608,6 +608,31 @@ function predictionBlock(m) {
     ${m.p_model && !m.p_market && m.model_name === "ML historial" ? `<div class="reco"><span class="pill">pronóstico ML</span> sin cuotas aún: probabilidades del modelo entrenado con el historial de los equipos</div>` : ""}
   </section>`;
 }
+// Tira de enfrentamientos directos: los últimos partidos entre ambos (siempre anteriores a este), con el resultado
+// desde la perspectiva del local de hoy y un resumen de la diferencia de gol.
+function h2hStrip(m, h) {
+  const list = h.matches || [];
+  if (!list.length) return `<div class="h2h-strip"><div class="h2h-head"><b>Últimos enfrentamientos directos</b></div>
+    <p class="mc-note">Sin enfrentamientos previos registrados entre ambos</p></div>`;
+  const tally = { W: 0, D: 0, L: 0 };
+  let gd = 0;
+  list.forEach((x) => {
+    tally[x.outcome] += 1;
+    gd += (x.score[0] - x.score[1]) * (x.home_id === m.home_id ? 1 : -1);
+  });
+  const day = (d) => new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "short", year: "2-digit" }).format(new Date(d));
+  return `<div class="h2h-strip">
+    <div class="h2h-head"><b>Últimos enfrentamientos directos</b>
+      <span class="h2h-sum">${esc(m.home)}: ${tally.W} G · ${tally.D} E · ${tally.L} P</span>
+      <span class="h2h-gd ${gd > 0 ? "pos" : gd < 0 ? "neg" : ""}">${gd > 0 ? "+" : ""}${gd} dif. de gol</span></div>
+    ${list.map((x) => `<div class="h2h-row">
+      <span class="h2h-date">${esc(day(x.date))}<span class="h2h-lg">${leagueLogo(x.league, 14)}${esc(x.league_name)}</span></span>
+      <span class="h2h-team r ${x.home_id === m.home_id ? "today-home" : ""}">${esc(x.home)}${teamLogo(x.home_id, x.home, 16)}</span>
+      <b class="h2h-score">${x.score[0]} - ${x.score[1]}</b>
+      <span class="h2h-team ${x.away_id === m.home_id ? "today-home" : ""}">${teamLogo(x.away_id, x.away, 16)}${esc(x.away)}</span>
+      ${formDots([x.outcome])}</div>`).join("")}
+  </div>`;
+}
 // Estadísticas previas: las mismas variables que usa el modelo, calculadas solo con partidos anteriores.
 function statsBlock(m) {
   const st = m.stats, rec = m.recent;
@@ -616,9 +641,7 @@ function statsBlock(m) {
   const signed1 = (x) => (x > 0 ? "+" : "") + num(x, 2);
   const int = (x) => Math.round(x).toLocaleString("es-CL");
   const streak = (t) => (t.unbeaten >= 3 ? `invicto ${int(t.unbeaten)}` : t.winless >= 3 ? `${int(t.winless)} sin ganar` : "–");
-  const h2h = st && st.h2h && st.h2h.n
-    ? `<p class="mc-note">Últimos ${st.h2h.n} enfrentamientos: ${esc(m.home)} sumó ${num(st.h2h.pts, 1)} pts por partido${st.h2h.gd != null ? ` (dif. de gol ${signed1(st.h2h.gd)})` : ""}.</p>`
-    : `<p class="mc-note">Sin enfrentamientos recientes entre ambos.</p>`;
+  const h2h = st && st.h2h ? h2hStrip(m, st.h2h) : "";
   return `<section class="mc-sec"><h4>Estadísticas previas</h4>
     <div class="st-head"><span>${teamLogo(m.home_id, m.home, 18)}${esc(m.home)}</span><span>${esc(m.away)}${teamLogo(m.away_id, m.away, 18)}</span></div>
     <div class="st-table">
