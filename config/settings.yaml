@@ -334,13 +334,15 @@ competitions:
     country: Finland
     type: league
     api_football_id: 244
-    collect_odds: false
+    collect_odds: true       # sin ESPN ni cuotas pre-partido de football-data: sin esto, solo modelo
+    odds_priority: 3
   IRL:
     name: Premier Division Irlanda
     country: Ireland
     type: league
     api_football_id: 357
-    collect_odds: false
+    collect_odds: true       # sin ESPN ni cuotas pre-partido de football-data: sin esto, solo modelo
+    odds_priority: 3
   JPN:
     name: J1 League
     country: Japan
@@ -367,13 +369,15 @@ competitions:
     country: Poland
     type: league
     api_football_id: 106
-    collect_odds: false
+    collect_odds: true       # sin ESPN ni cuotas pre-partido de football-data: sin esto, solo modelo
+    odds_priority: 3
   ROU:
     name: Superliga Rumania
     country: Romania
     type: league
     api_football_id: 283
-    collect_odds: false
+    collect_odds: true       # sin ESPN ni cuotas pre-partido de football-data: sin esto, solo modelo
+    odds_priority: 3
   RUS:
     name: Premier League Rusia
     country: Russia
@@ -393,7 +397,8 @@ competitions:
     country: Switzerland
     type: league
     api_football_id: 207
-    collect_odds: false
+    collect_odds: true       # sin ESPN ni cuotas pre-partido de football-data: sin esto, solo modelo
+    odds_priority: 3
   USA:
     name: MLS
     country: USA
@@ -462,6 +467,7 @@ api_football:
   min_seconds_between: 6.5   # plan Free: 10 peticiones/minuto
   odds_horizon_hours: 36     # snapshots de cuotas para partidos que empiezan dentro de este plazo
   odds_refresh_hours: 10     # no se vuelve a pedir la cuota de un partido antes de este plazo
+  prekickoff_hours: 2        # scripts/prekickoff.py: una cuota más en las últimas 2 h (más cerca del cierre)
   # Las corridas de 10:00 y 17:30 (Chile) comparten el día UTC de cuota (ver scripts/register_task.ps1): antes de esta
   # hora UTC los detalles dejan libres estas peticiones para las cuotas de la tarde.
   keep_for_later_runs: 35
