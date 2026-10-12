@@ -20,3 +20,15 @@ $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $triggers -Settings $settings `
     -Description "Recolección (API-Football, football-data.co.uk), predicciones de seguimiento e informe (Futbol_ML)" -Force | Out-Null
 Get-ScheduledTask -TaskName $taskName | Select-Object TaskName, State
+
+# Cuota fresca y pronóstico final 1-2 h antes de cada partido (sale sin consultar la API si no hay partidos).
+$preName = "Futbol_ML - cuotas pre-partido"
+$preAction = New-ScheduledTaskAction -Execute $python -Argument "`"$(Join-Path $root "scripts\prekickoff.py")`"" `
+    -WorkingDirectory $root
+$preTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).Date -RepetitionInterval (New-TimeSpan -Minutes 30) `
+    -RepetitionDuration (New-TimeSpan -Days 3650)
+$preSettings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 15) -MultipleInstances IgnoreNew `
+    -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+Register-ScheduledTask -TaskName $preName -Action $preAction -Trigger $preTrigger -Settings $preSettings `
+    -Description "Cuotas cercanas al inicio y pronóstico final (Futbol_ML)" -Force | Out-Null
+Get-ScheduledTask -TaskName $preName | Select-Object TaskName, State

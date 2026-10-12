@@ -223,9 +223,46 @@ def _odds_by_book(row: dict) -> dict[str, np.ndarray]:
 
 
 def _recent_prediction(conn, match_id: int, now: datetime) -> bool:
+    """Hay un pronóstico de las últimas MIN_HOURS_BETWEEN horas y no llegó ninguna cuota después: no se repite. Con
+    una cuota más fresca (la de 1-2 h antes del inicio, scripts/prekickoff.py) se registra otro, el pronóstico final:
+    la cuota cercana al cierre es más precisa (Pinnacle: −0,0032 de log loss frente a la de días antes)."""
     since = repo.to_iso(now - timedelta(hours=MIN_HOURS_BETWEEN))
-    return conn.execute("SELECT 1 FROM predictions WHERE match_id = ? AND model_version = ? AND created_at > ?",
-                        (match_id, MODEL_VERSION, since)).fetchone() is not None
+    last = conn.execute("SELECT MAX(created_at) FROM predictions WHERE match_id = ? AND model_version = ? "
+                        "AND created_at > ?", (match_id, MODEL_VERSION, since)).fetchone()[0]
+    if last is None:
+        return False
+    return conn.execute("SELECT 1 FROM odds WHERE match_id = ? AND is_closing = 0 AND captured_at > ?",
+                        (match_id, last)).fetchone() is None
+
+
+def timing_gain(conn: sqlite3.Connection, early_hours: float = 12, late_hours: float = 4) -> dict:
+    """Primer pronóstico (≥ early_hours antes) frente al final (≤ late_hours antes) en los mismos partidos
+    terminados: mide en vivo cuánto aporta la cuota cercana al inicio."""
+    df = pd.read_sql_query(
+        """SELECT p.match_id, p.created_at, p.p_home, p.p_draw, p.p_away, p.extra_json, m.kickoff_utc,
+                  m.home_goals, m.away_goals FROM predictions p JOIN matches m ON m.id = p.match_id
+           WHERE m.status = 'finished' AND p.model_version = ? AND p.created_at < m.kickoff_utc
+           ORDER BY p.created_at""", conn, params=(MODEL_VERSION,))
+    if df.empty:
+        return {"n": 0}
+    df["h"] = (pd.to_datetime(df.kickoff_utc) - pd.to_datetime(df.created_at)).dt.total_seconds() / 3600
+    first = df[df.h >= early_hours].groupby("match_id").head(1).set_index("match_id")
+    last = df[df.h <= late_hours].groupby("match_id").tail(1).set_index("match_id")
+    ids = first.index.intersection(last.index)
+    if not len(ids):
+        return {"n": 0}
+
+    def ll(rows):
+        out = []
+        for r in rows.loc[ids].itertuples():
+            p = json.loads(r.extra_json or "{}").get("p_final") or [r.p_home, r.p_draw, r.p_away]
+            y = 0 if r.home_goals > r.away_goals else 1 if r.home_goals == r.away_goals else 2
+            out.append((-np.log(p[y]), int(np.argmax(p)) == y))
+        return np.array(out)
+
+    a, b = ll(first), ll(last)
+    return {"n": len(ids), "ll_early": float(a[:, 0].mean()), "ll_late": float(b[:, 0].mean()),
+            "hit_early": float(a[:, 1].mean()), "hit_late": float(b[:, 1].mean())}
 
 
 # --- Evaluación -------------------------------------------------------------
@@ -330,6 +367,12 @@ def report(conn: sqlite3.Connection) -> str:
                 mk = g.ll_market_close.dropna()
                 md.append(f"| {version} | {name} | {len(g)} | {g.hit.mean():.0%} | {g.ll_model.mean():.4f} | "
                           f"{g.ll_final.mean():.4f} | {f'{mk.mean():.4f} ({len(mk)})' if len(mk) else '–'} |")
+    tg = timing_gain(conn)
+    if tg["n"]:
+        md += ["", "## Pronóstico temprano vs final (cuota cercana al inicio)", "",
+               f"Mismos {tg['n']} partidos: primer pronóstico (≥ 12 h antes) log loss {tg['ll_early']:.4f}, acierto "
+               f"{tg['hit_early']:.0%}; pronóstico final (≤ 4 h antes) log loss {tg['ll_late']:.4f}, acierto "
+               f"{tg['hit_late']:.0%}. Con pocos partidos la diferencia es ruido: el histórico dice ~0,003."]
     if not bets.empty:
         md += ["", "## Apuestas en papel", "",
                "CLV = cuota tomada × probabilidad justa al cierre − 1. CLV medio positivo y sostenido es la señal "

@@ -176,3 +176,21 @@ def test_fixture_dates_today_first_and_yesterday_only_with_pending_results(conn)
                       season="2026", kickoff_utc="2026-10-10T23:30:00Z", home_team_id=home, away_team_id=away,
                       status="scheduled")
     assert collect.fixture_dates(conn, today) == ["2026-10-11", "2026-10-10", "2026-10-12"]
+
+
+def test_final_prediction_only_when_fresher_odds_arrive(conn):
+    from footy.prediction import tracking
+    home = repo.resolve_team(conn, "api_football", "1", "A", "Chile")
+    away = repo.resolve_team(conn, "api_football", "2", "B", "Chile")
+    mid = repo.upsert_match(conn, source="api_football", source_match_id="7", competition_id=repo.competition_id(
+        conn, "CHL"), season="2026", kickoff_utc="2026-10-12T22:00:00Z", home_team_id=home, away_team_id=away,
+        status="scheduled")
+    now = repo.from_iso("2026-10-12T20:00:00Z")
+    assert not tracking._recent_prediction(conn, mid, now)                     # sin pronóstico: se registra
+    conn.execute("INSERT INTO predictions (match_id, model_version, created_at, p_home, p_draw, p_away) "
+                 "VALUES (?, ?, '2026-10-12T16:00:00Z', 0.5, 0.3, 0.2)", (mid, tracking.MODEL_VERSION))
+    assert tracking._recent_prediction(conn, mid, now)                         # reciente y sin cuota nueva
+    conn.execute("INSERT INTO odds (match_id, source, bookmaker, market, line, selection, price, captured_at, "
+                 "is_closing) VALUES (?, 'api_football', 'Pinnacle', '1X2', 0, 'H', 2.0, '2026-10-12T19:50:00Z', 0)",
+                 (mid,))
+    assert not tracking._recent_prediction(conn, mid, now)                     # cuota más fresca: pronóstico final
