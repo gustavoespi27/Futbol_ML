@@ -309,6 +309,18 @@ class MatchStats(Schema):
     h2h: HeadToHead
 
 
+class FormMatch(Schema):
+    """Un partido de la racha reciente de un equipo (siempre anterior al inicio del partido actual)."""
+    outcome: str = Field(description="W | D | L desde la perspectiva del equipo")
+    score: list[int] = Field(description="[goles a favor, goles en contra] del equipo")
+    opponent: str
+    opponent_id: int
+    is_home: bool
+    date: str
+    league: str
+    league_name: str
+
+
 class StandingsSummary(Schema):
     """Posición y puntos de ambos equipos en la tabla vigente (None si el equipo aún no juega en la temporada)."""
     home_pos: int | None
@@ -350,5 +362,5 @@ class MatchSummary(Schema):
     error: str | None = None
     round: str | None = Field(None, description="Fase de una copa tal como la entrega API-Football (solo copas)")
     standings_summary: StandingsSummary | None = Field(None, description="Solo ligas con tabla")
-    recent: dict[str, list[str]] | None = Field(
-        None, description="Últimos 5 resultados de cada equipo (W/D/L, del más antiguo al más reciente)")
+    recent: dict[str, list[FormMatch]] | None = Field(
+        None, description="Últimos 5 partidos de cada equipo (del más antiguo al más reciente)")

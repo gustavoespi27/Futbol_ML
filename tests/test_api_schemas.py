@@ -41,7 +41,11 @@ FULL = {**BASE, "market_book": "Pinnacle", "home_id": 1, "away_id": 2, "source":
                      "odds": None, "book": None, "estimated": False, "ev": None, "verdict": VERDICT}],
         "suggestions": [{"keys": ["1", "O1.5"], "label": "Gana local y más de 1,5", "p": 0.4, "fair": 2.5}],
         "odds_1x2": {"Bet365": [2.1, 3.4, 3.6], "Pinnacle": [2.0, 3.5, 3.9]},
-        "recent": {"home": ["W", "D", "L", "W", "W"], "away": ["L", "L", "D"]},
+        "recent": {"home": [{"outcome": "W", "score": [2, 1], "opponent": "Everton", "opponent_id": 7, "is_home": True,
+                             "date": "2026-10-05T14:00:00Z", "league": "E0", "league_name": "Premier League"}],
+                   "away": [{"outcome": "L", "score": [0, 2], "opponent": "Liverpool", "opponent_id": 9,
+                             "is_home": False, "date": "2026-09-28T14:00:00Z", "league": "E0",
+                             "league_name": "Premier League"}]},
         "standings_summary": {"home_pos": 2, "home_pts": 54, "away_pos": None, "away_pts": None}}
 NO_DATA = {**BASE, "market_book": None, "home_id": None, "away_id": None, "source": "sin datos", "p_official": None,
            "options": [], "suggestions": [], "recommendation": {"bet": False, "text": "Sin modelo validado ni cuotas"}}
@@ -257,3 +261,28 @@ def test_recent_h2h_matches_only_finished_and_before_kickoff():
     assert out[0]["home"] == "Chelsea" and out[0]["league_name"] == "Premier League"
     assert recent_h2h_matches(conn, b, a, "2026-10-18T15:00:00Z")[0]["outcome"] == "W"   # perspectiva del local de hoy
     assert len(recent_h2h_matches(conn, a, b, "2026-10-18T15:00:00Z", limit=1)) == 1
+
+
+def test_recent_form_details_and_no_leakage():
+    from footy.db import repository as repo
+    from footy.db.connection import connect
+    from footy.web.services.context import recent_form
+
+    conn = connect(":memory:")
+    repo.sync_competitions(conn)
+    a = repo.resolve_team(conn, "football_data", "Arsenal", "Arsenal", "England")
+    b = repo.resolve_team(conn, "football_data", "Chelsea", "Chelsea", "England")
+    games = [("2026-09-01", a, b, "finished", 2, 1), ("2026-09-20", b, a, "finished", 2, 0),
+             ("2026-10-01", a, b, "finished", None, None), ("2026-10-02", a, b, "scheduled", None, None),
+             ("2026-10-30", a, b, "finished", 4, 0)]                                    # posterior: no debe entrar
+    for i, (day, h, w, st, hg, ag) in enumerate(games):
+        repo.upsert_match(conn, source="football_data", source_match_id=str(i), season="2026", status=st,
+                          competition_id=repo.competition_id(conn, "E0"), kickoff_utc=f"{day}T15:00:00Z",
+                          home_team_id=h, away_team_id=w, home_goals=hg, away_goals=ag)
+    form = recent_form(conn, [a, b], before_kickoff="2026-10-15T15:00:00Z")
+    assert [(f["date"][:10], f["outcome"], f["score"], f["is_home"]) for f in form[a]] == [
+        ("2026-09-01", "W", [2, 1], True), ("2026-09-20", "L", [0, 2], False)]          # del más antiguo al reciente
+    assert form[b][1] == {"outcome": "W", "score": [2, 0], "opponent": "Arsenal", "opponent_id": a, "is_home": True,
+                          "date": "2026-09-20T15:00:00Z", "league": "E0", "league_name": "Premier League"}
+    assert len(recent_form(conn, [a])[a]) == 3                                           # sin corte: entra el futuro
+    assert roundtrip(s.FormMatch, form[a][0]) == form[a][0]

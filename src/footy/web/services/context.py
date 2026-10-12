@@ -359,6 +359,13 @@ def match_context(conn, match_id: int) -> dict:
                              tracking.latest_market_odds(conn, match_id), r["home_team_id"], r["away_team_id"])
         if r["type"] == "cup" and r["round"]:          # fase de la copa (Champions: "League Stage - 3", "Final"...)
             ctx["round"] = r["round"]
+        # Forma reciente de ambos (puntos G/E/P y detalle): solo partidos que empezaron antes de este partido y de
+        # ahora (nunca uno en juego ni futuro).
+        before = min(r["kickoff_utc"], repo.utc_now())
+        form = recent_form(conn, [r["home_team_id"], r["away_team_id"]], before_kickoff=before)
+        h, a = form.get(r["home_team_id"]), form.get(r["away_team_id"])
+        if h or a:
+            ctx["recent"] = {"home": h or [], "away": a or []}
         if r["type"] == "league":                      # posición y puntos de ambos en la tabla vigente
             from footy.web.services import standings
 
@@ -422,26 +429,36 @@ def upcoming(days: int = HORIZON_DAYS) -> list[dict]:
 FORM_N = 5
 
 
-def recent_form(conn, team_ids, n: int = FORM_N) -> dict[int, list[str]]:
-    """Últimos `n` resultados terminados de cada equipo ("W" gana, "D" empata, "L" pierde), del más antiguo al más
-    reciente. Una sola consulta para todos los equipos (ROW_NUMBER por equipo), en cualquier competición."""
+def recent_form(conn, team_ids, before_kickoff: str | None = None, n: int = FORM_N) -> dict[int, list[dict]]:
+    """Últimos `n` partidos terminados con marcador de cada equipo, del más antiguo al más reciente, en cualquier
+    competición: resultado (W/D/L), marcador propio [a favor, en contra], rival, condición, fecha y competición.
+    Anti-filtración: con `before_kickoff` solo cuentan partidos que empezaron antes. Una sola consulta para todos los
+    equipos (ROW_NUMBER por equipo)."""
     ids = sorted({int(t) for t in team_ids if t is not None})
     if not ids:
         return {}
     marks = ",".join("?" * len(ids))
+    before = before_kickoff or "9999"
     rows = conn.execute(
         f"""WITH t AS (
-              SELECT home_team_id AS team, kickoff_utc, home_goals AS gf, away_goals AS ga FROM matches
-              WHERE status = 'finished' AND home_goals IS NOT NULL AND home_team_id IN ({marks})
+              SELECT home_team_id AS team, away_team_id AS opp, 1 AS is_home, kickoff_utc, competition_id,
+                     home_goals AS gf, away_goals AS ga FROM matches
+              WHERE status = 'finished' AND home_goals IS NOT NULL AND kickoff_utc < ? AND home_team_id IN ({marks})
               UNION ALL
-              SELECT away_team_id, kickoff_utc, away_goals, home_goals FROM matches
-              WHERE status = 'finished' AND home_goals IS NOT NULL AND away_team_id IN ({marks}))
-            SELECT team, gf, ga FROM (
-              SELECT *, ROW_NUMBER() OVER (PARTITION BY team ORDER BY kickoff_utc DESC) AS rn FROM t)
-            WHERE rn <= ? ORDER BY team, kickoff_utc""", (*ids, *ids, n)).fetchall()
-    out: dict[int, list[str]] = {}
-    for team, gf, ga in rows:
-        out.setdefault(team, []).append("W" if gf > ga else "D" if gf == ga else "L")
+              SELECT away_team_id, home_team_id, 0, kickoff_utc, competition_id, away_goals, home_goals FROM matches
+              WHERE status = 'finished' AND home_goals IS NOT NULL AND kickoff_utc < ? AND away_team_id IN ({marks}))
+            SELECT x.team, x.opp, o.name AS opp_name, x.is_home, x.kickoff_utc, c.code, x.gf, x.ga FROM (
+              SELECT *, ROW_NUMBER() OVER (PARTITION BY team ORDER BY kickoff_utc DESC) AS rn FROM t) x
+            JOIN teams o ON o.id = x.opp JOIN competitions c ON c.id = x.competition_id
+            WHERE x.rn <= ? ORDER BY x.team, x.kickoff_utc""", (before, *ids, before, *ids, n)).fetchall()
+    names = league_names()
+    out: dict[int, list[dict]] = {}
+    for r in rows:
+        gf, ga = r["gf"], r["ga"]
+        out.setdefault(r["team"], []).append({
+            "outcome": "W" if gf > ga else "D" if gf == ga else "L", "score": [gf, ga], "opponent": r["opp_name"],
+            "opponent_id": r["opp"], "is_home": bool(r["is_home"]), "date": r["kickoff_utc"], "league": r["code"],
+            "league_name": names.get(r["code"], r["code"])})
     return out
 
 
@@ -474,12 +491,6 @@ def _upcoming(days: int) -> list[dict]:
         ctx["data_through"] = last
         ctx["stale"] = bool(last and (now - repo.from_iso(last)).days > STALE_DAYS)
         out.append(ctx)
-    # Forma reciente para los puntos G/E/P del detalle (partidos ya terminados: todos anteriores a estos).
-    form = recent_form(conn, [t for c in out for t in (c.get("home_id"), c.get("away_id"))])
-    for c in out:
-        h, a = form.get(c.get("home_id")), form.get(c.get("away_id"))
-        if h or a:
-            c["recent"] = {"home": h or [], "away": a or []}
     return out
 
 

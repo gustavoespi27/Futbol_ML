@@ -572,10 +572,33 @@ function xgGauge(lam, mu) {
   return `<span class="xg-gauge" role="img" aria-label="Goles esperados: local ${num(lam, 2)}, visita ${num(mu, 2)}">
     <b class="xg-h">${num(lam, 2)}</b><span class="xg-bar"><i style="width:${share.toFixed(1)}%"></i></span><b class="xg-a">${num(mu, 2)}</b></span>`;
 }
-// Puntos de forma: G verde, E amarillo, P rojo (del más antiguo al más reciente).
+// Puntos de forma: G verde, E amarillo, P rojo (del más antiguo al más reciente). Acepta letras (tabla de posiciones)
+// o partidos con rival, marcador y condición (forma reciente), que llevan su detalle en el title y en data-*.
+const FORM_LAB = { W: ["G", "Ganó"], D: ["E", "Empató"], L: ["P", "Perdió"] };
+const shortDay = (d) => new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "short" }).format(new Date(d));
 function formDots(seq) {
-  const lab = { W: ["G", "Ganó"], D: ["E", "Empató"], L: ["P", "Perdió"] };
-  return `<span class="form-dots">${(seq || []).map((r) => `<span class="form-dot ${r}" title="${lab[r][1]}">${lab[r][0]}</span>`).join("")}</span>`;
+  return `<span class="form-dots">${(seq || []).map((r) => {
+    if (typeof r === "string") return `<span class="form-dot ${r}" title="${FORM_LAB[r][1]}">${FORM_LAB[r][0]}</span>`;
+    const sc = `${r.score[0]}-${r.score[1]}`, venue = r.is_home ? "Local" : "Visita";
+    const tip = `${FORM_LAB[r.outcome][1]} ${sc} ${r.is_home ? "vs" : "@"} ${r.opponent} (${venue}) · ${shortDay(r.date)} · ${r.league_name}`;
+    return `<span class="form-dot ${r.outcome}" title="${esc(tip)}" data-opp="${esc(r.opponent)}" data-score="${sc}"
+      data-venue="${r.is_home ? "L" : "V"}" data-date="${esc(r.date.slice(0, 10))}">${FORM_LAB[r.outcome][0]}</span>`;
+  }).join("")}</span>`;
+}
+// Detalle de la racha: rival con escudo, condición [L]/[V], marcador propio y fecha (el más reciente arriba).
+function formList(seq) {
+  if (!seq || !seq.length) return `<p class="mc-note">Sin partidos recientes</p>`;
+  return `<div class="rf-list">${[...seq].reverse().map((r) => `<div class="rf-row">
+    <span class="form-dot ${r.outcome}">${FORM_LAB[r.outcome][0]}</span>
+    <span class="rf-venue" title="${r.is_home ? "Local" : "Visita"}">${r.is_home ? "L" : "V"}</span>
+    <span class="rf-opp">${teamLogo(r.opponent_id, r.opponent, 16)}<span>${esc(r.opponent)}</span></span>
+    <b class="rf-score">${r.score[0]}-${r.score[1]}</b>
+    <span class="rf-date" title="${esc(r.league_name)}">${esc(shortDay(r.date))}</span></div>`).join("")}</div>`;
+}
+function toggleRecent(btn) {
+  const box = btn.nextElementSibling;
+  box.hidden = !box.hidden;
+  btn.textContent = box.hidden ? "Ver detalle de partidos recientes" : "Ocultar detalle";
 }
 // Fila comparativa local / visita: el mejor valor se destaca (better: "high" o "low"; null = sin comparar).
 function statRow(label, h, a, { better = "high", fmt = (x) => num(x, 1), hint = "" } = {}) {
@@ -646,6 +669,9 @@ function statsBlock(m) {
     <div class="st-head"><span>${teamLogo(m.home_id, m.home, 18)}${esc(m.home)}</span><span>${esc(m.away)}${teamLogo(m.away_id, m.away, 18)}</span></div>
     <div class="st-table">
       ${rec ? `<div class="st-row st-form"><b>${formDots(rec.home)}</b><span>Últimos 5</span><b>${formDots(rec.away)}</b></div>` : ""}
+      ${rec && typeof (rec.home[0] || rec.away[0]) === "object" ? `<div class="st-row rf-toggle-row"><button type="button" class="link-btn"
+        onclick="toggleRecent(this)">Ver detalle de partidos recientes</button><div class="rf-detail" hidden>
+        <div><h5>${esc(m.home)}</h5>${formList(rec.home)}</div><div><h5>${esc(m.away)}</h5>${formList(rec.away)}</div></div></div>` : ""}
       ${statRow("Fuerza (Elo)", H.elo, A.elo, { fmt: int, hint: "Rating Elo dentro de la liga: más alto = más fuerte (solo comparable entre equipos de la misma liga)" })}
       ${statRow("Puntos por partido (últ. 5)", H.pts5, A.pts5, { fmt: (x) => num(x, 2) })}
       ${statRow("Puntos por partido (temporada)", H.season_ppg, A.season_ppg, { fmt: (x) => num(x, 2) })}
