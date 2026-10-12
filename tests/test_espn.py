@@ -120,3 +120,13 @@ def test_team_with_an_espn_id_is_never_linked_to_another_espn_id(conn):
     row = conn.execute("SELECT th.country FROM matches m JOIN teams th ON th.id = m.home_team_id WHERE m.id = ?",
                        (espn.store_event(conn, "LIB", ev),)).fetchone()
     assert row["country"] == "unknown"                                   # club nuevo, no el River Plate argentino
+
+
+def test_history_gets_the_season_of_the_nearest_match_and_skips_all_stars(conn):
+    league_match(conn, "RUS", "Zenit", "Spartak", "2026-02-20T15:00:00Z", "Russia")       # 2026/2027 en league_match
+    conn.execute("UPDATE matches SET season = '2025/2026'")
+    league_match(conn, "RUS", "CSKA", "Rostov", "2026-08-01T15:00:00Z", "Russia")
+    feb = espn.store_event(conn, "RUS", event(1, team(10, "Lokomotiv"), team(11, "Krasnodar"), date="2026-03-01T15:00Z",
+                                              state="post", name="STATUS_FULL_TIME", score=("1", "0"), completed=True))
+    assert conn.execute("SELECT season FROM matches WHERE id = ?", (feb,)).fetchone()[0] == "2025/2026"
+    assert espn.store_event(conn, "USA", event(2, team(90, "MLS All-Stars"), team(91, "Liga MX All-Stars"))) is None

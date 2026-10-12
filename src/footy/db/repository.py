@@ -227,12 +227,14 @@ def upsert_match(
     else:
         conn.execute(
             # Un partido terminado no vuelve a programado/en juego si otra fuente llega atrasada.
+            # La etiqueta de temporada de football-data es la de referencia (los modelos agrupan por ella).
             """UPDATE matches SET kickoff_utc = ?,
+                   season = CASE WHEN ? = 'football_data' THEN ? ELSE season END,
                    status = CASE WHEN status = 'finished' AND ? IN ('scheduled', 'live') THEN status ELSE ? END,
                    home_goals = COALESCE(?, home_goals), away_goals = COALESCE(?, away_goals),
                    round = COALESCE(?, round), venue = COALESCE(?, venue), updated_at = ?
                WHERE id = ?""",
-            (kickoff_utc, status, status, home_goals, away_goals, round, venue, now, match_id),
+            (kickoff_utc, source, season, status, status, home_goals, away_goals, round, venue, now, match_id),
         )
 
     conn.execute(

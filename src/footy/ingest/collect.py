@@ -112,7 +112,7 @@ def espn_stat_codes() -> list[str]:
 
 
 def run_espn(conn: sqlite3.Connection, client=None) -> dict:
-    """Calendario (hace 2 días a 7 días más), resultados y tiros desde ESPN. Si ESPN no responde, lo registra y la
+    """Calendario (hace 7 días a 7 días más), resultados y tiros desde ESPN. Si ESPN no responde, lo registra y la
     tarea sigue: API-Football mantiene el calendario por fecha como respaldo."""
     from footy.ingest import espn
 

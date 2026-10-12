@@ -259,22 +259,32 @@ def _link_team(conn, code: str, comp: dict, team: dict) -> int:
 
 # --- guardado ---------------------------------------------------------------
 
-def _season(conn, comp_id: int, ev: dict) -> str:
-    """Temporada para un partido nuevo, con el mismo formato que los partidos de football-data de la competición
-    ("2026/2027" o "2026"), para que los modelos agrupen bien; si no hay, el año de ESPN."""
-    row = conn.execute(
-        """SELECT m.season FROM matches m JOIN match_sources s ON s.match_id = m.id
-           WHERE m.competition_id = ? AND s.source LIKE 'football_data%' ORDER BY m.kickoff_utc DESC LIMIT 1""",
-        (comp_id,)).fetchone() or conn.execute(
-        "SELECT season FROM matches WHERE competition_id = ? ORDER BY kickoff_utc DESC LIMIT 1", (comp_id,)).fetchone()
-    return row[0] if row else str(ev.get("season", {}).get("year", ""))
+SEASON_NEAR = 120         # días: más lejos que esto, el partido de referencia puede ser de otra campaña
 
 
-def store_event(conn: sqlite3.Connection, code: str, ev: dict) -> int:
-    """Guarda (o actualiza) un partido de ESPN y su marcador en vivo. Devuelve el match_id."""
+def season_label(conn, comp_id: int, kickoff: str, fallback: str) -> str:
+    """Temporada para un partido nuevo: la del resultado de football-data más cercano en fecha (mismo formato y misma
+    campaña, "2025/2026" o "2026"), si no la de cualquier partido de otra fuente y, si no hay ninguno cerca, `fallback`.
+    El más cercano y no el último: al cargar historial, un partido de febrero es de la campaña anterior."""
+    for cond in ("s.source = 'football_data'", "s.source != 'espn'"):
+        row = conn.execute(
+            f"""SELECT m.season FROM matches m JOIN match_sources s ON s.match_id = m.id
+                WHERE m.competition_id = ? AND {cond}
+                  AND ABS(julianday(m.kickoff_utc) - julianday(?)) < ?
+                ORDER BY ABS(julianday(m.kickoff_utc) - julianday(?)) LIMIT 1""",
+            (comp_id, kickoff, SEASON_NEAR, kickoff)).fetchone()
+        if row:
+            return row[0]
+    return fallback
+
+
+def store_event(conn: sqlite3.Connection, code: str, ev: dict) -> int | None:
+    """Guarda (o actualiza) un partido de ESPN y su marcador en vivo. Devuelve el match_id (None si se omite)."""
     comp = config.settings()["competitions"][code]
     comp_id = repo.competition_id(conn, code)
     home, away = _sides(ev)
+    if any("all-star" in s["team"]["displayName"].lower().replace(" ", "-") for s in (home, away)):
+        return None                                  # partido de exhibición (MLS All-Stars): no es de la liga
     kickoff = kickoff_iso(ev)
     hid, aid = _known(conn, home["team"]), _known(conn, away["team"])
     if hid is None or aid is None:
@@ -288,7 +298,8 @@ def store_event(conn: sqlite3.Connection, code: str, ev: dict) -> int:
     status = map_status(ev["status"])
     hg, ag = final_goals(ev) if status == "finished" else (None, None)
     mid = repo.upsert_match(conn, source=SOURCE, source_match_id=str(ev["id"]), competition_id=comp_id,
-                            season=_season(conn, comp_id, ev), kickoff_utc=kickoff, home_team_id=hid,
+                            season=season_label(conn, comp_id, kickoff, str(ev.get("season", {}).get("year", ""))),
+                            kickoff_utc=kickoff, home_team_id=hid,
                             away_team_id=aid, status=status, home_goals=hg, away_goals=ag)
     if status == "live" and _goals(home) is not None:
         st = ev["status"]
@@ -310,7 +321,7 @@ def mark_synced(conn, name: str) -> None:
 
 # --- tareas -----------------------------------------------------------------
 
-def sync_calendar(conn: sqlite3.Connection, client: Espn, days_back: int = 2, days_ahead: int = 7) -> dict:
+def sync_calendar(conn: sqlite3.Connection, client: Espn, days_back: int = 7, days_ahead: int = 7) -> dict:
     """Partidos de las ligas con slug de ESPN entre hace `days_back` días y dentro de `days_ahead`: calendario nuevo,
     horarios cambiados y resultados. Un pedido por liga y mes."""
     now = datetime.now(timezone.utc)
