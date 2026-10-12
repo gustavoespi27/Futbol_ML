@@ -167,3 +167,30 @@ def test_played_today_shows_live_score_and_minute(monkeypatch):
     assert day["live"] is True
     assert day["matches"][0] == {**day["matches"][0], "status": "live", "score": [1, 0], "clock": "50'"}
     assert roundtrip(s.PlayedDay, day) == day
+
+
+def test_tracking_with_a_match_without_any_reference_odds(monkeypatch):
+    from footy.db import repository as repo
+    from footy.db.connection import connect
+    from footy.prediction import tracking
+    from footy.web.services import evaluation
+
+    conn = connect(":memory:")
+    repo.sync_competitions(conn)
+    monkeypatch.setattr(evaluation, "connect", lambda: conn)
+    ids = [repo.resolve_team(conn, "espn", str(i), n, "Chile") for i, n in enumerate(("A", "B", "C", "D"))]
+    for k, (h, a, hg, ag) in enumerate(((ids[0], ids[1], 2, 1), (ids[2], ids[3], 0, 0))):
+        mid = repo.upsert_match(conn, source="espn", source_match_id=str(k), competition_id=repo.competition_id(
+            conn, "CHL"), season="2026", kickoff_utc=f"2026-10-0{k + 1}T20:00:00Z", home_team_id=h, away_team_id=a,
+            status="finished", home_goals=hg, away_goals=ag)
+        conn.execute("INSERT INTO predictions (match_id, model_version, created_at, p_home, p_draw, p_away, "
+                     "extra_json) "
+                     "VALUES (?, ?, ?, 0.5, 0.3, 0.2, ?)", (mid, tracking.MODEL_VERSION, f"2026-10-0{k + 1}T10:00:00Z",
+                                                        '{"league": "CHL", "paper_bets": []}'))
+    conn.execute("INSERT INTO odds (match_id, source, bookmaker, market, line, selection, price, captured_at, "
+                 "is_closing) VALUES (1, 'api_football', 'Pinnacle', '1X2', 0, 'H', 2.0, '2026-10-01T18:00:00Z', 0), "
+                 "(1, 'api_football', 'Pinnacle', '1X2', 0, 'D', 3.4, '2026-10-01T18:00:00Z', 0), "
+                 "(1, 'api_football', 'Pinnacle', '1X2', 0, 'A', 4.0, '2026-10-01T18:00:00Z', 0)")
+    data = evaluation.tracking_data()
+    assert {m["close_kind"] is None for m in data["matches"]} == {True, False}   # uno con cuota y otro sin ninguna
+    s.TrackingOverview.model_validate(data)

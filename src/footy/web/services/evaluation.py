@@ -72,7 +72,8 @@ def tracking_data() -> dict:
                          "score": r["score"], "y": int(r["y"]),
                          "pick": r["pick"], "hit": bool(r["hit"]), "p_official": _probs(r["p_official"]),
                          "p_market": _probs(r["p_market"]), "version": r["model_version"],
-                         "close_kind": r["close_kind"]})
+                         # pandas convierte None en NaN: un partido sin ninguna cuota de referencia queda en None
+                         "close_kind": r["close_kind"] if isinstance(r["close_kind"], str) else None})
     bet_rows = []
     if not bets.empty:
         summary.update({"bets_profit": _f(bets.profit.sum(), 2), "bets_yield": _f(bets.profit.mean()),
