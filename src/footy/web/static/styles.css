@@ -343,6 +343,12 @@ footer { color: var(--muted); font-size: 12px; padding: 18px 28px 28px; border-t
 .rrow .score .st-live { color: var(--good); display: grid; justify-items: center; gap: 3px; }
 .res-note { margin: 0 0 10px; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 7px; }
 .rrow .score.is-live b { color: var(--good); }
+.live-block { border-color: color-mix(in srgb, var(--good) 40%, var(--border)); margin-bottom: 14px;
+  box-shadow: var(--shadow), 0 0 0 1px color-mix(in srgb, var(--good) 12%, transparent); }
+.live-block .lg-head { background: color-mix(in srgb, var(--good) 9%, var(--surface-2)); }
+.live-block + .lg-block, .live-block + .res-note { margin-top: 0; }
+.rrow .rlg { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); font-weight: 600;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rrow .score .clock { font: 600 10.5px/1.2 var(--font-mono); font-style: normal; color: var(--good);
   display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .df-btn .live-dot { margin-right: 6px; }

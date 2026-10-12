@@ -421,17 +421,21 @@ async function renderMatches() {
     api("/api/results?day=yesterday").catch(() => none), api("/api/results?day=today").catch(() => none)]);
   let today = firstToday;
   const byRef = Object.fromEntries(list.map((m) => [m.ref, m]));
+  // Los partidos en juego van arriba, en su propio bloque, en Todos, Hoy y Jugados hoy (con el filtro de liga).
+  const withLive = () => ["all", "today", "played"].includes(matchDate.type);
   const draw = () => {
     const done = { yesterday: past, played: today }[matchDate.type];
-    const shown = (done ? done.matches : list).filter((m) => leagueSelMatch(matchSel, m, catalog) && dateSelMatch(matchDate, m.kickoff));
+    const live = withLive() ? today.matches.filter((m) => m.status === "live" && leagueSelMatch(matchSel, m, catalog)) : [];
+    const shown = (done ? done.matches : list).filter((m) => leagueSelMatch(matchSel, m, catalog) && dateSelMatch(matchDate, m.kickoff)
+      && !(done === today && m.status === "live"));
     if (chips) chips.sync();
-    if (!shown.length) return emptyMatches($("#matches"), isFiltered(matchSel, matchDate), reset, matchSel, catalog);
-    $("#matches").innerHTML = done ? resultsNote(done) + resultGroups(shown) : matchGroups(shown);
+    if (!shown.length && !live.length) return emptyMatches($("#matches"), isFiltered(matchSel, matchDate), reset, matchSel, catalog);
+    $("#matches").innerHTML = liveBlock(live, today) + (done ? resultsNote(done) + resultGroups(shown) : matchGroups(shown));
   };
-  // Jugados hoy a la vista: se vuelve a pedir cada minuto (solo con la pestaña visible) y se repinta.
+  // Con partidos en juego a la vista, los marcadores se vuelven a pedir cada minuto (solo con la pestaña visible).
   clearInterval(liveTimer);
   liveTimer = setInterval(async () => {
-    if (document.hidden || location.hash !== "#partidos" || matchDate.type !== "played") return;
+    if (document.hidden || location.hash !== "#partidos" || !withLive()) return;
     delete cache["/api/results?day=today"];
     try { today = await api("/api/results?day=today"); draw(); } catch (e) { /* se reintenta en el próximo ciclo */ }
   }, LIVE_REFRESH_MS);
@@ -498,7 +502,16 @@ function resultGroups(list) {
     ${ms.map(resultRow).join("")}</div>`;
   }).join("");
 }
-function resultRow(m) {
+// Bloque "En vivo ahora": todas las ligas juntas, por eso cada fila lleva su liga.
+function liveBlock(live, day) {
+  if (!live.length) return "";
+  const t = day.updated_at ? new Intl.DateTimeFormat("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(day.updated_at)) : "";
+  return `<div class="lg-block live-block">
+    <div class="lg-head"><i class="live-dot"></i><span>En vivo ahora</span>
+      <span class="cnt">${live.length} ${live.length === 1 ? "partido" : "partidos"}${day.live ? ` · se actualiza cada minuto${t ? ` (${t})` : ""}` : ""}</span></div>
+    ${live.map((m) => resultRow(m, true)).join("")}</div>`;
+}
+function resultRow(m, withLeague = false) {
   const time = new Intl.DateTimeFormat("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(m.kickoff));
   const s = m.score;
   const win = s ? (s[0] > s[1] ? 0 : s[0] < s[1] ? 2 : 1) : -1;
@@ -512,7 +525,7 @@ function resultRow(m) {
     : `<span class="rnone">sin pronóstico</span>`;
   return `<div class="rrow">
     <div class="time"><b>${time}</b>${m.round ? `<em class="stage">${esc(stageLabel(m.round))}</em>` : ""}</div>
-    <div class="tm">${tag(m.home_id, m.home, win === 0)}${tag(m.away_id, m.away, win === 2)}</div>
+    <div class="tm">${withLeague ? `<span class="rlg">${leagueLogo(m.league, 14)}${esc(m.league_name)}</span>` : ""}${tag(m.home_id, m.home, win === 0)}${tag(m.away_id, m.away, win === 2)}</div>
     <div class="score ${m.status === "live" ? "is-live" : ""}">${s ? `<b>${s[0]}</b><b>${s[1]}</b>${m.status === "live" ? `<em class="clock"><i class="live-dot"></i>${esc(m.clock || "en juego")}</em>` : ""}`
       : `<span class="st-${esc(m.status)}">${m.status === "live" ? '<i class="live-dot"></i>' : ""}${RESULT_STATUS[m.status] || esc(m.status)}</span>`}</div>
     <div class="rp">${pick}</div>
