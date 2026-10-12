@@ -343,3 +343,14 @@ def test_teams_route_serves_profile_by_id_and_league_teams_by_code(monkeypatch):
     assert client.get("/api/teams/2").status_code == 404
     assert client.get("/api/teams/XX").status_code == 404
     web._cache.clear()
+
+
+def test_within_days_keeps_registration_window_to_today_and_tomorrow():
+    from datetime import datetime, timedelta, timezone
+
+    from footy.web.services.context import LOCAL_TZ, REGISTER_DAYS, within_days
+
+    today = datetime.now(LOCAL_TZ).replace(hour=12, minute=0, second=0, microsecond=0)
+    iso = lambda d: (today + timedelta(days=d)).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")  # noqa: E731
+    matches = [{"kickoff": iso(d)} for d in (0, 1, 2, 4)]
+    assert [m["kickoff"] for m in within_days(matches, REGISTER_DAYS)] == [iso(0), iso(1)]

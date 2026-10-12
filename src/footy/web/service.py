@@ -24,6 +24,7 @@ from footy.web.services.context import (
     PREDICTOR_DIR,
     PREDICTOR_TTL,
     REFERENCE_BOOKS,
+    REGISTER_DAYS,
     STALE_DAYS,
     context,
     match_context,
@@ -85,9 +86,10 @@ def reliable_data() -> dict:
 
 
 def register_reliable(conn=None) -> dict:
-    return _betting.register_reliable(upcoming(), conn)
+    # Solo hoy y mañana: la serie auditada de pronósticos fiables se registra con la misma anticipación de siempre
+    return _betting.register_reliable(_context.within_days(upcoming(), REGISTER_DAYS), conn)
 
 
 def register_suggestions(conn=None) -> dict:
     """El apostador profesional coloca (en papel) sus apuestas antes del partido. Lo llama scripts/daily.py."""
-    return _betting.register_suggestions(upcoming(), conn)
+    return _betting.register_suggestions(_context.within_days(upcoming(), REGISTER_DAYS), conn)

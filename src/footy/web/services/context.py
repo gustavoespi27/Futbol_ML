@@ -36,7 +36,8 @@ CONTEXT_TTL = 600
 DISPLAY_BOOKS = ("Bet365", "Pinnacle", "Betfair Exchange", "Betfair", "Market Avg")   # cuota que se muestra
 REFERENCE_BOOKS = ("Pinnacle", "Betfair Exchange", "Market Avg", "Bet365")             # para quitar el margen
 STALE_DAYS = 12
-HORIZON_DAYS = 2          # hoy y mañana: el plan gratuito de API-Football no entrega calendario más allá
+HORIZON_DAYS = 5          # partidos que se muestran: hoy y 4 días más (calendario de ESPN; las cuotas llegan después)
+REGISTER_DAYS = 2         # registros prospectivos (fiables, apuestas en papel): solo hoy y mañana, como siempre
 LOCAL_TZ = ZoneInfo("America/Santiago")
 PREDICTOR_DIR = config.PROJECT_ROOT / "data" / "cache" / "predictors"
 
@@ -429,6 +430,13 @@ def upcoming(days: int = HORIZON_DAYS) -> list[dict]:
         return out
 
 
+def within_days(matches: list[dict], days: int) -> list[dict]:
+    """Partidos que empiezan antes del final del día `days - 1` desde hoy, en hora local (mismo corte que
+    `_upcoming`)."""
+    end = datetime.combine(datetime.now(LOCAL_TZ).date() + timedelta(days=days), datetime.min.time(), LOCAL_TZ)
+    return [m for m in matches if datetime.fromisoformat(m["kickoff"].replace("Z", "+00:00")) < end]
+
+
 FORM_N = 5
 
 
@@ -472,10 +480,20 @@ def recent_form(conn, team_ids, before_kickoff: str | None = None, n: int = FORM
     return out
 
 
+def _lagging_codes(conn, now: datetime) -> set[str]:
+    """Competiciones con partidos que ya debieron jugarse (hace más de un día) y siguen sin resultado: la señal de que
+    la fuente se atrasó. Sin esto, una copa entre fechas o una liga en parón de selecciones (más de STALE_DAYS sin
+    partidos) parecía atrasada."""
+    return {r[0] for r in conn.execute(
+        """SELECT DISTINCT c.code FROM matches m JOIN competitions c ON c.id = m.competition_id
+           WHERE m.status = 'scheduled' AND m.kickoff_utc BETWEEN ? AND ?""",
+        (repo.to_iso(now - timedelta(days=60)), repo.to_iso(now - timedelta(days=1))))}
+
+
 def _upcoming(days: int) -> list[dict]:
     conn = connect()
     now = datetime.now(timezone.utc)
-    # Hasta el final del día `days - 1` desde hoy en hora local (hoy y mañana con days=2).
+    # Hasta el final del día `days - 1` desde hoy en hora local (hoy y 4 días más con days=5).
     local_today = datetime.now(LOCAL_TZ).date()
     end = datetime.combine(local_today + timedelta(days=days), datetime.min.time(), LOCAL_TZ)
     hidden = _hidden_codes()
@@ -486,6 +504,7 @@ def _upcoming(days: int) -> list[dict]:
               {where_hidden}
             ORDER BY m.kickoff_utc""", (repo.to_iso(now), repo.to_iso(end), *hidden))]
     through = data_through(conn)
+    lagging = _lagging_codes(conn, now)
     out = []
     for mid in ids:
         try:
@@ -499,7 +518,7 @@ def _upcoming(days: int) -> list[dict]:
                    "options": [], "suggestions": [], "recommendation": {"bet": False, "text": str(e)}}
         last = through.get(ctx["league"])
         ctx["data_through"] = last
-        ctx["stale"] = bool(last and (now - repo.from_iso(last)).days > STALE_DAYS)
+        ctx["stale"] = bool(last and (now - repo.from_iso(last)).days > STALE_DAYS and ctx["league"] in lagging)
         out.append(ctx)
     return out
 

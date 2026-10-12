@@ -271,7 +271,7 @@ function mountQuickChips(root, { list, catalog, picker, getSel, onPick }) {
   return { sync: draw };
 }
 
-/* ---------- filtro por día (próximos partidos de hoy y mañana; ayer y jugados hoy, aparte, con resultados) ---------- */
+/* ---------- filtro por día (partidos de los próximos días; ayer y jugados hoy, aparte, con resultados) ---------- */
 // Selección: { type: "all" | "yesterday" | "played" | "today" | "tomorrow" } o { type: "day", day: "YYYY-MM-DD" }
 // para un día posterior a mañana (días en hora local).
 const localDay = (d) => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`; };

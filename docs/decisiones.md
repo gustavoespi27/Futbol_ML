@@ -525,3 +525,13 @@ clubes de ligas no seguidas conocidos por las copas internacionales). Misma liga
 liga. En cualquier otro caso (ligas distintas, liga sin modelo propio como Chile, clubes de otras ligas): el modelo
 entre ligas. Con cuotas ingresadas el valor esperado es orientativo: no hay pesos validados para combinar ese modelo
 con el mercado, así que nunca recomienda apostar.
+
+## 2026-10-12 — Partidos de los próximos 5 días; los registros siguen con hoy y mañana
+
+La lista de partidos pasa de hoy y mañana (`HORIZON_DAYS = 2`) a 5 días (`HORIZON_DAYS = 5`): el calendario ya llega
+de ESPN con 7 días, y el filtro de fechas muestra botones por día ("Mié 14") para las fechas siguientes a mañana. La
+mayoría de esos partidos aún no tiene cuotas, así que se muestran con el pronóstico del modelo. En frío la lista tarda
+~31 s en vez de ~5 s (se precalienta al iniciar y queda en caché 5 minutos).
+
+Los registros prospectivos no cambian: pronósticos fiables y apuestas en papel se registran solo con los partidos de
+hoy y mañana (`REGISTER_DAYS = 2`, `within_days`), para que la serie auditada mantenga la misma anticipación.
