@@ -487,3 +487,26 @@ fijaba ~20 h antes del inicio (mediana). Sin cuota, el modelo solo pierde ~0,06 
 
 **Corrección.** Resultados fallaba (500) con partidos evaluados sin ninguna cuota de referencia: pandas convertía
 `close_kind` None en NaN y el contrato estricto lo rechazaba.
+
+## 2026-10-12 — Tabla de posiciones, temporadas completas y cuotas dañadas
+
+**Tabla de posiciones** (`/api/standings`, posición de cada equipo en los partidos). La etiqueta `matches.season` no
+sirve para filtrar: cada fuente escribe la misma campaña distinto ("2026/2027", "2026", "2027"). La campaña vigente es
+la etiqueta del último resultado de football-data y desde su primer partido cuentan todos los partidos terminados de
+la liga. Tabla única: no separa zonas, conferencias ni torneos cortos.
+
+**Huecos de datos.** Al calcular las tablas aparecieron temporadas incompletas (Chile con 1 partido por equipo, Rusia
+con 3, la Premier sin las dos últimas fechas): football-data se atrasa y API-Football gratis no da temporadas pasadas.
+Se cargó la temporada 2026 de las 32 ligas con ESPN (~9.700 partidos, gratis) y la sincronización diaria mira ahora
+7 días atrás. Correcciones encontradas en el proceso: la etiqueta de temporada de un partido nuevo es la del resultado
+de football-data más cercano en fecha (no la última, que ponía "2026/2027" a partidos de febrero) y football-data
+corrige la de otras fuentes; se omiten los partidos All-Star; Pari NN y el Nacional uruguayo quedaron bien separados;
+el torneo especial de la J1 (febrero-junio 2026) quedó como "2026".
+
+**Cuotas dañadas.** El 21% de las cuotas Betfair Exchange del calendario de football-data tenía márgenes imposibles
+(hasta 171%: p. ej. 1,31 / 3,35 / 1,31). Como Betfair es la segunda referencia (después de Pinnacle), el 10% de los
+pronósticos en vivo se basó en ellas: log loss 1,043 y acierto 48% contra 0,940 y 56% del resto. Ahora una casa solo
+es referencia si su margen está entre −3% y 15% y, si hay promedio de mercado, ninguna probabilidad se aleja más de
+0,08 de él (las sanas nunca superan 0,043). También contaminaba la evaluación: con la referencia limpia, en vivo el
+mercado queda en 0,9454 y nuestro oficial en 0,9485 (antes parecía al revés). Los pronósticos ya registrados no se
+reescriben; la corrección rige desde ahora.
