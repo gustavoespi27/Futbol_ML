@@ -166,6 +166,14 @@ TIERS = (
 )
 
 
+def _without_espn_id(conn, cands) -> list:
+    """ESPN usa un id por club: un equipo que ya tiene id de ESPN es otro club aunque el nombre sea idéntico
+    ("River Plate" de Uruguay en la Libertadores no es el River Plate argentino, "Liverpool" de Montevideo no es el
+    inglés)."""
+    taken = {r[0] for r in conn.execute("SELECT DISTINCT team_id FROM team_aliases WHERE source = ?", (SOURCE,))}
+    return [r for r in cands if r["id"] not in taken]
+
+
 def _pick(cands, variants: list[str], tiers=TIERS) -> int | None:
     for test in tiers:
         hits = {r["id"] for r in cands for v in variants if test(v, r["name"])}
@@ -235,7 +243,7 @@ def _link_team(conn, code: str, comp: dict, team: dict) -> int:
         # ESPN. Un id nuevo es casi siempre de una liga que no seguimos: nombres completos y, como máximo, las mismas
         # palabras clave ("Braga" ~ "Sp Braga"); nada de subconjuntos ("Lincoln Red Imps" no es Lincoln City).
         cands = conn.execute("SELECT id, name FROM teams WHERE country NOT IN ('World', 'unknown')").fetchall()
-        match = _pick(cands, _variants(team, short=False), TIERS[:3])
+        match = _pick(_without_espn_id(conn, cands), _variants(team, short=False), TIERS[:3])
         if match is not None:
             return _alias(conn, team, match)
         return repo.resolve_team(conn, SOURCE, str(team["id"]), name, "unknown")
@@ -243,7 +251,7 @@ def _link_team(conn, code: str, comp: dict, team: dict) -> int:
     if comp["type"] == "cup":                       # copa nacional: equipos de las ligas del país
         codes += [c for c, v in config.settings()["competitions"].items()
                   if v["type"] == "league" and v.get("country") == country]
-    match = _pick(_competition_teams(conn, codes), variants)
+    match = _pick(_without_espn_id(conn, _competition_teams(conn, codes)), variants)
     if match is not None:
         return _alias(conn, team, match)
     return repo.resolve_team(conn, SOURCE, str(team["id"]), name, country)
@@ -332,6 +340,20 @@ def sync_calendar(conn: sqlite3.Connection, client: Espn, days_back: int = 2, da
     mark_synced(conn, "espn_calendar")
     conn.commit()
     return out
+
+
+def backfill_months(conn: sqlite3.Connection, client: Espn, code: str, months: list[str]) -> int:
+    """Historial de una competición mes a mes (`AAAAMM`): partidos terminados y sus equipos. Un pedido por mes."""
+    slug, n = slugs()[code], 0
+    for month in months:
+        for ev in client.scoreboard(slug, month):
+            try:
+                store_event(conn, code, ev)
+                n += 1
+            except (KeyError, StopIteration, ValueError):
+                log.exception("ESPN %s: evento %s con datos inesperados, se omite", slug, ev.get("id"))
+        conn.commit()
+    return n
 
 
 def refresh_live(conn: sqlite3.Connection, client: Espn) -> int:

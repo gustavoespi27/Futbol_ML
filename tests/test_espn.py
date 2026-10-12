@@ -110,3 +110,13 @@ def test_live_score_is_kept_apart_and_finished_match_never_goes_back(conn):
 def test_competitions_sync_leagues_before_cups():
     order = list(espn.slugs())
     assert order.index("DNK") < order.index("UECL") < order.index("WC")
+
+
+def test_team_with_an_espn_id_is_never_linked_to_another_espn_id(conn):
+    league_match(conn, "ARG", "River Plate", "Boca Juniors", "2026-09-01T20:00:00Z", "Argentina")
+    espn.store_event(conn, "ARG", event(1, team(16, "River Plate"), team(5, "Boca Juniors"),
+                                        date="2026-09-01T20:00Z"))
+    ev = event(2, team(5498, "River Plate"), team(77, "Bolívar"), date="2026-04-10T00:30Z")     # el de Uruguay
+    row = conn.execute("SELECT th.country FROM matches m JOIN teams th ON th.id = m.home_team_id WHERE m.id = ?",
+                       (espn.store_event(conn, "LIB", ev),)).fetchone()
+    assert row["country"] == "unknown"                                   # club nuevo, no el River Plate argentino

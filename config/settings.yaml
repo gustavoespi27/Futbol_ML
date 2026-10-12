@@ -470,18 +470,9 @@ api_football:
   # Historial a cargar una vez (plan Free: temporadas 2022-2024). La tarea diaria carga hasta
   # backfill_per_run temporadas por ejecución, solo si sobra presupuesto después de cuotas y calendario.
   backfill_per_run: 3
+  # Las copas de clubes (Champions, Europa, Conference, Libertadores, Sudamericana) se cargan desde ESPN, sin
+  # cuota: scripts/backfill_espn.py.
   backfill:
-    # Copas europeas primero (su temporada ya está en curso): cruces entre ligas para descanso/congestión y para
-    # estimar la fuerza relativa de cada liga.
-    - [UCL, 2024]
-    - [UCL, 2023]
-    - [UCL, 2022]
-    - [UEL, 2024]
-    - [UEL, 2023]
-    - [UEL, 2022]
-    - [UECL, 2024]
-    - [UECL, 2023]
-    - [UECL, 2022]
     - [WC, 2022]
     - [EURO, 2024]
     - [COPA, 2024]
