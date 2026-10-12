@@ -269,7 +269,7 @@ function miniBar(p) {
 function stat(label, value, hint = "") {
   return `<div class="card stat"><div class="label">${label}</div><div class="value num">${value}</div>${hint ? `<div class="hint">${hint}</div>` : ""}</div>`;
 }
-const SOURCE_PILL = { "modelo + mercado": "good", modelo: "", mercado: "warn", "sin datos": "", error: "bad" };
+const SOURCE_PILL = { "modelo + mercado": "good", modelo: "", "modelo entre ligas": "", mercado: "warn", "sin datos": "", error: "bad" };
 const KPI_ICONS = {
   value: '<path d="M3 17 9 11l4 4 8-8"/><path d="M15 7h6v6"/>',
   reliable: '<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/>',

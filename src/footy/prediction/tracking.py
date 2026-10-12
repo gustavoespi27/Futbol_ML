@@ -98,6 +98,36 @@ def register(conn: sqlite3.Connection, fixtures: pd.DataFrame) -> dict:
     return counts
 
 
+def register_cross(conn: sqlite3.Connection, horizon_hours: float = 48) -> dict:
+    """Pronóstico del modelo entre ligas para los partidos de copas de clubes de las próximas horas, registrado antes
+    del inicio (versión propia: no se mezcla con el seguimiento del modelo por liga)."""
+    from footy.models import cross_league
+
+    model = cross_league.load()
+    if model is None:
+        return {"fixtures": 0, "predictions": 0}
+    now = datetime.now(timezone.utc)
+    rows = conn.execute(
+        f"""SELECT m.id, c.code, m.home_team_id, m.away_team_id FROM matches m
+            JOIN competitions c ON c.id = m.competition_id
+            WHERE m.status = 'scheduled' AND m.kickoff_utc BETWEEN ? AND ?
+              AND c.code IN ({",".join("?" * len(cross_league.CUPS))})""",
+        (repo.to_iso(now), repo.to_iso(now + timedelta(hours=horizon_hours)), *cross_league.CUPS)).fetchall()
+    since = repo.to_iso(now - timedelta(hours=MIN_HOURS_BETWEEN))
+    n = 0
+    for r in rows:
+        if conn.execute("SELECT 1 FROM predictions WHERE match_id = ? AND model_version = ? AND created_at > ?",
+                        (r[0], cross_league.VERSION, since)).fetchone():
+            continue
+        p = model.probabilities(r[2], r[3])
+        conn.execute("""INSERT INTO predictions (match_id, model_version, created_at, p_home, p_draw, p_away,
+                        extra_json) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                     (r[0], cross_league.VERSION, repo.to_iso(now), *map(float, p), json.dumps({"league": r[1]})))
+        n += 1
+    conn.commit()
+    return {"fixtures": len(rows), "predictions": n}
+
+
 def register_scheduled(conn: sqlite3.Connection, horizon_hours: float = 48) -> dict:
     """Igual que `register`, para partidos ya en la base (API-Football: ARG, BRA) usando el último
     snapshot de cuotas pre-partido de cada casa."""

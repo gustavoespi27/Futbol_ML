@@ -47,6 +47,23 @@ _upcoming_cache: dict[int, tuple[float, list]] = {}
 _upcoming_lock = threading.Lock()
 
 
+_cross: dict[str, tuple[float, object]] = {}
+
+
+def _cross_probs(code: str, home_id: int | None, away_id: int | None) -> np.ndarray | None:
+    """P(1X2) del modelo entre ligas para una copa de clubes (None si no aplica o no está entrenado). Se recarga si
+    la tarea diaria lo reentrenó."""
+    from footy.models import cross_league
+
+    if code not in cross_league.CUPS or home_id is None or away_id is None or not cross_league.PATH.exists():
+        return None
+    mtime = cross_league.PATH.stat().st_mtime
+    hit = _cross.get("model")
+    if hit is None or hit[0] != mtime:
+        _cross["model"] = hit = (mtime, cross_league.load())
+    return hit[1].probabilities(int(home_id), int(away_id))
+
+
 # --- predictores por liga ---------------------------------------------------
 
 def _data_signature() -> str:
@@ -185,6 +202,7 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
     p_mkt_over = _market_over(odds)
     ctx = {"ref": ref, "league": code, "league_name": names.get(code, code), "home": home, "away": away,
            "kickoff": kickoff, "market_book": ref_book, "home_id": home_id, "away_id": away_id}
+    cross = None
     if code in params:
         pred = predictor(code)
         if home_id is None:
@@ -214,16 +232,23 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
                     "p_market": _probs(pr.get("p_market")), "xg": [_f(pr["lam"], 2), _f(pr["mu"], 2)]})
         ctx["recommendation"] = paper_bet(params[code], p_off, books) if ref_book else {
             "bet": False, "text": "Sin cuotas: no se puede evaluar valor."}
-    elif ref_book:
-        p_off = proportional(books[ref_book][None, :])[0]
+    elif ref_book or (cross := _cross_probs(code, home_id, away_id)) is not None:
+        # Copas de clubes: modelo entre ligas (Elo global + ajuste por liga). Con cuotas manda Pinnacle sin margen
+        # (no hay pesos validados para combinarlos) y el modelo se muestra al lado; sin cuotas, manda el modelo.
+        p_off = proportional(books[ref_book][None, :])[0] if ref_book else cross
         lam, mu = combos.implied_goals(p_off, p_mkt_over)
         M = combos.fit_matrix(lam, mu, 0.0, p_off, p_mkt_over)
-        if mlr:
+        if cross is not None:
+            ctx.update({"p_model": _probs(cross), "model_name": "Elo entre ligas"})
+        elif mlr:
             ctx.update({"p_model": _probs([mlr["ml_H"], mlr["ml_D"], mlr["ml_A"]]), "model_name": "ML historial"})
         ctx["stats"] = stats
-        ctx.update({"source": "mercado", "p_market": _probs(p_off), "xg": [_f(lam, 2), _f(mu, 2)],
-                    "recommendation": {"bet": False, "text": "Sin modelo validado en esta liga: se muestra la "
-                                                              "probabilidad del mercado."}})
+        ctx.update({"source": "mercado" if ref_book else "modelo entre ligas", "xg": [_f(lam, 2), _f(mu, 2)],
+                    "recommendation": {"bet": False, "text": (
+                        "Sin modelo validado en esta liga: se muestra la probabilidad del mercado." if ref_book else
+                        "Sin cuotas todavía: pronóstico del modelo entre ligas (Elo global + fuerza de cada liga).")}})
+        if ref_book:
+            ctx["p_market"] = _probs(p_off)
     else:
         ctx.update({"source": "sin datos", "p_official": None, "options": [], "suggestions": [],
                     "recommendation": {"bet": False, "text": "Sin modelo validado ni cuotas todavía."}})

@@ -21,6 +21,7 @@ from footy.db.connection import connect
 from footy.ingest import football_data as fd
 from footy.ingest.api_football import ApiFootball
 from footy.ingest.collect import run_daily, run_espn
+from footy.models import cross_league
 from footy.prediction import ml_predict, recalibration, tracking
 from footy.web import service
 
@@ -42,6 +43,11 @@ def update_current_season(conn) -> None:
         log.info("%s: %s", code, fd.store(conn, df))
 
 
+def _save_cross(model) -> int:
+    cross_league.save(model)
+    return model.n_train
+
+
 def main() -> int:
     log_dir = config.PROJECT_ROOT / "logs"
     log_dir.mkdir(exist_ok=True)
@@ -56,9 +62,12 @@ def main() -> int:
         ("api_football", lambda: log.info("Resumen API: %s", run_daily(conn, ApiFootball(conn)))),
         ("football_data", lambda: update_current_season(conn)),
         ("recalibrate", lambda: log.info("Recalibración: %s", recalibration.update(conn))),
+        ("cross_league", lambda: log.info("Modelo entre ligas: %s cruces de copas",
+                                          _save_cross(cross_league.fit(conn)))),
         ("ml", lambda: log.info("ML: %s partidos", len(ml_predict.upcoming(refresh=True)))),
         ("tracking", lambda: log.info("Seguimiento: %s", tracking.register(conn, tracking.fetch_fixtures()))),
         ("tracking_api", lambda: log.info("Seguimiento API: %s", tracking.register_scheduled(conn))),
+        ("tracking_cups", lambda: log.info("Seguimiento copas: %s", tracking.register_cross(conn))),
         ("suggestions", lambda: log.info("Sugerencias: %s", service.register_suggestions(conn))),
         ("reliable", lambda: log.info("Pronósticos fiables: %s", service.register_reliable(conn))),
         ("report", lambda: (config.PROJECT_ROOT / "docs" / "seguimiento.md").write_text(
