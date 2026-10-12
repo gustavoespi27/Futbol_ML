@@ -710,6 +710,38 @@ async function toggleStandings(btn) {
     box.innerHTML = `<div class="mc-note">No se pudo cargar la tabla: ${esc(e.message)}</div>`;
   }
 }
+// "Market Avg" es un promedio, no una casa donde apostar: se muestra, pero no compite por la mejor cuota ni el +EV.
+const NOT_BETTABLE = new Set(["Market Avg"]);
+const BOOK_ORDER = ["Pinnacle", "Bet365", "Betfair Exchange", "Betfair", "Market Avg"];
+function oddsTable(odds, p) {
+  const names = Object.keys(odds).sort((a, b) => {
+    const ia = BOOK_ORDER.indexOf(a), ib = BOOK_ORDER.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
+  });
+  const real = names.filter((b) => !NOT_BETTABLE.has(b));
+  const bettable = real.length ? real : names;
+  const best = [0, 1, 2].map((i) => Math.max(...bettable.map((b) => odds[b][i])));
+  const bestBook = best.map((x, i) => bettable.find((b) => odds[b][i] === x));
+  const fair = p ? p.map((x) => 1 / x) : null;
+  const payout = (o) => 1 / o.reduce((s, x) => s + 1 / x, 0);
+  const cell = (b, x, i) => {
+    const isBest = bettable.length > 1 && !NOT_BETTABLE.has(b) && x === best[i];
+    const ev = fair && !NOT_BETTABLE.has(b) && x > fair[i];
+    const tip = ev ? ` title="Paga más que la cuota justa (${num(fair[i])}): +${pct(x / fair[i] - 1, 1)} de valor esperado"` : "";
+    return `<td class="num${isBest ? " best-odd" : ""}"${tip}>${num(x)}${ev ? '<span class="ev-tag">+EV</span>' : ""}</td>`;
+  };
+  return `<div class="compare"><div class="odds-wrap"><table class="odds-table">
+    <thead><tr><th>Casa</th><th>1</th><th>X</th><th>2</th><th class="pay">Payout</th></tr></thead>
+    <tbody>${names.map((b) => {
+      const o = odds[b], pay = payout(o);
+      return `<tr${NOT_BETTABLE.has(b) ? ' class="avg"' : ""}><td class="bk">${esc(b === "Market Avg" ? "Promedio mercado" : b)}</td>
+        ${o.map((x, i) => cell(b, x, i)).join("")}
+        <td class="num pay" title="Margen de la casa: ${pct(1 - pay, 1)}">${pct(pay, 1)}</td></tr>`;
+    }).join("")}
+    ${fair ? `<tr class="fair"><td class="bk">Cuota justa (modelo)</td>${fair.map((x) => `<td class="num">${num(x)}</td>`).join("")}<td class="num pay">100%</td></tr>` : ""}
+    <tr class="gain"><td class="bk">Si apuestas 1.000</td>${best.map((x, i) => `<td class="num" title="Con la mejor cuota (${esc(bestBook[i])})">+${Math.round(x * 1000 - 1000).toLocaleString("es-CL")}</td>`).join("")}<td></td></tr>
+    </tbody></table></div></div>`;
+}
 function matchCard(m) {
   const p = m.p_official;
   const r = m.recommendation || {};
@@ -719,8 +751,11 @@ function matchCard(m) {
     ? `${vchip(best.verdict)} <span>Mejor opción: <b style="color:var(--text)">${esc(best.label)}</b> a ${num(best.odds)} · ${esc(best.verdict.reason)}</span>`
     : `${vchip({ level: "none", label: "Sin cuota", reason: "" })} <span>${esc(r.text || "Aún no hay cuotas para evaluar el retorno.")}</span>`;
   let oddsHtml = "";
-  const book = m.odds_1x2 && (m.odds_1x2.Bet365 ? "Bet365" : Object.keys(m.odds_1x2)[0]);
-  if (book) {
+  const books = m.odds_1x2 ? Object.keys(m.odds_1x2) : [];
+  if (books.length > 1) {
+    oddsHtml = oddsTable(m.odds_1x2, p);
+  } else if (books.length) {
+    const book = books[0];
     const o = m.odds_1x2[book];
     const fair = p ? p.map((x) => 1 / x) : null;
     oddsHtml = `<div class="compare">
