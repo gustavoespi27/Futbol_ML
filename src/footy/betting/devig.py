@@ -60,3 +60,29 @@ METHODS = {"proportional": proportional, "power": power, "shin": shin}
 
 def devig(odds: np.ndarray, method: str = "proportional") -> np.ndarray:
     return METHODS[method](odds)
+
+
+# Cuotas 1X2 dañadas: el calendario de football-data trae a veces precios de Betfair Exchange sin liquidez
+# (p. ej. 1,31 / 3,35 / 1,31: margen 82%). En 780 capturas de 2026, el 21% tenía margen > 15%; las sanas nunca se
+# alejan más de 0,043 del promedio del mercado y las dañadas 0,145 de media. Usarlas como referencia empeoraba el
+# pronóstico oficial (log loss 1,043 vs 0,940 en vivo).
+MIN_MARGIN, MAX_MARGIN = -0.03, 0.15
+MAX_GAP = 0.08                # diferencia máxima de probabilidad con el promedio del mercado
+CONSENSUS = "Market Avg"
+
+
+def valid_1x2(odds) -> bool:
+    """Tres cuotas > 1 con un margen posible (entre −3% y 15%)."""
+    o = np.asarray(odds, dtype=float)
+    return o.shape == (3,) and bool(np.all(o > 1)) and MIN_MARGIN <= float(np.sum(1 / o)) - 1 <= MAX_MARGIN
+
+
+def clean_1x2(books: dict) -> dict:
+    """Casas con cuotas 1X2 utilizables: margen posible y, si hay promedio de mercado, sin alejarse de él más de
+    MAX_GAP en ninguna probabilidad. Se aplica antes de elegir la cuota de referencia."""
+    ok = {b: np.asarray(o, dtype=float) for b, o in books.items() if valid_1x2(o)}
+    if CONSENSUS not in ok:
+        return ok
+    ref = proportional(ok[CONSENSUS][None, :])[0]
+    return {b: o for b, o in ok.items()
+            if b == CONSENSUS or float(np.max(np.abs(proportional(o[None, :])[0] - ref))) <= MAX_GAP}

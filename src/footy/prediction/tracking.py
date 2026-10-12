@@ -18,7 +18,7 @@ from io import StringIO
 import numpy as np
 import pandas as pd
 
-from footy.betting.devig import proportional
+from footy.betting.devig import clean_1x2, proportional
 from footy.db import repository as repo
 from footy.ingest import football_data as fd
 from footy.leagues import load_params
@@ -168,7 +168,7 @@ def latest_odds(conn: sqlite3.Connection, match_id: int) -> dict[str, np.ndarray
         last = g[g.captured_at == g.captured_at.max()].set_index("selection").price
         if all(s in last.index for s in "HDA") and (last > 1).all():
             out[book] = last.loc[list("HDA")].to_numpy(dtype=float)
-    return out
+    return clean_1x2(out)
 
 
 def latest_market_odds(conn: sqlite3.Connection, match_id: int) -> dict:
@@ -184,6 +184,9 @@ def latest_market_odds(conn: sqlite3.Connection, match_id: int) -> dict:
     for r in df.itertuples(index=False):
         key = (float(r.line), r.selection) if r.market == "OU" else r.selection
         out[r.market].setdefault(r.bookmaker, {})[key] = float(r.price)
+    full = {b: [v[s] for s in "HDA"] for b, v in out["1X2"].items() if all(s in v for s in "HDA")}
+    keep = clean_1x2(full)
+    out["1X2"] = {b: v for b, v in out["1X2"].items() if b in keep}
     return out
 
 
@@ -219,7 +222,7 @@ def _odds_by_book(row: dict) -> dict[str, np.ndarray]:
         vals = [fd._num(row.get(f"{prefix}{s}")) for s in "HDA"]
         if all(v is not None and v > 1 for v in vals):
             out[book] = np.array(vals)
-    return out
+    return clean_1x2(out)
 
 
 def _recent_prediction(conn, match_id: int, now: datetime) -> bool:
@@ -334,11 +337,13 @@ def _closing_fair(close: pd.DataFrame, match_id: int):
     if match_id not in close.index.get_level_values(0):
         return None
     sub = close.loc[match_id]
+    books = {b: sub.loc[[(b, s) for s in "HDA"]] for b in sub.index.get_level_values(0).unique()
+             if all((b, s) in sub.index for s in "HDA")}
+    usable = clean_1x2({b: rows.price.to_numpy(dtype=float) for b, rows in books.items()})
     for book in ("Pinnacle", "Betfair Exchange", "Market Avg", "Bet365"):
-        if all((book, s) in sub.index for s in "HDA"):
-            rows = sub.loc[[(book, s) for s in "HDA"]]
-            kind = "cierre" if rows.is_closing.min() == 1 else "último pre-partido"
-            return proportional(rows.price.to_numpy(dtype=float)[None, :])[0], book, kind
+        if book in usable:
+            kind = "cierre" if books[book].is_closing.min() == 1 else "último pre-partido"
+            return proportional(usable[book][None, :])[0], book, kind
     return None
 
 

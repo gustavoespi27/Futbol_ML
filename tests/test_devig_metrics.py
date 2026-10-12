@@ -49,3 +49,13 @@ def test_calibration_table_and_ece():
     assert metrics.ece(p, outcome) < 0.02
     t = metrics.calibration_table(p, outcome, 10)
     assert t["n"].sum() == 20000 and len(t) == 10
+
+
+def test_corrupted_exchange_odds_are_not_used_as_reference():
+    from footy.betting.devig import clean_1x2, valid_1x2
+    assert not valid_1x2([1.31, 3.35, 1.31])                    # margen 82%: precio de Betfair sin liquidez
+    assert valid_1x2([2.0, 3.4, 4.0]) and not valid_1x2([0.9, 3.4, 4.0])
+    books = {"Betfair Exchange": [3.2, 3.4, 2.4], "Market Avg": [2.2, 3.4, 2.8], "Pinnacle": [2.25, 3.5, 3.0],
+             "Bet365": [1.31, 3.35, 1.31]}
+    # Betfair con margen posible pero lejos del promedio (0,11 en el local) también queda fuera
+    assert set(clean_1x2(books)) == {"Market Avg", "Pinnacle"}
