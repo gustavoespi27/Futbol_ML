@@ -319,9 +319,14 @@
     </div>
     <div class="card">
       <form class="sim" id="sim-form">
+        <div class="sim-mode" id="sim-mode" role="tablist">
+          <button type="button" class="t-chip on" data-m="same">Misma liga</button>
+          <button type="button" class="t-chip" data-m="cross">Entre ligas y países</button>
+        </div>
         <div class="fields">
-          <label>Liga<select id="sim-league" required></select></label>
+          <label><span id="sim-league-lab">Liga</span><select id="sim-league" required></select></label>
           <label>Local<select id="sim-home" required></select></label>
+          <label class="cross-only" hidden>Liga de la visita<select id="sim-away-league"></select></label>
           <label>Visita<select id="sim-away" required></select></label>
         </div>
         <div class="fields">

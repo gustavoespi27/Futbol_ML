@@ -141,6 +141,9 @@ class PredictIn(BaseModel):
     home: str
     away: str
     odds: list[float] | None = Field(default=None, min_length=3, max_length=3)
+    away_league: str | None = None          # simulador entre ligas: liga de la visita (si es distinta)
+    home_id: int | None = None
+    away_id: int | None = None
 
 
 @app.post("/api/predict")
@@ -149,8 +152,17 @@ def predict(body: PredictIn):
         raise HTTPException(422, "Elige dos equipos distintos")
     if body.odds and any(o <= 1 for o in body.odds):
         raise HTTPException(422, "Las cuotas deben ser mayores que 1")
+    away_league = body.away_league or body.league
+    # Misma liga con modelo validado: el modelo de la liga. Ligas distintas, liga sin modelo o clubes de otras
+    # ligas: el modelo entre ligas (Elo global + ajuste por liga), con los ids de los equipos.
+    same = away_league == body.league and body.league in service.load_params()
     try:
-        return service.to_json(service.predict(body.league, body.home, body.away, body.odds))
+        if same:
+            return service.to_json(service.predict(body.league, body.home, body.away, body.odds))
+        if body.home_id is None or body.away_id is None or body.home_id == body.away_id:
+            raise HTTPException(422, "Elige dos equipos distintos")
+        return service.to_json(service.predict_cross(body.league, away_league, body.home_id, body.away_id,
+                                                     body.odds))
     except KeyError as e:
         raise HTTPException(404, e.args[0])
 

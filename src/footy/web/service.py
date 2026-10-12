@@ -7,6 +7,7 @@ La lógica vive en footy.web.services, un submódulo por responsabilidad:
   para conservar las firmas de siempre.
 """
 
+from footy.leagues import load_params
 from footy.web.services import betting as _betting
 from footy.web.services import catalog as _catalog
 from footy.web.services import context as _context
@@ -32,13 +33,14 @@ from footy.web.services.context import (
     upcoming,
 )
 from footy.web.services.evaluation import backtest, leagues_list, ml_report, overview, tracking_data
-from footy.web.services.simulator import predict, teams
+from footy.web.services.simulator import predict, predict_cross, teams
 
 __all__ = [
     "CONTEXT_TTL", "CONTINENT", "COUNTRY_ES", "DISPLAY_BOOKS", "HORIZON_DAYS", "LOCAL_TZ", "PREDICTOR_DIR",
     "PREDICTOR_TTL", "REFERENCE_BOOKS", "STALE_DAYS",
     "backtest", "clear_caches", "combo", "combo_history", "context", "current_suggestions", "data_through",
-    "league_catalog", "league_names", "leagues_list", "match_context", "ml_report", "overview", "played", "predict",
+    "league_catalog", "league_names", "leagues_list", "match_context", "ml_report", "load_params", "overview", "played",
+    "predict", "predict_cross",
     "predictor", "public", "register_reliable", "register_suggestions", "reliable_data", "sim_context", "standings",
     "suggestions_data", "teams", "to_json", "tracking_data", "upcoming",
 ]

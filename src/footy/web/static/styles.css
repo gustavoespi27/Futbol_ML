@@ -1108,3 +1108,10 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 .lt tr.hl.away td:first-child { box-shadow: inset 3px 0 0 var(--away, var(--accent-2)); }
 .lt .form-dots { justify-content: center; }
 @media (max-width: 640px) { .lt .opt { display: none; } .lt .team > span:last-child { max-width: 120px; } }
+
+/* ================= simulador: modo misma liga / entre ligas ================= */
+.sim-mode { display: flex; gap: 6px; flex-wrap: wrap; justify-self: start; }
+.sim-mode .t-chip { flex: none; padding: 7px 14px; font-family: var(--font-body); }
+/* entre ligas: liga y equipo del local en una fila, liga y equipo de la visita en la otra */
+.fields.cross { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fields .cross-only[hidden] { display: none; }

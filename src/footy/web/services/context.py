@@ -192,7 +192,10 @@ def _stats(r: dict | None) -> dict | None:
 
 
 def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | None, odds: dict,
-                   home_id: int | None = None, away_id: int | None = None) -> dict:
+                   home_id: int | None = None, away_id: int | None = None,
+                   cross_probs: np.ndarray | None = None) -> dict:
+    """`cross_probs`: probabilidades del modelo entre ligas ya calculadas (simulador entre ligas): se usan aunque la
+    liga de `code` tenga modelo propio."""
     params, names = load_params(), league_names()
     row = _upcoming_row(int(ref[2:])) if ref.startswith("m:") else None
     mlr = None if row is None or np.isnan(row.get("ml_H", np.nan)) else row
@@ -203,7 +206,7 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
     ctx = {"ref": ref, "league": code, "league_name": names.get(code, code), "home": home, "away": away,
            "kickoff": kickoff, "market_book": ref_book, "home_id": home_id, "away_id": away_id}
     cross = None
-    if code in params:
+    if cross_probs is None and code in params:
         pred = predictor(code)
         if home_id is None:
             home_id, away_id = pred.find_team(home).id, pred.find_team(away).id
@@ -232,7 +235,8 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
                     "p_market": _probs(pr.get("p_market")), "xg": [_f(pr["lam"], 2), _f(pr["mu"], 2)]})
         ctx["recommendation"] = paper_bet(params[code], p_off, books) if ref_book else {
             "bet": False, "text": "Sin cuotas: no se puede evaluar valor."}
-    elif ref_book or (cross := _cross_probs(code, home_id, away_id)) is not None:
+    elif ref_book or (cross := cross_probs if cross_probs is not None
+                      else _cross_probs(code, home_id, away_id)) is not None:
         # Copas de clubes: modelo entre ligas (Elo global + ajuste por liga). Con cuotas manda Pinnacle sin margen
         # (no hay pesos validados para combinarlos) y el modelo se muestra al lado; sin cuotas, manda el modelo.
         p_off = proportional(books[ref_book][None, :])[0] if ref_book else cross
@@ -342,9 +346,30 @@ def sim_context(code: str, home: str, away: str, odds: list[float] | None) -> di
     return _cached_context(ref, lambda: _build_context(ref, code, home, away, None, user_odds))
 
 
+def cross_sim_context(home_league: str, away_league: str, home_id: int, away_id: int) -> dict:
+    """Simulador entre ligas: probabilidades del modelo entre ligas (Elo global + ajuste por liga) para dos clubes
+    cualesquiera. Sin cuotas: la probabilidad oficial es la del modelo."""
+    from footy.models import cross_league
+
+    model = cross_league.load()
+    if model is None:
+        raise KeyError("El modelo entre ligas no está entrenado (lo entrena scripts/daily.py)")
+    conn = connect()
+    names = {r[0]: r[1] for r in conn.execute("SELECT id, name FROM teams WHERE id IN (?, ?)", (home_id, away_id))}
+    if home_id not in names or away_id not in names:
+        raise KeyError("Equipo no encontrado")
+    ref = f"x:{home_league}|{away_league}|{home_id}|{away_id}"
+    p = model.probabilities(home_id, away_id)
+    return _cached_context(ref, lambda: _build_context(ref, home_league, names[home_id], names[away_id], None,
+                                                       {"1X2": {}, "OU": {}, "BTTS": {}}, home_id, away_id, p))
+
+
 def context(ref: str) -> dict:
     if ref.startswith("m:"):
         return match_context(connect(), int(ref[2:]))
+    if ref.startswith("x:"):
+        hl, al, h, a = ref[2:].split("|")
+        return cross_sim_context(hl, al, int(h), int(a))
     if ref.startswith("s:"):
         code, home, away, odds = ref[2:].split("|")
         return sim_context(code, home, away, [float(x) for x in odds.split(",")] if odds else None)

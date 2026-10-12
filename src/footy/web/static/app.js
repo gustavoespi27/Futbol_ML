@@ -926,62 +926,101 @@ function mountIconSelect(select, { items, placeholder = "Buscar…", disabled = 
   return { refresh: drawBtn };
 }
 
+// Simulador: "Misma liga" (modelo de la liga, o el entre ligas si no tiene uno validado) o "Entre ligas y países"
+// (cada equipo con su liga; OTROS = clubes de ligas no seguidas conocidos por las copas internacionales).
+let simMode = "same";
 async function renderSimulator() {
   $("#sim-stake").value = getStake();
   // El envío se registra primero (si no, un clic temprano recargaría la página) y el botón espera a los equipos.
   const submitBtn = $("#sim-form button[type=submit]");
   submitBtn.disabled = true;
   submitBtn.textContent = "Cargando equipos…";
+  const teamsOf = {};                                   // equipos por liga (con id) de la última carga
   $("#sim-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const btn = e.target.querySelector("button[type=submit]"); btn.disabled = true;
     const odds = ["#sim-o1", "#sim-o2", "#sim-o3"].map((s) => parseFloat($(s).value));
     const st = parseFloat($("#sim-stake").value);
     if (st > 0) setStake(st);
-    const body = { league: sel.value, home: $("#sim-home").value, away: $("#sim-away").value,
+    const hl = sel.value, al = simMode === "cross" ? $("#sim-away-league").value : hl;
+    const idOf = (lg, name) => ((teamsOf[lg] || []).find((t) => t.name === name) || {}).id;
+    const body = { league: hl, away_league: al, home: $("#sim-home").value, away: $("#sim-away").value,
+      home_id: idOf(hl, $("#sim-home").value), away_id: idOf(al, $("#sim-away").value),
       odds: odds.every((o) => o > 1) ? odds : null };
     try {
-      if (body.home === body.away) throw new Error("Elige dos equipos distintos.");
+      if (body.home_id === body.away_id) throw new Error("Elige dos equipos distintos.");
       renderSimResult(await api("/api/predict", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
     } catch (err) {
       $("#sim-out").innerHTML = `<div class="callout warn">${esc(err.message)}</div>`;
     } finally { btn.disabled = false; }
   });
-  const leagues = await api("/api/leagues");
-  const sel = $("#sim-league");
-  sel.innerHTML = leagues.map((l) => `<option value="${esc(l.code)}">${esc(l.name)}</option>`).join("");
-  sel.value = pendingSimLeague && leagues.some((l) => l.code === pendingSimLeague) ? pendingSimLeague
-    : leagues.some((l) => l.code === "E0") ? "E0" : leagues[0].code;
-  pendingSimLeague = null;
-  mountIconSelect(sel, { items: leagues.map((l) => ({ value: l.code, label: l.name, icon: leagueLogo(l.code, 20) })),
-    placeholder: "Buscar liga…" });
-  const loadTeams = async () => {
-    $("#sim-home").innerHTML = $("#sim-away").innerHTML = "<option>Cargando…</option>";
-    const teams = await api(`/api/teams/${sel.value}`);
-    const opts = teams.map((t) => `<option value="${esc(t.name)}">${esc(t.name)}</option>`).join("");
-    $("#sim-home").innerHTML = opts; $("#sim-away").innerHTML = opts;
-    if (teams.length > 1) $("#sim-away").selectedIndex = 1;
-    const items = teams.map((t) => ({ value: t.name, label: t.name, icon: teamLogo(t.id, t.name, 22) }));
-    // Un equipo no puede jugar contra sí mismo: el elegido en un lado aparece deshabilitado en el otro.
-    const home = mountIconSelect($("#sim-home"), { items, placeholder: "Buscar equipo…",
-      disabled: (v) => v === $("#sim-away").value });
-    const away = mountIconSelect($("#sim-away"), { items, placeholder: "Buscar equipo…",
-      disabled: (v) => v === $("#sim-home").value });
-    $("#sim-home").onchange = () => away.refresh();
-    $("#sim-away").onchange = () => home.refresh();
+  // Misma liga: las ligas con modelo validado. Entre ligas: todas las ligas seguidas y "Otras ligas".
+  const [modelLeagues, catalog] = await Promise.all([api("/api/leagues"), leagueCatalog()]);
+  const allLeagues = catalog.filter((c) => c.type === "league").map((c) => ({ code: c.code, name: c.name }))
+    .sort((a, b) => a.name.localeCompare(b.name, "es"));
+  allLeagues.push({ code: "OTROS", name: "Otras ligas (clubes de copas internacionales)" });
+  const sel = $("#sim-league"), asel = $("#sim-away-league");
+  const leagueItems = (ls) => ls.map((l) => ({ value: l.code, label: l.name, icon: l.code === "OTROS" ? "" : leagueLogo(l.code, 20) }));
+  const fillLeagues = (select, ls, preferred) => {
+    select.innerHTML = ls.map((l) => `<option value="${esc(l.code)}">${esc(l.name)}</option>`).join("");
+    select.value = ls.some((l) => l.code === preferred) ? preferred : ls.some((l) => l.code === "E0") ? "E0" : ls[0].code;
+    mountIconSelect(select, { items: leagueItems(ls), placeholder: "Buscar liga…" });
   };
-  sel.addEventListener("change", loadTeams);
-  await loadTeams();
+  const loadSide = async (leagueSel, teamSel) => {
+    teamSel.innerHTML = "<option>Cargando…</option>";
+    let teams = teamsOf[leagueSel.value];
+    if (!teams) {
+      try { teams = teamsOf[leagueSel.value] = await api(`/api/teams/${leagueSel.value}`); } catch (e) { teams = []; }
+    }
+    teamSel.innerHTML = teams.length ? teams.map((t) => `<option value="${esc(t.name)}">${esc(t.name)}</option>`).join("")
+      : "<option value=''>Sin equipos recientes</option>";
+    return teams;
+  };
+  let homeSel = null, awaySel = null;
+  const mountTeams = (homeTeams, awayTeams) => {
+    const items = (ts) => ts.map((t) => ({ value: t.name, label: t.name, icon: teamLogo(t.id, t.name, 22) }));
+    // Un equipo no puede jugar contra sí mismo: el elegido en un lado aparece deshabilitado en el otro (misma liga).
+    const sameLeague = () => simMode === "same" || asel.value === sel.value;
+    homeSel = mountIconSelect($("#sim-home"), { items: items(homeTeams), placeholder: "Buscar equipo…",
+      disabled: (v) => sameLeague() && v === $("#sim-away").value });
+    awaySel = mountIconSelect($("#sim-away"), { items: items(awayTeams), placeholder: "Buscar equipo…",
+      disabled: (v) => sameLeague() && v === $("#sim-home").value });
+    $("#sim-home").onchange = () => awaySel.refresh();
+    $("#sim-away").onchange = () => homeSel.refresh();
+  };
+  const loadAll = async () => {
+    const h = await loadSide(sel, $("#sim-home"));
+    const a = simMode === "cross" ? await loadSide(asel, $("#sim-away")) : (await loadSide(sel, $("#sim-away")), h);
+    if (simMode === "same" && h.length > 1) $("#sim-away").selectedIndex = 1;
+    mountTeams(h, a);
+  };
+  const setMode = async (mode) => {
+    simMode = mode;
+    document.querySelectorAll("#sim-mode .t-chip").forEach((b) => b.classList.toggle("on", b.dataset.m === mode));
+    document.querySelectorAll("#sim-form .cross-only").forEach((el) => { el.hidden = mode !== "cross"; });
+    $("#sim-league").closest(".fields").classList.toggle("cross", mode === "cross");
+    $("#sim-league-lab").textContent = mode === "cross" ? "Liga del local" : "Liga";
+    const keep = sel.value;
+    fillLeagues(sel, mode === "cross" ? allLeagues : modelLeagues, pendingSimLeague || keep);
+    if (mode === "cross") fillLeagues(asel, allLeagues, asel.value || "SP1");
+    pendingSimLeague = null;
+    await loadAll();
+  };
+  $("#sim-mode").onclick = (e) => { const b = e.target.closest(".t-chip"); if (b && b.dataset.m !== simMode) setMode(b.dataset.m); };
+  sel.addEventListener("change", loadAll);
+  asel.addEventListener("change", async () => { const a = await loadSide(asel, $("#sim-away")); mountTeams(teamsOf[sel.value], a); });
+  await setMode(simMode);
   submitBtn.disabled = false;
   submitBtn.textContent = "Calcular probabilidades";
 }
 function renderSimResult(r) {
   const p = r.p_official;
   const conf = { alta: "good", media: "warn", baja: "bad" }[r.confidence.level];
+  const signedPts = (x) => `${x > 0 ? "+" : ""}${x}`;
   let betting = "";
   if (r.betting) {
     const b = r.betting, rec = r.recommendation;
-    betting = `<div class="card"><h2>Frente a las cuotas</h2><p class="sub">Margen de la casa: ${pct(b.margin, 1)}. Umbral de valor de esta liga: ${signed(b.min_ev, 0)}, solo cuotas ≤ 4,0.</p>
+    betting = `<div class="card"><h2>Frente a las cuotas</h2><p class="sub">Margen de la casa: ${pct(b.margin, 1)}. ${b.min_ev == null ? "Valor esperado según el modelo entre ligas: orientativo." : `Umbral de valor de esta liga: ${signed(b.min_ev, 0)}, solo cuotas ≤ 4,0.`}</p>
       <div class="table-wrap"><table><thead><tr><th></th><th class="r">Cuota</th><th class="r">Mercado sin margen</th><th class="r">Modelo</th><th class="r">Oficial</th><th class="r">Valor (EV)</th></tr></thead>
       <tbody>${SEL.map((n, i) => `<tr><td>${n}</td><td class="r">${num(b.odds[i])}</td><td class="r">${pct(b.p_market[i], 1)}</td><td class="r">${pct(r.p_model[i], 1)}</td>
         <td class="r"><b>${pct(p[i], 1)}</b></td><td class="r">${signed(b.ev[i])}</td></tr>`).join("")}</tbody></table></div>
@@ -1009,12 +1048,14 @@ function renderSimResult(r) {
       </div>
     </div>
     <div class="grid g2">
-      <div class="card"><h2>Marcadores más probables</h2><p class="sub">Del modelo de goles (Dixon-Coles).</p>
+      <div class="card"><h2>Marcadores más probables</h2><p class="sub">${r.cross ? "Goles esperados ajustados a las probabilidades del modelo entre ligas." : "Del modelo de goles (Dixon-Coles)."}</p>
         <table><tbody>${r.top_scores.map(([s, q]) => `<tr><td><b>${esc(s)}</b></td><td style="width:60%"><span class="mini" style="width:${Math.round(q / r.top_scores[0][1] * 100)}%;background:var(--official)"></span></td><td class="r">${pct(q, 1)}</td></tr>`).join("")}</tbody></table></div>
       <div class="card"><h2>Goles totales</h2><p class="sub">Probabilidad de más / menos goles en el partido.</p>
         <table><thead><tr><th>Línea</th><th class="r">Más de</th><th class="r">Menos de</th></tr></thead>
         <tbody>${ou.map(([k, v]) => `<tr><td>${k.replace(".", ",")} goles</td><td class="r">${pct(v, 1)}</td><td class="r">${pct(1 - v, 1)}</td></tr>`).join("")}</tbody></table>
-        <p class="sub" style="margin:12px 0 0">Confianza "${esc(r.confidence.level)}": ${r.confidence.min_recent_matches} partidos recientes del equipo con menos datos; los dos submodelos difieren en hasta ${pct(r.confidence.elo_dc_max_diff, 1)}.</p></div>
+        <p class="sub" style="margin:12px 0 0">Confianza "${esc(r.confidence.level)}": ${r.confidence.min_recent_matches} partidos recientes del equipo con menos datos${r.cross
+          ? `. Modelo entre ligas (Elo global + ajuste por liga, ${r.cross.n_cups.toLocaleString("es-CL")} cruces de copas): ajuste de la liga del local ${signedPts(r.cross.home_offset)} y de la visita ${signedPts(r.cross.away_offset)} puntos Elo.`
+          : `; los dos submodelos difieren en hasta ${pct(r.confidence.elo_dc_max_diff, 1)}.`}</p></div>
     </div>
     ${simulator}
     ${betting}
