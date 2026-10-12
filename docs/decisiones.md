@@ -510,3 +510,18 @@ es referencia si su margen está entre −3% y 15% y, si hay promedio de mercado
 0,08 de él (las sanas nunca superan 0,043). También contaminaba la evaluación: con la referencia limpia, en vivo el
 mercado queda en 0,9454 y nuestro oficial en 0,9485 (antes parecía al revés). Los pronósticos ya registrados no se
 reescriben; la corrección rige desde ahora.
+
+## 2026-10-12 — Simulador entre ligas y partidos terminados sin marcador
+
+**Error del simulador (500).** Al cargar la temporada desde ESPN entraron partidos terminados en alargue sin el
+detalle por tiempos (el marcador de los 90' es desconocido) y quedaron como terminados sin goles. El cargador de los
+modelos por liga no los filtraba: un solo partido así deja en NaN el Elo de toda la familia de ligas (la Premier se
+ajusta junto con sus divisiones inferiores) y el simulador devolvía probabilidades NaN. Ahora los cargadores y la
+evaluación ignoran los terminados sin marcador. Los definidos por penales sin alargue (J1 2026) usan el marcador del
+partido: ESPN entrega la tanda aparte.
+
+**Simulador entre ligas.** Modo "Entre ligas y países": cada equipo con su liga (todas las ligas seguidas, más los
+clubes de ligas no seguidas conocidos por las copas internacionales). Misma liga con modelo validado: el modelo de la
+liga. En cualquier otro caso (ligas distintas, liga sin modelo propio como Chile, clubes de otras ligas): el modelo
+entre ligas. Con cuotas ingresadas el valor esperado es orientativo: no hay pesos validados para combinar ese modelo
+con el mercado, así que nunca recomienda apostar.
