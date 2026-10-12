@@ -405,3 +405,34 @@ walk-forward sobre 2024.
 **Horizonte del dashboard.** La API gratuita no entrega calendario más allá de mañana, así que el filtro "pasado
 mañana" casi siempre quedaba en 0. Se reemplaza por **Ayer** (solo en Partidos): resultados y el pronóstico 1X2
 registrado antes del inicio (nunca uno posterior), sin sumar en Todos.
+
+## 2026-10-11 — ESPN para calendario, marcadores y tiros; API-Football solo para cuotas
+
+**Problema.** Con 100 peticiones diarias, API-Football no alcanzaba para cuotas, calendario, resultados y detalles, y
+los resultados llegaban solo con cada corrida (10:00, 17:30, 21:15). Además el plan gratuito no entrega calendario
+más allá de mañana.
+
+**Fuente.** El endpoint público de ESPN (`site.api.espn.com/apis/site/v2/sports/soccer/{liga}/scoreboard`) no pide
+clave ni tiene cuota, entrega fechas futuras (`dates=AAAAMM` trae el mes; los rangos de días no funcionan), marcador
+y minuto en vivo, y en `summary` los tiros de cada equipo. Cubre 48 de nuestras competiciones; no tiene partidos de
+Rumania, Suiza, Finlandia, Irlanda, Polonia ni Escocia League One/Two, que siguen con API-Football. No es una API
+documentada: si deja de responder, el calendario por fecha de API-Football queda como respaldo.
+
+**Prueba antes de adoptarla** (8 al 14 de octubre, solo lectura): 345 partidos de ESPN en ligas seguidas; los 300 que
+también estaban en la base se emparejan bien por competición, hora (±15 min) y nombre; los otros 45 son partidos
+futuros que no teníamos (Champions del 13-14, Championship del martes). En una copia de la base, los primeros intentos
+crearon duplicados ("Atlético Tucumán" ≠ "Atl. Tucuman") y enlaces equivocados en copas europeas (el nombre corto de
+Red Star Belgrade es "Red Star", que es el club francés). Se corrigió con:
+- variantes del nombre de ESPN (completo, corto, abreviatura) y niveles de confianza (exacto, sin espacios, mismas
+  palabras clave, parecido), exigiendo un candidato único en el nivel más estricto que encuentre algo;
+- en copas europeas, solo nombres completos y como máximo mismas palabras clave;
+- sincronizar ligas antes que copas, para que cada club tenga su id de ESPN de su liga.
+Resultado final: 606 partidos, ningún duplicado ni equipo con dos ids; los únicos equipos nuevos son clubes de ligas
+que no seguimos (Slavia Praga, Shakhtar...).
+
+**Reparto.** ESPN: calendario de 7 días, horarios, resultados y tiros (reemplaza los ~50 detalles diarios de
+API-Football) en la tarea diaria, y marcadores en vivo cada minuto desde el servidor del dashboard, solo para ligas
+con partidos en juego. API-Football: cuotas, más el calendario por fecha (2-3 peticiones, necesario para tener el id
+de cada partido al pedir sus cuotas) y los detalles de las ligas que ESPN no cubre. El marcador parcial se guarda
+aparte (`live_scores`) y nunca como resultado; un partido terminado no vuelve a programado si otra fuente llega
+atrasada. Nada de esto entra a los modelos antes del inicio del partido.

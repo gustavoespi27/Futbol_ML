@@ -114,7 +114,7 @@ mañana** (hora de Chile).
 - **Filtro por día:** Todos, Hoy y Mañana, con la cantidad de partidos de cada uno. En Partidos, **Ayer** y **Jugados
   hoy** muestran los partidos ya empezados: marcador, en juego o esperando resultado, y si acertó el pronóstico que el
   sistema registró antes de cada partido (no suman en Todos). Los estados vienen de la última corrida de la tarea
-  diaria, no de un marcador en vivo.
+  diaria o, con el dashboard abierto, de ESPN cada minuto (marcador parcial y minuto de juego).
 - **Combinadas:** los partidos del boleto aparecen primero, resaltados con la etiqueta *En tu combinada*; el botón
   *↑ Tus partidos* vuelve a ellos desde cualquier punto de la lista. Cada selección del boleto es una fila propia,
   también si pertenece al mismo partido.
