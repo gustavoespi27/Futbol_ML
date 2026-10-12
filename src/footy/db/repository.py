@@ -166,6 +166,24 @@ def merge_teams(conn: sqlite3.Connection, from_id: int, into_id: int) -> None:
     conn.execute("DELETE FROM teams WHERE id = ?", (from_id,))
 
 
+MATCH_TABLES = ("match_sources", "odds", "team_match_stats", "lineups", "player_match_stats", "injuries",
+                "predictions", "pro_bets", "daily_picks", "live_scores")
+
+
+def merge_matches(conn: sqlite3.Connection, from_id: int, into_id: int) -> None:
+    """Fusiona un partido guardado dos veces (p. ej. con un equipo duplicado) en otro: fuentes, cuotas, predicciones
+    y estadísticas pasan a `into_id` (si ya tiene la misma fila, se queda con la suya) y el resultado se copia si
+    solo lo tenía el duplicado."""
+    for table in MATCH_TABLES:
+        conn.execute(f"UPDATE OR IGNORE {table} SET match_id = ? WHERE match_id = ?", (into_id, from_id))
+        conn.execute(f"DELETE FROM {table} WHERE match_id = ?", (from_id,))
+    conn.execute(
+        """UPDATE matches SET status = d.status, home_goals = d.home_goals, away_goals = d.away_goals
+           FROM (SELECT status, home_goals, away_goals FROM matches WHERE id = ?) AS d
+           WHERE matches.id = ? AND matches.status != 'finished' AND d.status = 'finished'""", (from_id, into_id))
+    conn.execute("DELETE FROM matches WHERE id = ?", (from_id,))
+
+
 # --- Partidos --------------------------------------------------------------
 
 def upsert_match(

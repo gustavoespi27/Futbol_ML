@@ -134,3 +134,28 @@ def test_recent_form_returns_last_results_oldest_first(conn):
     assert form[a] == ["D", "L", "W", "D", "L"]                           # los 5 últimos, el más reciente al final
     assert form[b] == ["D", "W", "L", "D", "W"]
     assert recent_form(conn, []) == {}
+
+
+def test_merge_matches_keeps_sources_odds_and_result():
+    from footy.db.connection import connect
+
+    conn = connect(":memory:")
+    repo.sync_competitions(conn)
+    comp = repo.competition_id(conn, "NOR")
+    h = repo.resolve_team(conn, "football_data", "HamKam", "HamKam", "Norway")
+    a = repo.resolve_team(conn, "football_data", "Molde", "Molde", "Norway")
+    dup = repo.resolve_team(conn, "api_football", "2159", "Ham-Kam", "Norway")
+    keep = repo.upsert_match(conn, source="football_data", source_match_id="1", competition_id=comp, season="2026",
+                             kickoff_utc="2026-10-11T15:00:00Z", home_team_id=h, away_team_id=a, status="scheduled")
+    other = repo.upsert_match(conn, source="api_football", source_match_id="9", competition_id=comp, season="2026",
+                              kickoff_utc="2026-10-11T15:00:00Z", home_team_id=dup, away_team_id=a,
+                              status="finished", home_goals=2, away_goals=4)
+    conn.execute("INSERT INTO predictions (match_id, model_version, created_at, p_home, p_draw, p_away) "
+                 "VALUES (?, 'v', '2026-10-11T10:00:00Z', 0.4, 0.3, 0.3)", (other,))
+    repo.merge_teams(conn, dup, h)
+    repo.merge_matches(conn, other, keep)
+    assert conn.execute("SELECT COUNT(*) FROM matches").fetchone()[0] == 1
+    assert tuple(conn.execute("SELECT status, home_goals, away_goals FROM matches").fetchone()) == ("finished", 2, 4)
+    assert {r[0] for r in conn.execute("SELECT source FROM match_sources")} == {"football_data", "api_football"}
+    assert conn.execute("SELECT match_id FROM predictions").fetchone()[0] == keep
+    assert conn.execute("PRAGMA foreign_key_check").fetchall() == []

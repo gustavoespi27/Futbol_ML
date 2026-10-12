@@ -2,7 +2,7 @@
 
 Uso:
   python scripts/check_teams.py                 # reporte
-  python scripts/check_teams.py --merge 51 12   # fusiona el equipo 51 en el 12
+  python scripts/check_teams.py --merge 51 12   # fusiona el equipo 51 en el 12 (y los partidos que quedan dobles)
 
 Sospechosos: equipos creados SOLO por api_football en un país donde existe
 histórico de football_data. Los equipos históricos que API-Football no ha visto
@@ -44,6 +44,25 @@ def report(conn) -> None:
         print("Sin equipos sospechosos.")
 
 
+def merge_duplicate_matches(conn, team_id: int) -> int:
+    """Después de fusionar equipos, el mismo partido puede quedar dos veces (una por cada fuente que usaba un equipo
+    distinto). Se queda el que tiene resultado y más fuentes."""
+    pairs = conn.execute(
+        """SELECT a.id, b.id FROM matches a JOIN matches b
+           ON a.competition_id = b.competition_id AND a.home_team_id = b.home_team_id
+              AND a.away_team_id = b.away_team_id AND a.id < b.id
+              AND ABS(julianday(a.kickoff_utc) - julianday(b.kickoff_utc)) < 1.5
+           WHERE ? IN (a.home_team_id, a.away_team_id)""", (team_id,)).fetchall()
+    score = lambda mid: conn.execute(  # noqa: E731
+        """SELECT (status = 'finished'), (SELECT COUNT(*) FROM match_sources WHERE match_id = ?) FROM matches
+           WHERE id = ?""", (mid, mid)).fetchone()
+    for a, b in pairs:
+        keep, drop = (a, b) if tuple(score(a)) >= tuple(score(b)) else (b, a)
+        repo.merge_matches(conn, drop, keep)
+        print(f"Partido {drop} fusionado en {keep}")
+    return len(pairs)
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--merge", nargs=2, type=int, metavar=("FROM_ID", "INTO_ID"))
@@ -51,6 +70,7 @@ def main() -> None:
     conn = connect()
     if args.merge:
         repo.merge_teams(conn, *args.merge)
+        merge_duplicate_matches(conn, args.merge[1])
         conn.commit()
         print(f"Equipo {args.merge[0]} fusionado en {args.merge[1]}")
     report(conn)
