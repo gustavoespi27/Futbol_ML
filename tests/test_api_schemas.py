@@ -290,3 +290,35 @@ def test_recent_form_details_and_no_leakage():
     assert [f["date"][:10] for f in venue[a]] == ["2026-09-01"] and all(f["is_home"] for f in venue[a])
     assert [f["date"][:10] for f in venue[b]] == ["2026-09-01"] and not any(f["is_home"] for f in venue[b])
     assert roundtrip(s.FormMatch, form[a][0]) == form[a][0]
+
+
+def test_team_profile_league_table_form_upcoming_and_contract(monkeypatch):
+    from footy.db import repository as repo
+    from footy.db.connection import connect
+    from footy.web.services import standings, teams
+
+    conn = connect(":memory:")
+    repo.sync_competitions(conn)
+    monkeypatch.setattr(repo, "utc_now", lambda: "2026-10-12T12:00:00Z")
+    monkeypatch.setattr(teams, "load_params", lambda: {})            # sin modelo: Elo None, sin ajustar predictor
+    standings.clear_cache()
+    a = repo.resolve_team(conn, "football_data", "Arsenal", "Arsenal", "England")
+    b = repo.resolve_team(conn, "football_data", "Chelsea", "Chelsea", "England")
+    games = [("2026-09-01", a, b, "finished", 2, 1), ("2026-09-20", b, a, "finished", 1, 1),
+             ("2026-10-01", a, b, "finished", None, None), ("2026-10-20", b, a, "scheduled", None, None),
+             ("2026-10-27", a, b, "scheduled", None, None)]
+    for i, (day, h, w, st, hg, ag) in enumerate(games):
+        repo.upsert_match(conn, source="football_data", source_match_id=str(i), season="2026/2027", status=st,
+                          competition_id=repo.competition_id(conn, "E0"), kickoff_utc=f"{day}T15:00:00Z",
+                          home_team_id=h, away_team_id=w, home_goals=hg, away_goals=ag)
+    p = teams.team_profile(conn, a)
+    standings.clear_cache()
+    assert (p["name"], p["country"], p["league"], p["elo"]) == ("Arsenal", "Inglaterra", "E0", None)
+    assert [f["outcome"] for f in p["recent"]] == ["W", "D"]                        # el terminado sin marcador no
+    assert [(u["date"][:10], u["is_home"], u["opponent"]) for u in p["upcoming"]] == [
+        ("2026-10-20", False, "Chelsea"), ("2026-10-27", True, "Chelsea")]
+    assert (p["standing"]["pos"], p["standing"]["points"], p["standing"]["teams"]) == (1, 4, 2)
+    season = p["season"]
+    assert (season["played"], season["gf_pg"], season["ga_pg"], season["sot_pg"]) == (2, 1.5, 1.0, None)
+    assert roundtrip(s.TeamProfileResponse, p) == p
+    assert teams.team_profile(conn, 999_999) is None

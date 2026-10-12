@@ -58,6 +58,13 @@ def standings(league: str) -> dict | None:
     return _standings.standings(connect(), league)
 
 
+def team_profile(team_id: int) -> dict | None:
+    from footy.db.connection import connect
+    from footy.web.services.teams import team_profile as _team_profile
+
+    return _team_profile(connect(), team_id)
+
+
 def league_catalog() -> list[dict]:
     """Todas las competiciones con país y continente (en español) y sus partidos de los próximos días."""
     return _catalog.league_catalog(upcoming())

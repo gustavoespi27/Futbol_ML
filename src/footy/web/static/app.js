@@ -28,6 +28,7 @@ function logoFallback(img) {
   s.className = img.className + " fb";
   s.textContent = img.dataset.ini || "";
   s.style.setProperty("--h", img.dataset.h || "210");
+  if (img.dataset.team) s.dataset.team = img.dataset.team;    // sigue abriendo la ficha del club
   s.style.width = img.style.width; s.style.height = img.style.height;      // mismo tamaño que la imagen
   if (!img.dataset.ini) s.style.display = "none";            // logo de liga sin respaldo: se oculta
   img.replaceWith(s);
@@ -36,7 +37,7 @@ function teamLogo(id, name, size = 22) {
   const ini = initials(name), h = hueOf(name);
   if (!id) return `<span class="tlogo fb" style="--h:${h};width:${size}px;height:${size}px">${esc(ini)}</span>`;
   return `<img class="tlogo" src="/logo/team/${id}" alt="" width="${size}" height="${size}" loading="lazy"
-    data-ini="${esc(ini)}" data-h="${h}" style="width:${size}px;height:${size}px" onerror="logoFallback(this)">`;
+    data-team="${id}" data-ini="${esc(ini)}" data-h="${h}" style="width:${size}px;height:${size}px" onerror="logoFallback(this)">`;
 }
 function leagueLogo(code, size = 16) {
   if (!code) return "";
@@ -600,6 +601,71 @@ function setRecentView(btn) {
   const box = btn.closest(".rf-detail");
   box.querySelectorAll(".rf-switch .t-chip").forEach((b) => b.classList.toggle("on", b === btn));
   box.querySelectorAll(".rf-view").forEach((v) => { v.hidden = v.dataset.view !== btn.dataset.view; });
+}
+// --- Ficha del club (panel lateral) ---------------------------------------------------------------
+// Se abre al pulsar el escudo o el nombre de un equipo; en las filas de la lista de partidos el clic sigue abriendo
+// el detalle del partido.
+const TEAM_HIT = ".team, .teams .t, .h2h-team, .rf-opp, .st-head > span";
+document.addEventListener("click", (e) => {
+  const hit = e.target.closest(TEAM_HIT);
+  if (!hit || hit.closest(".mrow")) return;
+  const logo = hit.querySelector("[data-team]") || (e.target.dataset && e.target.dataset.team ? e.target : null);
+  if (!logo) return;
+  e.preventDefault(); e.stopPropagation();
+  openTeamProfile(+logo.dataset.team);
+}, true);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeTeamProfile(); });
+function teamDrawer() {
+  let d = document.getElementById("team-drawer");
+  if (d) return d;
+  document.body.insertAdjacentHTML("beforeend", `<div class="drawer-backdrop" id="team-backdrop" hidden onclick="closeTeamProfile()"></div>
+    <aside class="team-drawer" id="team-drawer" role="dialog" aria-modal="true" aria-label="Ficha del club" hidden>
+      <button type="button" class="td-close" onclick="closeTeamProfile()" aria-label="Cerrar">✕</button>
+      <div class="td-body"></div></aside>`);
+  return document.getElementById("team-drawer");
+}
+function closeTeamProfile() {
+  const d = document.getElementById("team-drawer");
+  if (!d || d.hidden) return;
+  d.classList.remove("open");
+  document.getElementById("team-backdrop").hidden = true;
+  setTimeout(() => { d.hidden = true; }, 200);
+}
+async function openTeamProfile(id) {
+  if (!id) return;
+  const d = teamDrawer(), body = d.querySelector(".td-body");
+  body.innerHTML = `<div class="skeleton" style="height:48px"></div><div class="skeleton" style="height:180px;margin-top:12px"></div>`;
+  d.hidden = false; document.getElementById("team-backdrop").hidden = false;
+  requestAnimationFrame(() => d.classList.add("open"));
+  d.querySelector(".td-close").focus();
+  try {
+    body.innerHTML = teamProfileHtml(await api(`/api/teams/${id}`));
+  } catch (e) {
+    body.innerHTML = `<p class="mc-note">No se pudo cargar la ficha: ${esc(e.message)}</p>`;
+  }
+}
+const MIN_SHOT_GAMES = 3;     // con menos partidos con tiros el promedio no es representativo
+function teamProfileHtml(t) {
+  const st = t.standing, se = t.season;
+  const shots = se && se.sot_pg != null && se.with_shots >= MIN_SHOT_GAMES;
+  const card = (label, value, sub = "") => `<div class="td-kpi"><span>${label}</span><b>${value}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
+  const kpis = [
+    card("Posición", st ? `#${st.pos}` : "–", st ? `${st.points} pts · ${st.played} PJ · ${st.teams} equipos` : "Sin tabla"),
+    card("Elo", t.elo != null ? t.elo.toLocaleString("es-CL") : "–", t.elo != null ? "dentro de su liga" : "Liga sin modelo"),
+    card("Goles por partido", se ? `${num(se.gf_pg)} <i>/</i> ${num(se.ga_pg)}` : "–", se ? `a favor / en contra · ${se.played} PJ` : ""),
+    card("Tiros al arco", shots ? `${num(se.sot_pg, 1)} <i>/</i> ${num(se.sot_against_pg, 1)}` : "–",
+      shots ? `a favor / en contra · ${se.with_shots} PJ con tiros` : "sin datos suficientes de tiros"),
+  ].join("");
+  const upcoming = t.upcoming.length ? `<div class="rf-list">${t.upcoming.map((u) => `<div class="td-up">
+      <span class="rf-venue" title="${u.is_home ? "Local" : "Visita"}">${u.is_home ? "L" : "V"}</span>
+      <span class="rf-opp">${teamLogo(u.opponent_id, u.opponent, 16)}<span>${esc(u.opponent)}</span></span>
+      <span class="td-when" title="${esc(u.league_name)}">${leagueLogo(u.league, 14)}${esc(fmtDate(u.date))}</span></div>`).join("")}</div>`
+    : `<p class="mc-note">Sin partidos programados</p>`;
+  return `<header class="td-head">${teamLogo(t.id, t.name, 36)}<div><h3>${esc(t.name)}</h3>
+      <p>${[t.country, t.league_name].filter(Boolean).map(esc).join(" · ") || "&nbsp;"}</p></div></header>
+    <div class="td-kpis">${kpis}</div>
+    <section class="td-sec"><h4>Últimos resultados ${formDots(t.recent)}</h4>${formList(t.recent)}</section>
+    <section class="td-sec"><h4>Próximos partidos</h4>${upcoming}</section>`;
 }
 function toggleRecent(btn) {
   const box = btn.nextElementSibling;

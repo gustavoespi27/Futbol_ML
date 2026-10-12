@@ -329,6 +329,53 @@ class RecentForm(Schema):
     away_venue: list[FormMatch] = Field(description="Solo partidos de la visita jugando fuera")
 
 
+# --- /api/teams/{id} ---------------------------------------------------------------------
+class TeamStanding(Schema):
+    pos: int
+    teams: int = Field(description="Equipos en la tabla")
+    points: int
+    played: int
+    won: int
+    drawn: int
+    lost: int
+    gf: int
+    ga: int
+    season: str
+
+
+class TeamSeasonStats(Schema):
+    since: str = Field(description="Inicio de la campaña de su liga (o último año si no tiene tabla)")
+    played: int = Field(description="Partidos terminados en todas las competiciones desde `since`")
+    gf_pg: float | None
+    ga_pg: float | None
+    sot_pg: float | None = Field(description="Tiros al arco por partido (solo partidos con tiros)")
+    sot_against_pg: float | None
+    with_shots: int = Field(description="Partidos con tiros registrados")
+
+
+class TeamFixture(Schema):
+    match_id: int
+    date: str
+    opponent: str
+    opponent_id: int
+    is_home: bool
+    league: str
+    league_name: str
+
+
+class TeamProfileResponse(Schema):
+    id: int
+    name: str
+    country: str | None
+    league: str | None = Field(description="Liga de su partido de liga más reciente")
+    league_name: str | None
+    elo: int | None = Field(description="Elo en el predictor de su liga (solo ligas con modelo)")
+    standing: TeamStanding | None = Field(None, description="Solo si figura en la tabla vigente de su liga")
+    season: TeamSeasonStats | None
+    recent: list[FormMatch] = Field(description="Últimos 8 partidos terminados, del más antiguo al más reciente")
+    upcoming: list[TeamFixture] = Field(description="Próximos 3 partidos programados")
+
+
 class StandingsSummary(Schema):
     """Posición y puntos de ambos equipos en la tabla vigente (None si el equipo aún no juega en la temporada)."""
     home_pos: int | None

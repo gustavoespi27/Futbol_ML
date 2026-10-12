@@ -103,6 +103,14 @@ def standings(league: str):
     return data
 
 
+@app.get("/api/teams/{team_id}", response_model=schemas.TeamProfileResponse, **TYPED)
+def team(team_id: int):
+    data = cached(f"team:{team_id}", 120, lambda: service.team_profile(team_id))
+    if data is None:
+        raise HTTPException(404, f"No existe el equipo {team_id}")
+    return data
+
+
 @app.get("/api/results", response_model=schemas.PlayedDay, **TYPED)
 def results(day: Literal["yesterday", "today"] = "yesterday"):
     return cached(f"results:{day}", 30, lambda: service.played(day))
