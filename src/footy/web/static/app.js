@@ -258,7 +258,7 @@ function probBar(p, pm = null) {
   if (!p) return `<div class="probbar"><div style="flex:1;background:var(--surface-2);color:var(--muted)">sin datos</div></div>`;
   const cls = ["h", "d", "a"];
   const bar = `<div class="probbar" role="img" aria-label="Local ${pct(p[0])}, empate ${pct(p[1])}, visita ${pct(p[2])}">${
-    p.map((x, i) => `<div class="${cls[i]}" style="flex:${x}" title="${SEL[i]}: ${pct(x, 1)}">${x >= 0.12 ? pct(x) : ""}</div>`).join("")}</div>`;
+    p.map((x, i) => `<div class="${cls[i]}" style="flex:${x}" title="${SEL[i]}: ${pct(x, 1)}">${pct(x)}</div>`).join("")}</div>`;
   if (!pm) return bar;
   const mk = `<div class="mkbar" role="img" aria-label="Mercado: local ${pct(pm[0])}, empate ${pct(pm[1])}, visita ${pct(pm[2])}">${
     pm.map((x, i) => `<div class="${cls[i]}" style="flex:${x}" title="Mercado · ${SEL[i]}: ${pct(x, 1)}"></div>`).join("")}</div>`;

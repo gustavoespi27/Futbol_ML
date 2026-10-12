@@ -239,7 +239,8 @@ footer { color: var(--muted); font-size: 12px; padding: 18px 28px 28px; border-t
 .probbar { display: flex; height: 28px; gap: 3px; position: relative; }
 .probbar > div {
   display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 700;
-  color: #fff; min-width: 0; white-space: nowrap; overflow: hidden; border-radius: 8px;
+  /* ancho mínimo para que siempre quepa el porcentaje (un 7% ya no queda como franja muda) */
+  color: #fff; min-width: 40px; padding: 0 4px; white-space: nowrap; overflow: hidden; border-radius: 8px;
   background-image: linear-gradient(180deg, rgba(255, 255, 255, .22), rgba(255, 255, 255, 0) 70%);
   text-shadow: 0 1px 1px rgba(0, 0, 0, .18); transition: flex .5s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -247,7 +248,7 @@ footer { color: var(--muted); font-size: 12px; padding: 18px 28px 28px; border-t
 .pb-pair { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 10px; align-items: center; }
 .pb-lab { font-size: 11px; font-weight: 600; color: var(--muted); }
 .mkbar { display: flex; height: 8px; gap: 3px; opacity: .55; }
-.mkbar > div { border-radius: 4px; min-width: 0; }
+.mkbar > div { border-radius: 4px; min-width: 40px; }   /* mismo mínimo que la barra del sistema: misma escala */
 .mkbar .h { background: var(--home); }
 .mkbar .d { background: var(--draw); }
 .mkbar .a { background: var(--away); }
@@ -273,10 +274,11 @@ footer { color: var(--muted); font-size: 12px; padding: 18px 28px 28px; border-t
 .matches { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr)); }
 .match { display: grid; gap: 12px; }
 .match .meta { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 12px; }
-.teams { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; }
+.teams { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: center; }
 .teams .t { font-weight: 650; font-size: 15px; display: flex; align-items: center; gap: 10px; min-width: 0; }
 .teams .t.r { text-align: right; justify-content: flex-end; }
 .teams .vs { color: var(--muted); font-size: 11px; font-weight: 600; }
+.teams .t > span { min-width: 0; overflow-wrap: break-word; }   /* el nombre pasa a dos líneas; el "vs" no se tapa */
 .kv { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
 .kv div { background: var(--surface-2); border-radius: 8px; padding: 8px 10px; }
 .kv span { display: block; color: var(--muted); font-size: 11px; }
@@ -1136,4 +1138,9 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 @media (max-width: 640px) {
   .h2h-row { grid-template-columns: minmax(0, 1fr) 46px minmax(0, 1fr) 20px; }
   .h2h-date { grid-column: 1 / -1; display: flex; gap: 8px; }
+}
+@media (max-width: 480px) {
+  .teams .t { font-size: 13.5px; gap: 6px; }
+  .teams .t .tpos { margin-left: 4px; padding: 2px 4px; font-size: 10px; }
+  .teams .t.r .tpos { margin: 0 4px 0 0; }
 }
