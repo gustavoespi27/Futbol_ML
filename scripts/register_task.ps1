@@ -4,7 +4,8 @@
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-$python = Join-Path $root ".venv\Scripts\python.exe"
+# pythonw: corre sin abrir una ventana de consola (los registros quedan en logs\)
+$python = Join-Path $root ".venv\Scripts\pythonw.exe"
 $script = Join-Path $root "scripts\daily.py"
 $taskName = "Futbol_ML - recoleccion diaria"
 

@@ -53,7 +53,8 @@ def main() -> int:
     log_dir.mkdir(exist_ok=True)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s",
                         handlers=[logging.FileHandler(log_dir / "daily.log", encoding="utf-8"),
-                                  logging.StreamHandler(sys.stdout)])
+                                  # con pythonw (tarea programada sin ventana) no hay consola: solo el archivo
+                                  *([logging.StreamHandler(sys.stdout)] if sys.stdout else [])])
     conn = connect()
     repo.sync_competitions(conn)
     conn.commit()

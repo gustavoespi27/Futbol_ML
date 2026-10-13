@@ -521,7 +521,7 @@ function resultRow(m, withLeague = false) {
   const time = new Intl.DateTimeFormat("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(m.kickoff));
   const s = m.score;
   const win = s ? (s[0] > s[1] ? 0 : s[0] < s[1] ? 2 : 1) : -1;
-  const tag = (id, name, won) => `<span class="team ${won ? "fav" : ""}">${teamLogo(id, name, 20)}<span>${esc(name)}</span></span>`;
+  const tag = (id, name, won) => `<span class="team ${won ? "fav" : ""}">${teamLogo(id, name, 16)}<span>${esc(name)}</span></span>`;
   const label = { 1: "Local", X: "Empate", 2: "Visita" };
   const p = m.pick;
   const state = !p || p.hit == null ? "" : p.hit ? "hit" : "miss";
@@ -557,7 +557,7 @@ function matchRow(m) {
   };
   const best = bestOption(m);
   const st = m.standings_summary || {};
-  const tag = (id, name, isFav, pos) => `<span class="team ${isFav ? "fav" : ""}">${teamLogo(id, name, 20)}<span>${esc(name)}</span>${posTag(pos)}</span>`;
+  const tag = (id, name, isFav, pos) => `<span class="team ${isFav ? "fav" : ""}">${teamLogo(id, name, 16)}<span>${esc(name)}</span>${posTag(pos)}</span>`;
   return `<div class="mrow" data-ref="${esc(m.ref)}">
     <div class="time"><b>${time}</b><span>${esc(day)}</span>${m.round ? `<em class="stage">${esc(stageLabel(m.round))}</em>` : ""}</div>
     <div class="tm">${tag(m.home_id, m.home, fav === 0, st.home_pos)}${tag(m.away_id, m.away, fav === 2, st.away_pos)}</div>
