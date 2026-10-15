@@ -1180,7 +1180,8 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 /* Ficha del club: panel lateral */
 .team, .teams .t, .h2h-team, .rf-opp, .st-head > span { cursor: pointer; }
 .mrow .team { cursor: inherit; }
-.team:hover > span, .teams .t:hover > span, .h2h-team:hover, .rf-opp:hover > span, .st-head > span:hover {
+/* en la lista de partidos el clic abre el partido, no la ficha: ahí el nombre no se destaca */
+.team:not(.mrow .team):hover > span:not(.tlogo), .teams .t:hover > span, .h2h-team:hover, .rf-opp:hover > span, .st-head > span:hover {
   color: var(--accent-2); }
 .drawer-backdrop { position: fixed; inset: 0; z-index: 90; background: rgba(4, 7, 12, .6); }
 .team-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 91; width: min(420px, 100vw); overflow-y: auto;
