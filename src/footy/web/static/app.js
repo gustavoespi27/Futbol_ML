@@ -309,10 +309,15 @@ function vchip(v, text) {
   return `<span class="vchip ${v.level}" title="${esc(v.reason)}"><b>${esc(v.label)}</b>${text ? ` ${text}` : ""}</span>`;
 }
 function vcell(op) {
-  if (!op) return `<div class="vcell none">–</div>`;
+  if (!op) return `<div class="vcell none"><b>—</b><span>—</span></div>`;
+  // sin cuota publicada no hay veredicto: solo la probabilidad del modelo
+  if (!op.odds) {
+    return `<div class="vcell none" title="${esc(op.label)}: sin cuota de mercado disponible aún">
+      <b>${pct(op.p)}</b><span>—</span><small>sin cuota</small></div>`;
+  }
   const v = op.verdict || { level: "none", label: "Sin cuota", reason: "" };
   return `<div class="vcell ${v.level}" title="${esc(op.label)}: ${esc(v.reason)}"><b>${pct(op.p)}</b>
-    <span>${op.odds ? num(op.odds) : "sin cuota"}</span><small>${esc(v.label)}</small></div>`;
+    <span>${num(op.odds)}</span><small>${esc(v.label)}</small></div>`;
 }
 const SEM_COLS = [["1", "Local"], ["X", "Empate"], ["2", "Visita"], ["O2.5", "Más 2,5"], ["U2.5", "Menos 2,5"], ["BTTS_Y", "Ambos marcan"]];
 const RANK = { green: 3, yellow: 2, none: 1, red: 0 };

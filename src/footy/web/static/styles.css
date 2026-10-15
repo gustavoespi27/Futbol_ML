@@ -2,41 +2,41 @@
    Tokens en :root (tema oscuro, el predeterminado); tema claro con data-theme="light". */
 
 :root {
-  /* Tema oscuro (predeterminado): carbón neutro, superficies planas y un solo acento azul */
+  /* Tema oscuro (predeterminado): obsidiana neutra sin tinte azul, superficies planas y acento esmeralda */
   color-scheme: dark;
-  --bg: #0c1017;
-  --sidebar: #10151f;
-  --surface: #141a24;
-  --surface-hi: #18202c;
-  --surface-2: #1b2331;
-  --surface-3: #222b3c;
-  --border: #222c3d;
-  --border-hi: rgba(59, 130, 246, .45);
-  --grid: #1b2331;
-  --text: #f1f5f9;
-  --text-2: #94a3b8;
+  --bg: #090a0d;                      /* obsidiana mate neutra */
+  --sidebar: #0e1015;
+  --surface: #12151b;                 /* tarjetas planas de datos */
+  --surface-hi: #161a22;              /* tarjetas destacadas / hover */
+  --surface-2: #191e26;               /* sub-bloques, encabezados de tabla, chips */
+  --surface-3: #212733;               /* controles y divisores */
+  --border: #202632;
+  --border-hi: rgba(16, 185, 129, .5);
+  --grid: #181d26;
+  --text: #f3f4f6;
+  --text-2: #9ca3af;
   --muted: #64748b;
-  --accent: #3b82f6;
-  --accent-2: #60a5fa;
-  --accent-soft: rgba(59, 130, 246, .12);
-  --home: #3b82f6;
+  --accent: #10b981;                  /* esmeralda táctico */
+  --accent-2: #34d399;
+  --accent-soft: rgba(16, 185, 129, .12);
+  --home: #10b981;
   --draw: #64748b;
-  --away: #fb8c3c;
-  --official: #3b82f6;
-  --market: #fb8c3c;
-  --model: #2dd4bf;
+  --away: #f59e0b;
+  --official: #10b981;
+  --market: #f59e0b;
+  --model: #06b6d4;                   /* cian técnico para modelos */
   --ev-positive: #10b981;
   --ev-glow: transparent;             /* sin halos: el valor se marca con color y borde */
   --ev-text: #10b981;
   --good: #10b981;
   --good-bg: rgba(16, 185, 129, .12);
-  --bad: #ef4444;
-  --bad-bg: rgba(239, 68, 68, .12);
-  --warn: #f59e0b;
-  --warn-bg: rgba(245, 158, 11, .12);
-  --logo-bg: rgba(236, 241, 250, .94);
-  --shadow: 0 1px 3px rgba(0, 0, 0, .4);
-  --shadow-lg: 0 16px 40px -12px rgba(0, 0, 0, .6), 0 0 0 1px var(--border);
+  --bad: #f43f5e;
+  --bad-bg: rgba(244, 63, 94, .12);
+  --warn: #eab308;
+  --warn-bg: rgba(234, 179, 8, .12);
+  --logo-bg: rgba(255, 255, 255, .96);
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-lg: 0 12px 32px -8px rgba(0, 0, 0, .7), 0 0 0 1px var(--border);
   --radius: 10px;                     /* tarjetas; botones y chips usan --radius-sm */
   --radius-sm: 6px;
   --side-w: 236px;
@@ -44,42 +44,42 @@
   --font-display: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
 }
-/* Tema claro: fondo pizarra con tarjetas blancas */
+/* Tema claro: fondo gris caliza para que las tarjetas blancas contrasten */
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #f8fafc;
+  --bg: #f2f4f7;
   --sidebar: #ffffff;
   --surface: #ffffff;
   --surface-hi: #ffffff;
-  --surface-2: #f1f5f9;
-  --surface-3: #e2e8f0;
-  --border: #e2e8f0;
-  --border-hi: rgba(37, 99, 235, .35);
-  --grid: #eef2f6;
+  --surface-2: #e8ecf1;
+  --surface-3: #dce1e8;
+  --border: #d3d9e2;
+  --border-hi: rgba(5, 150, 105, .45);
+  --grid: #e5eaef;
   --text: #0f172a;
   --text-2: #475569;
   --muted: #64748b;
-  --accent: #2563eb;
-  --accent-2: #3b82f6;
-  --accent-soft: rgba(37, 99, 235, .10);
-  --home: #2563eb;
+  --accent: #059669;                  /* esmeralda de alto contraste sobre blanco */
+  --accent-2: #10b981;
+  --accent-soft: rgba(5, 150, 105, .10);
+  --home: #059669;
   --draw: #94a3b8;
-  --away: #ea7a2e;
-  --official: #2563eb;
-  --market: #ea7a2e;
-  --model: #0d9488;
+  --away: #d97706;
+  --official: #059669;
+  --market: #d97706;
+  --model: #0891b2;
   --ev-positive: #059669;
   --ev-glow: transparent;
   --ev-text: #047857;
   --good: #047857;
-  --good-bg: rgba(16, 185, 129, .12);
-  --bad: #dc2626;
-  --bad-bg: rgba(220, 38, 38, .08);
+  --good-bg: rgba(5, 150, 105, .10);
+  --bad: #e11d48;
+  --bad-bg: rgba(225, 29, 72, .08);
   --warn: #b45309;
-  --warn-bg: rgba(245, 158, 11, .12);
+  --warn-bg: rgba(245, 158, 11, .10);
   --logo-bg: #f8fafc;
-  --shadow: 0 1px 3px rgba(15, 23, 42, .08);
-  --shadow-lg: 0 16px 40px -12px rgba(15, 23, 42, .25), 0 0 0 1px var(--border);
+  --shadow: 0 1px 3px rgba(15, 23, 42, .06), 0 1px 2px rgba(15, 23, 42, .04);
+  --shadow-lg: 0 12px 30px -10px rgba(15, 23, 42, .16), 0 0 0 1px var(--border);
 }
 
 * { box-sizing: border-box; }
@@ -522,6 +522,8 @@ h2.sec::before { content: ""; width: 4px; height: 16px; border-radius: 2px; back
   line-height: 1.25; background: var(--surface-2); color: var(--muted); }
 .vcell b { font-size: 13.5px; }
 .vcell small { white-space: nowrap; font-size: 9.5px; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
+.vcell.none { background: var(--surface-2); color: var(--text-2); }   /* sin cuota: neutro, sin veredicto */
+.vcell.none small { color: var(--muted); }
 .vcell.green { background: var(--good-bg); color: var(--good); box-shadow: 0 0 0 1.5px var(--ev-positive); }
 .vcell.yellow { background: var(--warn-bg); color: var(--warn); }
 .vcell.red { background: var(--bad-bg); color: var(--bad); }
@@ -996,15 +998,15 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 /* ================= indicadores del Panel ================= */
 .kpi { background: var(--surface); }
 .kpi-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+/* iconos monocromáticos: solo el indicador en positivo se tiñe de verde */
 .kpi-ico {
-  width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; flex: none;
-  color: var(--kc, var(--accent)); background: color-mix(in srgb, var(--kc, var(--accent)) 13%, transparent);
+  width: 30px; height: 30px; border-radius: var(--radius-sm); display: grid; place-items: center; flex: none;
+  color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border);
+}
+.kpi-good .kpi-ico {
+  color: var(--good); background: var(--good-bg); border-color: color-mix(in srgb, var(--good) 35%, transparent);
 }
 .kpi-ico svg { width: 17px; height: 17px; }
-.kpi-value { --kc: var(--ev-positive); }
-.kpi-reliable { --kc: var(--accent-2); }
-.kpi-accuracy { --kc: #a78bfa; }
-.kpi-ledger { --kc: #fbbf24; }
 .kpi .value { font-family: var(--font-display); font-size: 32px; font-weight: 700; letter-spacing: -0.045em;
   font-variant-numeric: tabular-nums; margin-top: 4px; }
 .kpi .value small { font-size: 17px; font-weight: 600; color: var(--text-2); letter-spacing: -0.01em; }
