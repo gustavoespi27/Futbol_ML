@@ -5,7 +5,7 @@
   /* Tema oscuro (predeterminado): obsidiana neutra sin tinte azul, superficies planas y acento esmeralda */
   color-scheme: dark;
   --bg: #090a0d;                      /* obsidiana mate neutra */
-  --sidebar: #0e1015;
+  --sidebar: #0b0e14;                 /* riel oscuro: igual en ambos temas */
   --surface: #12151b;                 /* tarjetas planas de datos */
   --surface-hi: #161a22;              /* tarjetas destacadas / hover */
   --surface-2: #191e26;               /* sub-bloques, encabezados de tabla, chips */
@@ -44,18 +44,18 @@
   --font-display: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
 }
-/* Tema claro: fondo gris caliza para que las tarjetas blancas contrasten */
+/* Tema claro: fondo caliza con tarjetas blancas; la barra lateral sigue oscura */
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #f2f4f7;
-  --sidebar: #ffffff;
+  --bg: #edf0f5;                      /* gris caliza frío: las tarjetas blancas se despegan del fondo */
+  --sidebar: #0b0e14;                 /* la barra lateral es oscura en ambos temas */
   --surface: #ffffff;
   --surface-hi: #ffffff;
-  --surface-2: #e8ecf1;
-  --surface-3: #dce1e8;
-  --border: #d3d9e2;
+  --surface-2: #e2e7ef;
+  --surface-3: #d5dce6;
+  --border: #cbd5e1;
   --border-hi: rgba(5, 150, 105, .45);
-  --grid: #e5eaef;
+  --grid: #e2e8f0;
   --text: #0f172a;
   --text-2: #475569;
   --muted: #64748b;
@@ -78,7 +78,7 @@
   --warn: #b45309;
   --warn-bg: rgba(245, 158, 11, .10);
   --logo-bg: #f8fafc;
-  --shadow: 0 1px 3px rgba(15, 23, 42, .06), 0 1px 2px rgba(15, 23, 42, .04);
+  --shadow: 0 1px 3px 0 rgba(15, 23, 42, .08), 0 1px 2px -1px rgba(15, 23, 42, .08);
   --shadow-lg: 0 12px 30px -10px rgba(15, 23, 42, .16), 0 0 0 1px var(--border);
 }
 
@@ -119,9 +119,22 @@ code { font: 12px var(--font-mono); background: var(--surface-2); padding: 1px 5
 .app { display: grid; grid-template-columns: var(--side-w) minmax(0, 1fr); min-height: 100vh; }
 .sidebar {
   position: sticky; top: 0; height: 100vh; overflow-y: auto; scrollbar-width: thin;
-  background: var(--sidebar); border-right: 1px solid var(--border);
+  background: var(--sidebar); border-right: 1px solid #1c222e;
   display: flex; flex-direction: column; padding: 16px 12px 12px; gap: 18px;
 }
+/* riel oscuro en ambos temas: colores fijos, no los tokens del tema */
+.sidebar .brand-txt { color: #f3f4f6; }
+.sidebar .brand-tag { color: #64748b; }
+.sidebar .brand-mark { --surface-2: #151a24; --border: #242c3d; --text-2: #94a3b8; --accent: #10b981; }
+.sidebar .nav-label { color: #64748b; }
+.sidebar .navlink { color: #94a3b8; }
+.sidebar .navlink:hover { background: #151a24; color: #f3f4f6; }
+.sidebar .navlink.active { background: rgba(16, 185, 129, .15); color: #10b981; }
+.sidebar .navlink.active::before { background: #10b981; }
+.sidebar .status { color: #94a3b8; }
+.sidebar .side-foot { border-top-color: #1c222e; }
+.sidebar .icon-btn { background: #121620; border-color: #242c3d; color: #94a3b8; }
+.sidebar .icon-btn:hover { background: #181e2b; color: #f3f4f6; border-color: #10b981; }
 .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px; color: var(--text); text-decoration: none !important; }
 .brand-mark { width: 32px; height: 32px; display: grid; place-items: center; flex: none; }
 .brand-mark svg { width: 32px; height: 32px; }
@@ -518,15 +531,23 @@ h2.sec::before { content: ""; width: 4px; height: 16px; border-radius: 2px; back
 .vchip.red { background: var(--bad-bg); color: var(--bad); border-color: color-mix(in srgb, var(--bad) 25%, transparent); }
 .vchip.none { color: var(--muted); }
 .sem-legend .vchip { white-space: normal; }
-.vcell { display: grid; gap: 1px; justify-items: center; min-width: 78px; padding: 5px 4px; border-radius: 7px; font-size: 12px;
-  line-height: 1.25; background: var(--surface-2); color: var(--muted); }
-.vcell b { font-size: 13.5px; }
-.vcell small { white-space: nowrap; font-size: 9.5px; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
-.vcell.none { background: var(--surface-2); color: var(--text-2); }   /* sin cuota: neutro, sin veredicto */
-.vcell.none small { color: var(--muted); }
-.vcell.green { background: var(--good-bg); color: var(--good); box-shadow: 0 0 0 1.5px var(--ev-positive); }
-.vcell.yellow { background: var(--warn-bg); color: var(--warn); }
-.vcell.red { background: var(--bad-bg); color: var(--bad); }
+/* semáforo sobrio: solo la celda con valor real (verde) se ilumina; el resto lleva el color en el veredicto */
+.vcell {
+  display: grid; gap: 1px; justify-items: center; min-width: 78px; padding: 5px 4px; border-radius: var(--radius-sm);
+  font-size: 12px; line-height: 1.25; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border);
+}
+.vcell b { font-size: 13.5px; color: var(--text); }
+.vcell span { font-size: 12px; font-family: var(--font-mono); }
+.vcell small { white-space: nowrap; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.vcell.green {
+  background: var(--good-bg); color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent);
+  box-shadow: 0 0 0 1px var(--good);
+}
+.vcell.green b, .vcell.green small { color: var(--good); font-weight: 800; }
+.vcell.yellow small { color: var(--warn); }
+.vcell.red small { color: var(--bad); }
+.vcell.none { background: transparent; }                 /* sin cuota: sin veredicto */
+.vcell.none b { color: var(--muted); }
 table.sem td { padding: 6px 5px; }
 table.sem td.m { min-width: 210px; cursor: pointer; }
 table.sem td.m:hover .team span { color: var(--accent); }
@@ -565,7 +586,7 @@ table.sem td.m:hover .team span { color: var(--accent); }
   footer { padding: 16px 16px 90px; }
   .bottomnav {
     display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
-    background: var(--sidebar); border-top: 1px solid var(--border); padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    background: var(--surface); border-top: 1px solid var(--border); padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
   }
   .bottomnav .navlink { flex-direction: column; gap: 3px; font-size: 10.5px; padding: 6px 2px; justify-content: center; }
   .bottomnav .navlink.active::before { display: none; }
@@ -808,11 +829,8 @@ details.mx .opt-table .vchip { white-space: nowrap; }
   details.mx .opt-table button.add { width: 26px; height: 26px; }
 }
 
-/* ================= tarjetas clave: borde con iluminación sutil ================= */
-.reco-card {
-  border-color: var(--border-hi);
-  box-shadow: var(--shadow);
-}
+/* ================= tarjetas clave: borde estándar ================= */
+.reco-card { box-shadow: var(--shadow); }
 
 /* ================= micro-interacciones ================= */
 /* Escudos en un disco claro con borde fino: se leen igual sobre fondo claro u oscuro */
@@ -948,20 +966,19 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 
 /* ================= ticker del motor (Panel) ================= */
 .quant-ticker {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -6px 0 16px; padding: 6px;
-  scroll-behavior: smooth; scrollbar-width: none; border: 1px solid var(--border); border-radius: var(--radius);
-  background: var(--surface);
-  font: 500 11.5px/1 var(--font-mono);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0; margin: -6px 0 16px; padding: 2px 8px;
+  scroll-behavior: smooth; scrollbar-width: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); font: 500 11.5px/1 var(--font-mono);
 }
 .quant-ticker::-webkit-scrollbar { display: none; }
 .quant-ticker:empty { display: none; }
 .ticker-chip {
-  display: inline-flex; align-items: center; gap: 7px; flex: none; padding: 6px 10px; border-radius: 8px; white-space: nowrap;
-  border: 1px solid var(--border); background: var(--surface-2); color: var(--muted); cursor: default;
+  display: inline-flex; align-items: center; gap: 6px; flex: none; padding: 6px 12px; border-radius: 0; white-space: nowrap;
+  border: 0; border-right: 1px solid var(--border); background: transparent; color: var(--muted); cursor: default;
 }
+.ticker-chip:last-child { border-right: 0; }
 .ticker-chip > span:first-child { text-transform: uppercase; letter-spacing: .08em; font-size: 10px; }
 .ticker-chip b { color: var(--accent-2); font-weight: 700; }
-.ticker-chip.live { border-color: color-mix(in srgb, var(--ev-positive) 40%, transparent); }
 .ticker-chip.live b { color: var(--ev-text); }
 .ticker-chip.live > span:last-child { text-transform: none; letter-spacing: 0; font-size: 11px; }
 .live-dot {
