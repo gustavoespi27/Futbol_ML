@@ -455,13 +455,22 @@ async function renderMatches() {
   };
   const reset = () => { matchSel = { type: "all" }; matchDate = { type: "all" }; mount(); draw(); };
   mount();
+  const toggle = (row) => {
+    const next = row.nextElementSibling;
+    const open = !(next && next.classList.contains("mdetail"));
+    if (open) row.insertAdjacentHTML("afterend", `<div class="mdetail">${matchCard(byRef[row.dataset.ref])}</div>`);
+    else next.remove();
+    row.classList.toggle("open", open);
+    row.setAttribute("aria-expanded", String(open));
+  };
   $("#matches").onclick = (e) => {
     if (e.target.closest("button, a, .mdetail")) return;
-    const row = e.target.closest(".mrow"); if (!row) return;
-    const next = row.nextElementSibling;
-    if (next && next.classList.contains("mdetail")) { next.remove(); row.classList.remove("open"); return; }
-    row.classList.add("open");
-    row.insertAdjacentHTML("afterend", `<div class="mdetail">${matchCard(byRef[row.dataset.ref])}</div>`);
+    const row = e.target.closest(".mrow"); if (row) toggle(row);
+  };
+  // teclado: Enter o Espacio sobre la fila enfocada abre/cierra el detalle
+  $("#matches").onkeydown = (e) => {
+    if ((e.key !== "Enter" && e.key !== " ") || !e.target.classList.contains("mrow")) return;
+    e.preventDefault(); toggle(e.target);
   };
   draw();
 }
@@ -558,12 +567,12 @@ function matchRow(m) {
   const best = bestOption(m);
   const st = m.standings_summary || {};
   const tag = (id, name, isFav, pos) => `<span class="team ${isFav ? "fav" : ""}">${teamLogo(id, name, 16)}<span>${esc(name)}</span>${posTag(pos)}</span>`;
-  return `<div class="mrow" data-ref="${esc(m.ref)}">
+  return `<div class="mrow" data-ref="${esc(m.ref)}" role="button" tabindex="0" aria-expanded="false">
     <div class="time"><b>${time}</b><span>${esc(day)}</span>${m.round ? `<em class="stage">${esc(stageLabel(m.round))}</em>` : ""}</div>
     <div class="tm">${tag(m.home_id, m.home, fav === 0, st.home_pos)}${tag(m.away_id, m.away, fav === 2, st.away_pos)}</div>
     ${cell("1", 0, "--home")}${cell("X", 1, "--draw")}${cell("2", 2, "--away")}
     <div class="best">${best ? `${evBadge(best) || vchip(best.verdict)}<span>${esc(best.label)} · ${num(best.odds)}</span>` : `<span>${m.stale ? "datos atrasados" : "sin cuotas aún"}</span>`}</div>
-    <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+    <svg class="chev" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
   </div>`;
 }
 // Medidor de goles esperados: barra continua local (λ) contra visita (μ), con sus valores a cada lado.

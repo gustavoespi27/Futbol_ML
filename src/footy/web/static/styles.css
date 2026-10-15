@@ -93,7 +93,14 @@ body {
 }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
-h1, h2, h3 { line-height: 1.25; margin: 0; letter-spacing: -0.015em; font-family: var(--font-display); }
+h1, h2, h3 { line-height: 1.25; margin: 0; letter-spacing: -0.015em; font-family: var(--font-display); text-wrap: balance; }
+
+/* foco visible solo con teclado */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:focus:not(:focus-visible) { outline: none; }
+.skip-link { position: absolute; top: -100px; left: 16px; z-index: 100; padding: 8px 14px; background: var(--accent); color: #fff;
+  font-weight: 600; border-radius: var(--radius-sm); transition: top .15s ease; }
+.skip-link:focus { top: 16px; }
 h1 { font-size: 22px; font-weight: 700; }
 h2 { font-size: 15px; font-weight: 650; }
 h3 { font-size: 13.5px; font-weight: 650; }
@@ -284,6 +291,7 @@ footer { color: var(--muted); font-size: 12px; padding: 18px 28px 28px; border-t
 /* ================= lista de partidos estilo marcador (agrupada por liga) ================= */
 .lg-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
 .lg-block + .lg-block { margin-top: 12px; }
+.lg-block { content-visibility: auto; contain-intrinsic-size: auto 300px; }   /* listas largas: no pinta ligas fuera de pantalla */
 .lg-head {
   display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: var(--surface-2);
   border-bottom: 1px solid var(--border); font-weight: 650; font-size: 13px;
@@ -568,8 +576,8 @@ table.sem td.m:hover .team span { color: var(--accent); }
   dl.gloss { grid-template-columns: 1fr; }
   dl.gloss dd { margin-bottom: 8px; }
   .lg-cols { display: none; }
-  .mrow { grid-template-columns: 46px minmax(0, 1fr) repeat(3, 54px); gap: 6px; padding: 10px 12px; }
-  .rrow { grid-template-columns: 46px minmax(0, 1fr) 40px auto; gap: 6px; padding: 10px 12px; }
+  .mrow { grid-template-columns: 46px minmax(0, 1fr) repeat(3, 54px); gap: 6px; padding: 8px 10px; }
+  .rrow { grid-template-columns: 46px minmax(0, 1fr) 40px auto; gap: 6px; padding: 8px 10px; }
   .rpick span { display: none; }
   .mrow .chev { display: none; }
   .pcell b { font-size: 12.5px; }
@@ -614,7 +622,9 @@ table.sem td.m:hover .team span { color: var(--accent); }
 }
 .lp-search { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .lp-search .ico { width: 16px; height: 16px; color: var(--muted); flex: none; }
-.lp-search input { border: 0; background: none; padding: 4px 0; font-size: 14px; outline: none !important; }
+.lp-search:focus-within { border-bottom-color: var(--accent); background: var(--surface-2); }
+.lp-search input { border: 0; background: none; padding: 4px 0; font-size: 14px; }
+.lp-search input:focus, .lp-search input:focus-visible { outline: none; }   /* el foco lo marca el contenedor */
 .lp-search kbd {
   font: 10.5px/1 ui-monospace, Consolas, monospace; color: var(--muted); border: 1px solid var(--border);
   border-radius: 5px; padding: 3px 5px; background: var(--surface-2);
@@ -822,7 +832,7 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 
 /* ================= boleto (betting slip) ================= */
 .card.ticket {
-  padding: 0 16px 16px; overflow: hidden; border-radius: 16px; border-color: var(--border-hi);
+  padding: 0 16px 16px; overflow: hidden; border-radius: var(--radius); border-color: var(--border-hi);
   box-shadow: var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .t-head {
@@ -832,10 +842,10 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 }
 .t-head h2 { font-size: 16px; font-weight: 800; }
 .t-type {
-  display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border-radius: var(--radius-sm);
   background: var(--accent-soft); color: var(--accent); font-size: 11.5px; font-weight: 700;
 }
-.t-type b { min-width: 20px; height: 20px; border-radius: 999px; background: var(--accent); color: #fff; display: grid; place-items: center;
+.t-type b { min-width: 20px; height: 20px; border-radius: 4px; background: var(--accent); color: #fff; display: grid; place-items: center;
   font: 700 11px/1 var(--font-mono); padding: 0 6px; }
 .t-type:not(:has(b)) { padding-right: 10px; background: var(--surface-2); color: var(--muted); }
 .t-clear { margin-left: auto; border: 0; background: none; color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
@@ -888,7 +898,7 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .sel-row.enter, .badge.pulse { animation: none; } }
 
 /* movimiento de la cuota de Pinnacle (informativo) */
-.steam { display: inline-block; margin-left: 6px; font: 600 10.5px/1.6 var(--font-mono); padding: 0 6px; border-radius: 999px; white-space: nowrap; }
+.steam { display: inline-block; margin-left: 6px; font: 600 10.5px/1.6 var(--font-mono); padding: 0 6px; border-radius: 4px; white-space: nowrap; }
 .steam.a_favor { color: var(--good); background: var(--good-bg); }
 .steam.en_contra { color: var(--warn); background: var(--warn-bg); }
 
@@ -1184,10 +1194,10 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 .td-head h3 { margin: 0; font: 700 18px/1.2 var(--font-display); color: var(--text); }
 .td-head p { margin: 3px 0 0; font-size: 12.5px; color: var(--muted); }
 .td-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.td-kpi { display: grid; gap: 3px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2);
+.td-kpi { display: grid; gap: 3px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2);
   border: 1px solid var(--border); }
 .td-kpi span { font: 600 10.5px/1 var(--font-body); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
-.td-kpi b { font: 700 18px/1.2 var(--font-mono); color: var(--text); }
+.td-kpi b { font: 700 18px/1.2 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text); }
 .td-kpi b i { font-style: normal; color: var(--muted); font-weight: 400; }
 .td-kpi small { font-size: 11px; color: var(--muted); }
 .td-sec { margin-top: 18px; display: grid; gap: 6px; }

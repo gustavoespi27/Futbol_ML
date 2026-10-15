@@ -13,6 +13,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
+<a href="#main" class="skip-link">Saltar al contenido</a>
 <div class="app">
   <aside class="sidebar">
     <a class="brand" href="#inicio">
@@ -37,7 +38,7 @@
     <div class="side-foot">
       <div class="status" id="status-line"><i class="dot"></i><span>Conectando…</span></div>
       <button class="icon-btn" id="theme" title="Cambiar tema claro/oscuro" aria-label="Cambiar tema">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
       </button>
     </div>
   </aside>
@@ -53,7 +54,7 @@
         <a class="tb-btn" href="#combinadas" title="Tu combinada"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg><span>Boleto</span><span class="badge" data-ticket-count></span></a>
       </div>
     </header>
-<main>
+<main id="main">
   <!-- INICIO: PANEL PRINCIPAL -->
   <section class="view" id="v-inicio">
     <div class="view-head">
@@ -67,7 +68,7 @@
         <div><h2>Recomendaciones de la máquina</h2>
           <p class="sub" style="margin:2px 0 0">Lo que el sistema encontró para los próximos partidos y por qué.</p></div>
         <label class="bank-inline" title="Los montos sugeridos se calculan sobre este total">Montos sobre
-          <span class="bank-field">$<input id="sg-bank" type="number" min="1" step="any"></span></label>
+          <span class="bank-field">$<input id="sg-bank" name="bankroll" autocomplete="off" type="number" min="1" step="any"></span></label>
       </div>
       <div class="tabs" id="reco-tabs">
         <button class="tab on" data-tab="value">Con valor <span id="tab-n-value"></span></button>
@@ -163,7 +164,7 @@
       </div>
     </div>
     <div class="callout warn" style="margin-top:16px">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
       <div><b>Sin ventaja demostrada en dinero.</b> Las probabilidades son fiables y la regla de valor mostró CLV positivo en el
         histórico, pero la ganancia aún no es concluyente. Todo se registra en papel antes de cada partido para medirlo.</div>
     </div>
@@ -326,12 +327,12 @@
           <label>Visita<select id="sim-away" required></select></label>
         </div>
         <div class="fields">
-          <label>Cuota local (opcional)<input id="sim-o1" type="number" step="0.01" min="1.01" placeholder="ej. 2.10"></label>
-          <label>Cuota empate<input id="sim-o2" type="number" step="0.01" min="1.01" placeholder="ej. 3.40"></label>
-          <label>Cuota visita<input id="sim-o3" type="number" step="0.01" min="1.01" placeholder="ej. 3.60"></label>
+          <label>Cuota local (opcional)<input id="sim-o1" name="odds_home" autocomplete="off" type="number" step="0.01" min="1.01" placeholder="ej. 2.10"></label>
+          <label>Cuota empate<input id="sim-o2" name="odds_draw" autocomplete="off" type="number" step="0.01" min="1.01" placeholder="ej. 3.40"></label>
+          <label>Cuota visita<input id="sim-o3" name="odds_away" autocomplete="off" type="number" step="0.01" min="1.01" placeholder="ej. 3.60"></label>
         </div>
         <div class="fields">
-          <label>Monto a apostar ($)<input id="sim-stake" type="number" min="1" step="any" placeholder="ej. 5000"></label>
+          <label>Monto a apostar ($)<input id="sim-stake" name="stake" autocomplete="off" type="number" min="1" step="any" placeholder="ej. 5000"></label>
         </div>
         <button class="primary" type="submit">Calcular probabilidades</button>
       </form>
