@@ -9,10 +9,10 @@ import logging
 import sqlite3
 import unicodedata
 
-from agents.preferences import repo
-from agents.schemas import FeedItem, PersonalizedFeedResponse
 from footy.db.repository import utc_now
 from footy.web import service
+from footy_agents.preferences import repo
+from footy_agents.schemas import FeedItem, PersonalizedFeedResponse
 
 log = logging.getLogger(__name__)
 

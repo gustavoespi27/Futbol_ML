@@ -7,9 +7,9 @@ Cada herramienta devuelve un payload condensado y seguro para el contexto del LL
 import time
 from typing import Any
 
-from agents.schemas import ToolCallRecord
 from footy.betting import pro
 from footy.web import service
+from footy_agents.schemas import ToolCallRecord
 
 MAX_MATCHES = 20
 

@@ -4,8 +4,8 @@ import sqlite3
 
 import pytest
 
-from agents.preferences import repo, service
-from agents.schemas import UserPreferences
+from footy_agents.preferences import repo, service
+from footy_agents.schemas import UserPreferences
 
 
 @pytest.fixture

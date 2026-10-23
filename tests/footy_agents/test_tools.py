@@ -1,6 +1,6 @@
 """Pruebas unitarias para las herramientas (tools) del agente."""
 
-from agents import tools
+from footy_agents import tools
 
 
 def test_execute_unknown_tool():

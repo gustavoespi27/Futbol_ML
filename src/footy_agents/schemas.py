@@ -3,6 +3,7 @@
 Todos los esquemas usan extra="forbid" para mantener la consistencia estricta del contrato.
 """
 
+import json
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -72,3 +73,17 @@ class ToolCallRecord(AgentSchema):
     execution_time_ms: float
     error_message: str | None = None
 
+
+
+class ChatRequest(AgentSchema):
+    message: str = Field(min_length=1, max_length=2000)
+    user_id: str = "default"
+
+
+class ChatEvent(AgentSchema):
+    """Un evento del stream SSE de /api/agent/chat (contrato con el frontend, CLAUDE.md sección 6)."""
+    event: Literal["tool_start", "tool_result", "token", "done", "error"]
+    data: dict[str, Any]
+
+    def to_sse(self) -> str:
+        return f"event: {self.event}\ndata: {json.dumps(self.data, ensure_ascii=False, default=str)}\n\n"

@@ -7,8 +7,8 @@ y las operaciones CRUD sin interferir con las tablas existentes de footy.
 import json
 import sqlite3
 
-from agents.schemas import UserPreferences
 from footy.db.repository import utc_now
+from footy_agents.schemas import UserPreferences
 
 TABLE_DDL = """
 CREATE TABLE IF NOT EXISTS agent_user_preferences (
