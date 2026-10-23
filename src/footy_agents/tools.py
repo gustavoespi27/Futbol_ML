@@ -9,16 +9,31 @@ from typing import Any
 
 from footy.betting import pro
 from footy.web import service
+from footy_agents.names import normalize_name
 from footy_agents.schemas import ToolCallRecord
 
 MAX_MATCHES = 20
 
 
-def tool_get_upcoming_matches(limit: int = 10, league: str | None = None) -> list[dict[str, Any]]:
-    """Obtiene los próximos partidos programados con su liga, fecha y si tienen cuotas."""
+def _pct(p: float | None) -> str | None:
+    return None if p is None else f"{p * 100:.1f}%"
+
+
+def tool_get_upcoming_matches(limit: int = 10, league: str | None = None,
+                              team: str | None = None) -> list[dict[str, Any]]:
+    """Próximos partidos con liga, fecha, probabilidades 1X2 del sistema y si tienen cuotas."""
     matches = service.upcoming()
     if league:
         matches = [m for m in matches if m.get("league") == league]
+    if team:
+        q = normalize_name(team)
+        matches = [m for m in matches
+                   if q in normalize_name(m.get("home", "")) or q in normalize_name(m.get("away", ""))]
+
+    def probs(m: dict) -> dict[str, str | None] | None:
+        p = m.get("p_official")
+        return {"home_win": _pct(p[0]), "draw": _pct(p[1]), "away_win": _pct(p[2])} if p else None
+
     return [{
         "match_id": int(m["ref"][2:]) if m.get("ref", "").startswith("m:") else None,
         "league": m.get("league"),
@@ -26,6 +41,8 @@ def tool_get_upcoming_matches(limit: int = 10, league: str | None = None) -> lis
         "kickoff": m.get("kickoff"),
         "home": m.get("home"),
         "away": m.get("away"),
+        "probabilities_1x2": probs(m),
+        "probability_source": m.get("source"),
         "has_odds": bool(m.get("pro")),
         "recommendation": (m.get("recommendation") or {}).get("text"),
     } for m in matches[:max(1, min(limit, MAX_MATCHES))]]
@@ -87,9 +104,13 @@ def tool_get_league_standings(league: str) -> dict[str, Any]:
 def tool_get_system_performance() -> dict[str, Any]:
     """Rendimiento real del sistema: seguimiento en vivo (aciertos, log loss, apuestas en papel) y motor vigente."""
     ov = service.overview()
+    tracking = dict(ov.get("tracking") or {})
+    for key in ("hit_rate", "bets_yield", "bets_clv"):     # fracciones -> porcentaje listo para citar
+        if tracking.get(key) is not None:
+            tracking[key] = _pct(tracking[key])
     return {
         "model_version": ov.get("model_version"),
-        "tracking": ov.get("tracking"),
+        "tracking": tracking,
         "engine": ov.get("engine"),
         "last_daily_run": ov.get("last_daily_run"),
     }
@@ -110,12 +131,14 @@ OPENAI_TOOLS_SPEC = [
         "type": "function",
         "function": {
             "name": "get_upcoming_matches",
-            "description": "Obtiene la lista de próximos partidos con sus cuotas y horarios.",
+            "description": "Próximos partidos con horario y probabilidades 1X2 del sistema. Úsala para preguntas "
+                           "sobre el próximo partido de un equipo o la probabilidad de que gane.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "limit": {"type": "integer", "description": "Cantidad máxima de partidos a retornar (máximo 20)"},
-                    "league": {"type": "string", "description": "Código opcional de la liga (ej: 'CHL', 'ARG', 'PL')"}
+                    "league": {"type": "string", "description": "Código opcional de la liga (ej: 'CHL', 'ARG', 'PL')"},
+                    "team": {"type": "string", "description": "Nombre opcional de un equipo (ej: 'Colo Colo')"}
                 }
             }
         }

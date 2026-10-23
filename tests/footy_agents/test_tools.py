@@ -99,3 +99,25 @@ def test_tool_failure_is_recorded(monkeypatch):
 def test_tools_spec_matches_registry():
     """Cada herramienta anunciada al LLM existe en el registro y viceversa."""
     assert {t["function"]["name"] for t in tools.OPENAI_TOOLS_SPEC} == set(tools.TOOLS_REGISTRY)
+
+
+def test_upcoming_by_team_with_probabilities(monkeypatch):
+    """Filtro por equipo tolerante a guiones y probabilidades oficiales como porcentaje."""
+    monkeypatch.setattr("footy.web.service.upcoming", lambda: [
+        {"ref": "m:1", "league": "CHL", "home": "Palestino", "away": "Colo Colo", "kickoff": "2026-10-24T20:00:00Z",
+         "p_official": [0.25, 0.27, 0.48], "source": "modelo"},
+        {"ref": "m:2", "league": "CHL", "home": "Everton", "away": "Cobresal", "kickoff": "2026-10-24T22:00:00Z"},
+    ])
+    record = tools.execute_tool("get_upcoming_matches", {"team": "Colo-Colo"})
+    assert [m["match_id"] for m in record.result] == [1]
+    assert record.result[0]["probabilities_1x2"] == {"home_win": "25.0%", "draw": "27.0%", "away_win": "48.0%"}
+    assert record.result[0]["probability_source"] == "modelo"
+
+
+def test_system_performance_as_percentages(monkeypatch):
+    monkeypatch.setattr("footy.web.service.overview", lambda: {
+        "model_version": "v3", "tracking": {"evaluated": 361, "hit_rate": 0.5319, "bets_yield": -0.0739,
+                                            "bets_clv": -0.0303, "ll_market": 0.9622}})
+    tracking = tools.execute_tool("get_system_performance", {}).result["tracking"]
+    assert tracking == {"evaluated": 361, "hit_rate": "53.2%", "bets_yield": "-7.4%", "bets_clv": "-3.0%",
+                        "ll_market": 0.9622}

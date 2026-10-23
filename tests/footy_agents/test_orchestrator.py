@@ -158,3 +158,19 @@ def test_chat_endpoint_streams_sse(monkeypatch):
         return [chunk async for chunk in resp.body_iterator]
     body = "".join(asyncio.run(collect()))
     assert body.startswith("event: token\n") and "event: done" in body
+
+
+def test_client_decodes_utf8_without_charset(monkeypatch):
+    """Ollama no declara charset en text/event-stream: los acentos deben llegar intactos."""
+    class Latin1Response(FakeResponse):
+        encoding = "ISO-8859-1"
+
+        def iter_lines(self, decode_unicode=True):
+            for line in self.lines:
+                raw = line.encode("utf-8")
+                yield raw.decode(self.encoding)
+
+    resp = Latin1Response([_chunk({"content": "División Ñuñoa"}), "data: [DONE]"])
+    monkeypatch.setattr(llm.requests, "post", lambda *a, **k: resp)
+    out = list(llm.OpenAICompatibleClient("http://x/v1", "m").stream_chat([]))
+    assert out == [TextDelta("División Ñuñoa")]

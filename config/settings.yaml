@@ -497,5 +497,5 @@ betting:
 agents:
   llm:
     base_url: http://localhost:11434/v1
-    model: qwen2.5:14b-instruct-q4_K_M   # con poca RAM/CPU lenta: qwen2.5:7b
-    timeout: 120                          # segundos por respuesta (en CPU un 14B es lento)
+    model: qwen2.5:7b                    # para mayor capacidad si hay GPU potente: qwen2.5:14b-instruct-q4_K_M
+    timeout: 120                         # segundos por respuesta

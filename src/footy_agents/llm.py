@@ -72,6 +72,7 @@ class OpenAICompatibleClient:
             resp.raise_for_status()
         except requests.RequestException as exc:
             raise LLMUnavailable(str(exc)) from exc
+        resp.encoding = "utf-8"  # text/event-stream sin charset: requests asumiría ISO-8859-1 y rompe los acentos
 
         # las llamadas a herramientas pueden llegar en trozos (OpenAI) o completas (Ollama): se acumulan por índice
         pending: dict[int, dict[str, str]] = {}

@@ -7,10 +7,10 @@ El perfil de riesgo solo cambia el orden del feed: el stake sigue siendo 1/4 Kel
 
 import logging
 import sqlite3
-import unicodedata
 
 from footy.db.repository import utc_now
 from footy.web import service
+from footy_agents.names import normalize_name
 from footy_agents.preferences import repo
 from footy_agents.schemas import FeedItem, PersonalizedFeedResponse
 
@@ -18,13 +18,6 @@ log = logging.getLogger(__name__)
 
 # peso de la ventaja (edge) en el puntaje según el perfil: (bono fijo, multiplicador del edge)
 EDGE_WEIGHTS = {"conservative": (15.0, 50.0), "moderate": (20.0, 100.0), "aggressive": (25.0, 150.0)}
-
-
-def _normalize_name(name: str) -> str:
-    """Minúsculas, sin acentos ni puntuación: 'Ñublense' = 'nublense' y 'Colo-Colo' = 'Colo Colo'."""
-    text = unicodedata.normalize("NFKD", name.lower())
-    text = "".join(c if c.isalnum() else " " for c in text if not unicodedata.combining(c))
-    return " ".join(text.split())
 
 
 def _value_bets_by_match(matches: list[dict]) -> dict[int, list[dict]]:
@@ -45,7 +38,7 @@ def get_personalized_feed(conn: sqlite3.Connection, user_id: str = "default") ->
     prefs = repo.get_preferences(conn, user_id=user_id)
     raw_matches = service.upcoming()
 
-    fav_teams = {_normalize_name(t) for t in prefs.favorite_teams}
+    fav_teams = {normalize_name(t) for t in prefs.favorite_teams}
     fav_leagues = set(prefs.favorite_leagues)
     value_bets = _value_bets_by_match(raw_matches)
     edge_bonus, edge_mult = EDGE_WEIGHTS[prefs.risk_profile]
@@ -59,7 +52,7 @@ def get_personalized_feed(conn: sqlite3.Connection, user_id: str = "default") ->
         home, away, league = m.get("home", ""), m.get("away", ""), m.get("league", "")
 
         # coincidencia exacta del nombre normalizado: una subcadena haría que "Universidad" marque a varios clubes
-        is_fav_team = bool(fav_teams & {_normalize_name(home), _normalize_name(away)})
+        is_fav_team = bool(fav_teams & {normalize_name(home), normalize_name(away)})
         is_fav_league = league in fav_leagues
 
         v_bets = value_bets.get(match_id, [])
