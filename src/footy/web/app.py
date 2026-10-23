@@ -64,6 +64,12 @@ async def lifespan(_app):
 
 app = FastAPI(title="Futbol_ML", docs_url="/api/docs", lifespan=lifespan)
 
+try:
+    from agents.web.router import router as agent_router
+    app.include_router(agent_router)
+except ImportError as e:
+    log.warning("Capa agéntica no montada o con error de importación: %s", e)
+
 
 def cached(key: str, ttl: float, fn):
     """Resultado cacheado; si otra consulta ya lo está calculando, espera ese cálculo en vez de repetirlo."""
