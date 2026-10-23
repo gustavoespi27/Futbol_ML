@@ -47,6 +47,7 @@ class FeedItem(AgentSchema):
     home_team: str
     away_team: str
     league: str
+    league_name: str = ""
     kickoff: str
     is_favorite_team: bool
     is_favorite_league: bool

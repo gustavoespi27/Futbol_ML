@@ -74,6 +74,7 @@ def get_personalized_feed(conn: sqlite3.Connection, user_id: str = "default") ->
             home_team=home,
             away_team=away,
             league=league,
+            league_name=m.get("league_name") or league,
             kickoff=m.get("kickoff") or "",
             is_favorite_team=is_fav_team,
             is_favorite_league=is_fav_league,

@@ -10,10 +10,11 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
 from footy.db.connection import connect
+from footy_agents.briefing import run_briefing
 from footy_agents.llm import LLMClient, OpenAICompatibleClient
 from footy_agents.orchestrator import run_chat
 from footy_agents.preferences import repo, service
-from footy_agents.schemas import ChatRequest, PersonalizedFeedResponse, UserPreferences
+from footy_agents.schemas import ChatEvent, ChatRequest, PersonalizedFeedResponse, UserPreferences
 
 router = APIRouter(prefix="/api/agent", tags=["Agent"])
 
@@ -52,10 +53,19 @@ def chat(req: ChatRequest, client: LLMClient = Depends(get_llm_client)) -> Strea
     """Chat con el asistente en streaming SSE: eventos tool_start, tool_result, token, done y error."""
     with closing(connect()) as conn:
         prefs = repo.get_preferences(conn, user_id=req.user_id)
+    return _sse(run_chat(client, req.message, prefs))
 
-    def stream() -> Iterator[str]:
-        for ev in run_chat(client, req.message, prefs):
-            yield ev.to_sse()
 
-    return StreamingResponse(stream(), media_type="text/event-stream",
+@router.get("/briefing")
+def briefing(user_id: str = Query("default", description="Identificador del usuario"),
+             client: LLMClient = Depends(get_llm_client)) -> StreamingResponse:
+    """Resumen personalizado de las próximas 24 h en lenguaje natural (SSE: token, done, error)."""
+    with closing(connect()) as conn:
+        prefs = repo.get_preferences(conn, user_id=user_id)
+        feed = service.get_personalized_feed(conn, user_id=user_id)
+    return _sse(run_briefing(client, prefs, feed))
+
+
+def _sse(events: Iterator[ChatEvent]) -> StreamingResponse:
+    return StreamingResponse((ev.to_sse() for ev in events), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
