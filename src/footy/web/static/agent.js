@@ -57,8 +57,9 @@ async function loadBriefing() {
       token: (d) => { text += d.delta; body.innerHTML = agentText(text); },
       error: (d) => { foot.textContent = d.error; },
       done: (d) => {
-        foot.textContent = d.success ? "Redactado por la IA local con datos del sistema"
-          : "Resumen automático: la IA local no está disponible";
+        foot.textContent = !d.success ? "Resumen automático: la IA local no está disponible"
+          : d.iterations === 0 ? "Resumen automático: nada destacado para tus preferencias en las próximas 24 h"
+          : "Redactado por la IA local con datos del sistema";
       },
     } });
   } catch (e) {
