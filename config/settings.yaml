@@ -492,3 +492,10 @@ betting:
   min_ev: 0.05          # EV relativo mínimo (p * cuota - 1); a calibrar en validación
   kelly_fraction: 0.25
   devig_method: proportional
+
+# Capa agéntica (src/footy_agents): LLM local con API compatible con OpenAI (Ollama por defecto, costo cero)
+agents:
+  llm:
+    base_url: http://localhost:11434/v1
+    model: qwen2.5:7b                    # para mayor capacidad si hay GPU potente: qwen2.5:14b-instruct-q4_K_M
+    timeout: 120                         # segundos por respuesta
