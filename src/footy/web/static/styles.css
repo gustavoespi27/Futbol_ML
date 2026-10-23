@@ -733,6 +733,10 @@ table.sem td.m:hover .team span { color: var(--accent); }
 .df-btn:disabled { opacity: .4; cursor: default; }
 @media (max-width: 640px) {
   .toolbar { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+  /* la barra de fechas se desplaza dentro de su ancho: sin min-width 0 el ítem flex crecía al ancho de los
+     botones y empujaba toda la página fuera de la pantalla */
+  .sec-row .toolbar { width: 100%; }
+  .toolbar, .toolbar > * { min-width: 0; max-width: 100%; }
   .df { display: flex; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
   .df-btn { flex: none; }
 }
