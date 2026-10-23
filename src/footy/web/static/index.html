@@ -61,6 +61,17 @@
       <h1>Apostador profesional</h1>
     </div>
     <div class="quant-ticker" id="quant-ticker" aria-label="Estado del motor"></div>
+    <section class="card brief-card" id="agent-brief" aria-labelledby="brief-title">
+      <div class="brief-head">
+        <h2 id="brief-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6.3 6.3 4.9 4.9M19.1 19.1l-1.4-1.4M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg>Tu resumen de hoy</h2>
+        <div class="brief-actions">
+          <button type="button" class="chip" id="brief-prefs">Preferencias</button>
+          <button type="button" class="chip" id="brief-refresh" aria-label="Actualizar resumen" title="Actualizar resumen"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg></button>
+        </div>
+      </div>
+      <p class="brief-body" aria-live="polite"></p>
+      <div class="brief-foot"></div>
+    </section>
     <div class="grid g4" id="home-tiles" data-skel="kpi:4"></div>
 
     <div class="card reco-card" style="margin-top:16px">
@@ -411,9 +422,58 @@
   <a class="navlink" href="#resultados"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Resultados</span></a>
   <a class="navlink" href="#simulador"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h2M14 10h2M8 14h2M14 14h2M8 18h8"/></svg><span>Simulador</span></a>
 </nav>
+<button type="button" class="agent-fab" id="agent-fab" aria-controls="agent-chat" aria-expanded="false" aria-label="Abrir asistente">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 11h.01M12 11h.01M15.5 11h.01"/></svg>
+</button>
+<section class="agent-chat" id="agent-chat" role="dialog" aria-label="Asistente de Futbol ML" hidden>
+  <header class="chat-head">
+    <div><b>Asistente</b><span>IA local · cifras solo del sistema</span></div>
+    <button type="button" class="td-close chat-close" aria-label="Cerrar asistente">×</button>
+  </header>
+  <div class="chat-log" aria-live="polite">
+    <div class="msg bot"><div class="msg-text">Hola. Pregúntame por partidos, probabilidades, tablas o el rendimiento del sistema.</div></div>
+  </div>
+  <div class="chat-suggest">
+    <button type="button" class="chip">¿Qué apuestas con valor hay hoy?</button>
+    <button type="button" class="chip">¿Cómo va la tabla de la liga chilena?</button>
+    <button type="button" class="chip">¿Cómo le ha ido al sistema?</button>
+  </div>
+  <form class="chat-form">
+    <textarea name="message" rows="1" maxlength="2000" autocomplete="off" placeholder="Escribe tu pregunta…" aria-label="Pregunta"></textarea>
+    <button type="submit" class="primary" aria-label="Enviar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+  </form>
+</section>
+<dialog class="agent-prefs" id="agent-prefs" aria-labelledby="prefs-title">
+  <form id="pref-form" method="dialog">
+    <h2 id="prefs-title">Tus preferencias</h2>
+    <p class="sub">Ordenan tu resumen y el asistente. No cambian el monto de las apuestas: siempre ¼ de Kelly con tope de 2%.</p>
+    <fieldset><legend>Ligas favoritas</legend><div class="pref-leagues" id="pref-leagues"></div></fieldset>
+    <fieldset><legend>Equipos favoritos</legend>
+      <div class="pref-team-row">
+        <input id="pref-team-input" name="team" list="pref-team-list" autocomplete="off" placeholder="Ej: Colo Colo">
+        <button type="button" class="chip" id="pref-team-add">Agregar</button>
+      </div>
+      <datalist id="pref-team-list"></datalist>
+      <div class="pref-teams" id="pref-teams"></div>
+    </fieldset>
+    <fieldset><legend>Perfil de riesgo</legend>
+      <div class="pref-risk">
+        <label><input type="radio" name="risk" value="conservative"> Conservador</label>
+        <label><input type="radio" name="risk" value="moderate"> Moderado</label>
+        <label><input type="radio" name="risk" value="aggressive"> Agresivo</label>
+      </div>
+    </fieldset>
+    <p class="pref-status" id="pref-status" role="status"></p>
+    <div class="pref-actions">
+      <button type="button" class="chip" id="pref-cancel">Cancelar</button>
+      <button type="submit" class="primary">Guardar</button>
+    </div>
+  </form>
+</dialog>
 <script src="/static/app.js"></script>
 <script src="/static/leaguepicker.js"></script>
 <script src="/static/combos.js"></script>
 <script src="/static/suggestions.js"></script>
+<script src="/static/agent.js"></script>
 </body>
 </html>
