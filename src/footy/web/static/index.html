@@ -29,8 +29,8 @@
 <a class="navlink" href="#inicio" data-nav-group="inicio"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg><span>Hoy</span></a>
 <a class="navlink" href="#partidos" data-nav-group="partidos"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Partidos</span></a>
 <a class="navlink" href="#resultados" data-nav-group="resultados"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Seguimiento</span></a>
-<a class="navlink" href="#explorar" data-nav-group="explorar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6 6-2z"/></svg><span>Explorar</span></a>
-<a class="navlink" href="#mas" data-nav-group="mas"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg><span>Más</span></a>
+<a class="navlink" href="#explorar" data-nav-group="explorar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6 6-2z"/></svg><span>Explorar</span></a><div class="nav-subsections" data-parent="explorar" hidden><a href="#simulador">Simulador</a><a href="#combinadas">Combinadas</a></div>
+<a class="navlink" href="#mas" data-nav-group="mas"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg><span>Más</span></a><div class="nav-subsections" data-parent="mas" hidden><a href="#rendimiento">Fiabilidad</a><a href="#como-funciona">Cómo funciona</a></div>
 </nav>
     <div class="side-foot">
       <button class="icon-btn" id="theme" title="Cambiar tema claro/oscuro" aria-label="Cambiar tema">
@@ -82,9 +82,9 @@
   <!-- PRÓXIMOS PARTIDOS -->
   <section class="view" id="v-partidos">
     <div class="view-head">
-      <h1 tabindex="-1">Partidos</h1>
+      <h1 tabindex="-1">Partidos</h1><p>Partidos, probabilidades y precio justo</p>
     </div>
-    <div class="toolbar"><div class="filters" id="league-filter"></div><div id="match-date"></div></div>
+    <div class="match-filter-actions"><button type="button" class="chip" id="match-filter-open" aria-haspopup="dialog" aria-controls="match-filters">Filtrar partidos</button><span id="match-selection" role="status"></span><button type="button" class="chip" id="match-clear">Limpiar</button></div><div id="match-filter-slot"><div class="toolbar" id="match-toolbar"><div class="filters" id="league-filter"></div><div id="match-date"></div></div></div>
     <div class="qchips" id="match-chips"></div>
     <div id="matches" data-skel="rows:6"></div>
   <details id="match-analysis" class="match-analysis"><summary>Recomendaciones y semáforo</summary><div class="card reco-card" style="margin-top:16px">
@@ -133,7 +133,7 @@
   <!-- COMBINADAS -->
   <section class="view" id="v-combinadas">
     <div class="view-head">
-      <h1 tabindex="-1">Combinadas</h1>
+      <h1 tabindex="-1">Combinadas</h1><p>Exploración educativa: ninguna combinada es segura ni demuestra una ventaja para apostar.</p>
     </div>
     <div class="grid g4" id="cb-tiles" data-skel="kpi:4"></div>
     <div class="combo-layout" style="margin-top:16px">
@@ -145,7 +145,7 @@
       <aside class="card ticket" id="ticket"></aside>
     </div>
     <div class="view-head" style="margin:36px 0 16px">
-      <h2 style="font-size:var(--fs-lg)">Lo que dice la historia</h2>
+      <h2 class="section-head">Lo que dice la historia</h2>
       <p id="cb-hist-intro">Combinadas simuladas con todos los partidos de 2026 que el modelo no vio al entrenar.</p>
     </div>
     <div class="grid g2">
@@ -182,7 +182,7 @@
       <p>Cada predicción se guarda <b>antes</b> de que empiece el partido y no se puede modificar. Cuando llega el resultado
         se compara con lo que pasó. Es la prueba más limpia, pero necesita cientos de partidos para ser concluyente.</p>
     </div>
-    <section id="paper-ledger"><h2 class="sec">Bitácora en papel</h2><p id="paper-summary"></p><div class="card">
+    <div id="tracking-filters" class="filters" role="group" aria-label="Filtrar registros"><button type="button" class="chip" data-result-filter="all" aria-pressed="true">Todos</button><button type="button" class="chip" data-result-filter="win" aria-pressed="false">Aciertos</button><button type="button" class="chip" data-result-filter="lose" aria-pressed="false">Fallos</button></div><section id="paper-ledger"><h2 class="sec">Bitácora en papel</h2><p id="paper-summary"></p><div class="card">
         <div class="tabs" id="log-tabs">
           <button class="tab on" data-tab="bets">Apuestas realizadas <span id="tab-n-bets"></span></button>
           <button class="tab" data-tab="picks">Pronósticos registrados <span id="tab-n-picks"></span></button>
@@ -323,8 +323,7 @@
   <section class="view" id="v-simulador">
     <div class="view-head">
       <h1 tabindex="-1">Simulador de partido</h1>
-      <p>Elige liga y equipos para ver qué espera el modelo. Si ingresas las cuotas de una casa, el sistema las combina con el
-        modelo y te dice si ve valor (casi siempre dirá que no).</p>
+      <p>Elige liga y equipos para ver qué espera el modelo. Las cuotas opcionales permiten explorar escenarios educativos; no demuestran una ventaja para apostar.</p>
     </div>
     <div class="card">
       <form class="sim" id="sim-form">
@@ -338,7 +337,7 @@
           <label class="cross-only" hidden>Liga de la visita<select id="sim-away-league"></select></label>
           <label>Visita<select id="sim-away" required></select></label>
         </div>
-        <div class="fields">
+        <button class="primary" type="submit">Calcular probabilidades</button><details class="sim-optional"><summary>Agregar cuotas de una casa y monto</summary>        <div class="fields">
           <label>Cuota local (opcional)<input id="sim-o1" name="odds_home" autocomplete="off" type="number" step="0.01" min="1.01" placeholder="ej. 2.10"></label>
           <label>Cuota empate<input id="sim-o2" name="odds_draw" autocomplete="off" type="number" step="0.01" min="1.01" placeholder="ej. 3.40"></label>
           <label>Cuota visita<input id="sim-o3" name="odds_away" autocomplete="off" type="number" step="0.01" min="1.01" placeholder="ej. 3.60"></label>
@@ -346,10 +345,10 @@
         <div class="fields">
           <label>Monto a apostar ($)<input id="sim-stake" name="stake" autocomplete="off" type="number" min="1" step="any" placeholder="ej. 5000"></label>
         </div>
-        <button class="primary" type="submit">Calcular probabilidades</button>
+</details>
       </form>
     </div>
-    <div id="sim-out" style="margin-top:16px"></div>
+    <div id="sim-out" class="sim-preview"><h2>Elige dos equipos</h2><p>Al calcular verás las probabilidades, el precio justo y la fuente del pronóstico.</p></div>
   </section>
 
   <!-- CÓMO FUNCIONA -->
@@ -459,6 +458,7 @@
     <button type="submit" class="primary" aria-label="Enviar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
   </form>
 </section>
+<dialog id="match-filters" class="filter-sheet" aria-labelledby="match-filter-title"><header><h2 id="match-filter-title">Filtrar partidos</h2><button type="button" class="chip" id="match-filter-close">Cerrar</button></header><div id="match-filter-body"></div></dialog>
 <dialog class="agent-prefs" id="agent-prefs" aria-labelledby="prefs-title">
   <form id="pref-form" method="dialog">
     <h2 id="prefs-title">Tus preferencias</h2>
@@ -488,6 +488,7 @@
 </dialog>
 <script src="/static/format.js"></script>
 <script src="/static/trust.js"></script>
+<script src="/static/views.js"></script>
 <script src="/static/app.js"></script>
 <script src="/static/leaguepicker.js"></script>
 <script src="/static/combos.js"></script>

@@ -22,6 +22,7 @@ async function renderSuggestions() {
     if (!(amount > 0)) return;
     try { localStorage.setItem("bankroll", String(amount)); } catch (e) { /* sin storage */ }
     drawCurrent(d);
+    window.dispatchEvent(new Event("footy-bank-changed"));
   };
   drawCurrent(d);
   return d;
@@ -146,7 +147,7 @@ function drawLedger(L) {
   const st = { ganada: "good", perdida: "bad", abierta: "", anulada: "warn" };
   const SELN = { H: "Local", D: "Empate", A: "Visita" };
   $("#sg-record").innerHTML = L.items && L.items.length ? `<table><thead><tr><th>Partido</th><th>Apuesta</th><th class="r">Cuota</th>
-    <th class="r">Ventaja</th><th class="r">Monto</th><th class="r">CLV</th><th>Estado</th></tr></thead><tbody>${L.items.map((it) => `<tr>
+    <th class="r">Ventaja</th><th class="r">Monto</th><th class="r">CLV</th><th>Estado</th></tr></thead><tbody>${L.items.map((it) => `<tr data-result="${it.status === "ganada" ? "win" : it.status === "perdida" ? "lose" : "pending"}">
     <td><div class="mt">${matchTag(it, 18)}${it.score ? ` <b>${esc(it.score)}</b>` : ""}</div><div style="color:var(--muted);font-size:var(--fs-xs)">${leagueLogo(it.league, 12)} ${fmtDate(it.kickoff)}</div></td>
     <td>${SELN[it.sel]} <span style="color:var(--muted)">(${esc(it.book)})</span></td><td class="r">${num(it.odds)}</td>
     <td class="r">${signed(it.edge)}</td><td class="r">${pct(it.stake, 1)}</td>
@@ -222,7 +223,7 @@ async function renderReliable({ current = false, record = false, metrics = false
     setTabCount("picks", (R.items || []).length);
     const st = { acierto: "good", fallo: "bad", pendiente: "" };
     $("#rel-record").innerHTML = R.items && R.items.length ? `<table><thead><tr><th>Partido</th><th>Pronóstico</th><th class="r">Prob.</th>
-      <th class="r">Resultado</th><th>Estado</th></tr></thead><tbody>${R.items.map((it) => `<tr>
+      <th class="r">Resultado</th><th>Estado</th></tr></thead><tbody>${R.items.map((it) => `<tr data-result="${it.status === "acierto" ? "win" : it.status === "fallo" ? "lose" : "pending"}">
       <td><div class="mt">${matchTag(it, 18)}</div><div style="color:var(--muted);font-size:var(--fs-xs)">${leagueLogo(it.league, 12)} ${fmtDate(it.kickoff)}</div></td>
       <td><b>${esc(it.label)}</b></td><td class="r">${pct(it.p)}</td><td class="r"><b>${it.score ? esc(it.score) : "–"}</b></td>
       <td><span class="pill ${st[it.status]}">${it.status}</span></td></tr>

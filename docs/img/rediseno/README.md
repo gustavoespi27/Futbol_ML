@@ -1,12 +1,13 @@
 # Paso 1 — Wireframes para revisión
 
 2026-11-09. Propuesta de estructura basada en la versión unificada de `docs/plan_frontend.md`.
-**Pasos 2–6 y wireframes aprobados. Paso 7 implementado en la rama.**
+**Pasos 2–7 y wireframes aprobados. Paso 8 implementado en la rama.**
 
 Evidencia de implementación: [confianza y cobertura](../../validacion_frontend_paso4.md) y
 [tokens, tipografía y montos](../../validacion_frontend_paso5.md), y [navegación y marca](../../validacion_frontend_paso6.md).
 El [paso 7](../../validacion_frontend_paso7.md) concentra la cobertura en el resumen de Hoy y traslada los históricos.
-Para el paso 8: subsecciones bajo el grupo activo en escritorio: Explorar → Simulador/Combinadas; Más → Fiabilidad/Cómo funciona.
+El [paso 8](../../validacion_frontend_paso8.md) incorpora subsecciones laterales, filtros, fichas y tablas móviles.
+La secuencia siguiente está en [el orden de mejoras aprobado](../../ejecucion_mejoras.md).
 
 Abrir [la galería local](index.html) en un navegador. No necesita servidor, red, fuentes externas ni instalación.
 El selector permite alternar las variantes clara y oscura. Cada lámina se puede abrir a tamaño completo.

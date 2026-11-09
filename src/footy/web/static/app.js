@@ -223,6 +223,7 @@ function route(event) {
     if (active) a.setAttribute("aria-current", navGroups[key] ? "location" : "page");
     else a.removeAttribute("aria-current");
   });
+  updateSecondaryNav(key, navGroups[key] || key);
   const view = $("#v-" + key), strip = $("#system-status");
   $(".view-head", view).after(strip);
   strip.classList.toggle("status-strip--compact", key !== "inicio");
@@ -488,7 +489,7 @@ function vcell(op) {
     return `<div class="vcell none" title="${esc(op.label)}: sin cuota de mercado disponible aún">
       <b>${pct(op.p)}</b><span>—</span><small>sin cuota</small></div>`;
   }
-  const v = op.verdict || { level: "none", label: "Sin cuota", reason: "" };
+  const v = priceVerdict(op) || { level: "none", label: "Sin cuota", reason: "" };
   return `<div class="vcell ${v.level}" title="${esc(op.label)}: ${esc(v.reason)}"><b>${pct(op.p)}</b>
     <span>${num(op.odds)}</span><small>${esc(v.label)}</small></div>`;
 }
@@ -514,7 +515,7 @@ async function renderSemaphore() {
   return list;
 }
 function bestOption(m) {
-  return (m.options || []).filter((o) => o.odds && !o.estimated && o.verdict)
+  return (m.options || []).filter((o) => o.odds && !o.estimated && o.p_fair != null && o.verdict)
     .sort((a, b) => (RANK[b.verdict.level] - RANK[a.verdict.level]) || ((b.ev ?? -9) - (a.ev ?? -9)))[0];
 }
 function semRow(m) {
@@ -560,7 +561,7 @@ function renderHomeReview(list) {
     return `<button type="button" class="review-card" data-home-ref="${esc(m.ref)}">
       <span class="review-meta">${esc(m.league_name || m.league)} · ${esc(fmtDate(m.kickoff))}</span>
       <span class="review-teams">${matchTag(m, 24)}</span><span class="pill ${level}"><i aria-hidden="true"></i>${esc(badge)}</span>
-      <span class="review-action">Ver partido →</span></button>`;
+      ${compactProb(m.p_official)}<span class="review-action">Ver partido →</span></button>`;
   }).join("");
 }
 $("#v-inicio").addEventListener("click", async e => {
@@ -650,6 +651,10 @@ async function renderMatches() {
   const withLive = () => ["all", "today", "played"].includes(matchDate.type);
   const draw = () => {
     if (systemState.kind !== "fresh") { gateView($("#v-partidos"), systemState.kind); return; }
+    const leagueLabel = matchSel.type === "all" ? "Todas las ligas" : matchSel.name || matchSel.value || matchSel.code;
+    const dateLabel = { all: "Todas las fechas", today: "Hoy", yesterday: "Ayer", played: "Jugados hoy", tomorrow: "Mañana" }[matchDate.type] || fmtDate(matchDate.day, false);
+    $("#match-selection").textContent = `${leagueLabel} · ${dateLabel}`;
+    $("#match-clear").disabled = !isFiltered(matchSel, matchDate);
     const done = { yesterday: past, played: today }[matchDate.type];
     const live = withLive() ? today.matches.filter((m) => m.status === "live" && leagueSelMatch(matchSel, m, catalog)) : [];
     const shown = (done ? done.matches : list).filter((m) => leagueSelMatch(matchSel, m, catalog) && dateSelMatch(matchDate, m.kickoff)
@@ -680,15 +685,22 @@ async function renderMatches() {
   };
   const reset = () => { matchSel = { type: "all" }; matchDate = { type: "all" }; mount(); draw(); };
   mount();
+  $("#match-clear").onclick = reset;
   const toggle = (row) => {
     const next = row.nextElementSibling;
     const open = !(next && next.classList.contains("mdetail"));
+    if (open) row.dataset.scrollY = String(window.scrollY);
     if (open) row.insertAdjacentHTML("afterend", `<div class="mdetail">${matchCard(byRef[row.dataset.ref])}</div>`);
     else next.remove();
     row.classList.toggle("open", open);
     row.setAttribute("aria-expanded", String(open));
+    if (open) {
+      const detail = row.nextElementSibling;
+      api("/api/suggestions").then(d => { if ((d.ledger?.items || []).some(i => `m:${i.match_id}` === row.dataset.ref) && detail.isConnected) detail.querySelector(".paper-link").hidden = false; }).catch(() => {});
+    } else { row.focus({ preventScroll: true }); window.scrollTo(0, Number(row.dataset.scrollY) || 0); }
   };
   $("#matches").onclick = (e) => {
+    if (e.target.closest("[data-match-close]")) { toggle(e.target.closest(".mdetail").previousElementSibling); return; }
     if (e.target.closest("button, a, .mdetail")) return;
     const row = e.target.closest(".mrow"); if (row) toggle(row);
   };
@@ -782,7 +794,7 @@ function matchRow(m) {
   const pm = m.p_market;
   const cell = (k, i, color) => {
     if (!p) return `<div class="pcell"><b>–</b><span>sin datos</span></div>`;
-    const o = ops[k], v = o && o.verdict;
+    const o = ops[k], v = o && priceVerdict(o);
     const tip = [v ? `${v.label}: ${v.reason}` : "", pm ? `Mercado: ${pct(pm[i])}` : ""].filter(Boolean).join(" · ");
     // Botón de cuota: etiqueta 1/X/2, la cuota en grande y la probabilidad del sistema debajo.
     const odds = o && o.odds ? num(o.odds) : null;
@@ -1085,21 +1097,28 @@ function matchCard(m) {
   return `<article class="card match">
     <div class="meta"><span class="lg">${leagueLogo(m.league, 16)}${esc(m.league_name)}</span><span>${fmtDate(m.kickoff)}</span></div>
     ${teamsRow(m)}
+    <button type="button" class="chip" data-match-close>Volver a la lista</button>
+    <section class="mc-sec"><h4>Probabilidad de acertar</h4>${compactProb(p)}
+      <p class="mc-note">Fuente: ${esc(m.source)} · modelo ${esc(systemState.overview?.model_version || "sin verificar")}. ${esc(FootyTrust.updatedTime(systemState.overview.last_daily_run))}.</p>
+      <p>Una probabilidad alta no equivale a una ventaja de precio.</p></section>
+    ${priceAdvantage(m)}
+    <details class="match-context"><summary>Forma, tabla, modelo y cuotas</summary>
     ${predictionBlock(m)}
     ${statsBlock(m)}
     ${m.standings_summary ? `<section class="mc-sec st-sec" data-league="${esc(m.league)}" data-home="${m.home_id}" data-away="${m.away_id}">
       <button type="button" class="chip st-toggle" onclick="toggleStandings(this)">Ver tabla de posiciones</button>
       <div class="st-box"></div></section>` : ""}
-    <section class="mc-sec"><h4>Cuotas y valor</h4>
+    <section class="mc-sec"><h4>Cuotas disponibles · exploración</h4>
       <div class="reco"><span class="pill ${SOURCE_PILL[m.source] ?? ""}">${esc(m.source)}</span>
         ${m.options && m.options.length ? `<span class="sem-legend">${["1", "X", "2"].map((k) => {
           const op = m.options.find((x) => x.key === k);
           return op ? vchip(op.verdict, `${k === "1" ? "Local" : k === "X" ? "Empate" : "Visita"} ${pct(op.p)}`) : "";
         }).join("")}</span>` : ""}</div>
       ${oddsHtml}
-      <div class="reco">${reco}</div>
+
       ${m.options && m.options.length ? `<button class="chip" style="justify-self:start" onclick="goToCombos('${esc(m.ref)}')">Ver todas las opciones y combinar →</button>` : ""}
     </section>
+    </details>
     ${m.stale ? `<div class="stale">⚠ Datos de la liga hasta ${fmtDate(m.data_through, false)}: faltan fechas recientes (la fuente se atrasó).</div>` : ""}
   </article>`;
 }
@@ -1120,7 +1139,7 @@ async function renderTracking() {
   ].join("");
   $("#trk-table").innerHTML = d.matches.length ? `<table>
     <thead><tr><th>Fecha</th><th>Liga</th><th>Partido</th><th>Probabilidades</th><th>Pronóstico</th><th class="r">Resultado</th><th></th><th>Versión</th></tr></thead>
-    <tbody>${d.matches.map((m) => `<tr>
+    <tbody>${d.matches.map((m) => `<tr data-result="${m.hit ? "win" : "lose"}">
       <td>${fmtDate(m.kickoff)}</td><td title="${esc(m.league_name || m.league)}">${leagueLogo(m.league, 18) || esc(m.league)}</td><td>${matchTag(m, 18)}</td>
       <td>${miniBar(m.p_official)} <span class="num" style="color:var(--muted);font-size:var(--fs-xs)">${m.p_official.map((x) => pct(x)).join(" · ")}</span></td>
       <td>${SEL[m.pick]} <span class="num" style="color:var(--muted)">(${pct(m.p_official[m.pick])})</span></td>
@@ -1130,7 +1149,7 @@ async function renderTracking() {
     : `<div class="empty">Todavía no terminan partidos con predicción registrada.</div>`;
   $("#trk-bets").innerHTML = d.bets.length ? `<table>
     <thead><tr><th>Fecha</th><th>Partido</th><th>Selección</th><th class="r">Cuota</th><th class="r">EV</th><th class="r">CLV</th><th class="r">Resultado</th><th>Versión</th></tr></thead>
-    <tbody>${d.bets.map((b) => `<tr><td>${fmtDate(b.kickoff)}</td><td>${esc(b.partido)}</td><td>${SEL["HDA".indexOf(b.sel)]} (${esc(b.book)})</td>
+    <tbody>${d.bets.map((b) => `<tr data-result="${b.won ? "win" : "lose"}"><td>${fmtDate(b.kickoff)}</td><td>${esc(b.partido)}</td><td>${SEL["HDA".indexOf(b.sel)]} (${esc(b.book)})</td>
       <td class="r">${num(b.odds)}</td><td class="r">${signed(b.ev)}</td><td class="r">${signed(b.clv)}</td>
       <td class="r">${b.won ? `<span class="pill good">+${num(b.profit)} u</span>` : '<span class="pill bad">−1 u</span>'}</td>
       <td><span class="pill">${esc(b.version)}</span></td></tr>`).join("")}</tbody></table>`
@@ -1342,7 +1361,7 @@ async function renderSimulator() {
   submitBtn.disabled = true;
   submitBtn.textContent = "Cargando equipos…";
   const teamsOf = {};                                   // equipos por liga (con id) de la última carga
-  $("#sim-form").addEventListener("submit", async (e) => {
+  $("#sim-form").onsubmit = async (e) => {
     e.preventDefault();
     const btn = e.target.querySelector("button[type=submit]"); btn.disabled = true;
     const odds = ["#sim-o1", "#sim-o2", "#sim-o3"].map((s) => parseFloat($(s).value));
@@ -1359,7 +1378,7 @@ async function renderSimulator() {
     } catch (err) {
       $("#sim-out").innerHTML = `<div class="callout warn">${esc(err.message)}</div>`;
     } finally { btn.disabled = false; }
-  });
+  };
   // Misma liga: las ligas con modelo validado. Entre ligas: todas las ligas seguidas y "Otras ligas".
   const [modelLeagues, catalog] = await Promise.all([api("/api/leagues"), leagueCatalog()]);
   const allLeagues = catalog.filter((c) => c.type === "league").map((c) => ({ code: c.code, name: c.name }))
@@ -1413,8 +1432,8 @@ async function renderSimulator() {
     await loadAll();
   };
   $("#sim-mode").onclick = (e) => { const b = e.target.closest(".t-chip"); if (b && b.dataset.m !== simMode) setMode(b.dataset.m); };
-  sel.addEventListener("change", loadAll);
-  asel.addEventListener("change", async () => { const a = await loadSide(asel, $("#sim-away")); mountTeams(teamsOf[sel.value], a); });
+  sel.onchange = loadAll;
+  asel.onchange = async () => { const a = await loadSide(asel, $("#sim-away")); mountTeams(teamsOf[sel.value], a); };
   await setMode(simMode);
   submitBtn.disabled = false;
   submitBtn.textContent = "Calcular probabilidades";
@@ -1500,4 +1519,4 @@ async function initChrome() {
 }
 
 // combos.js se carga después de este archivo: se enruta cuando ambos están listos.
-window.addEventListener("DOMContentLoaded", () => { paintSkeletons(); route(); initChrome(); });
+window.addEventListener("DOMContentLoaded", () => { initViewComponents(); paintSkeletons(); route(); initChrome(); });

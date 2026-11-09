@@ -63,7 +63,7 @@ function optionsTable(ctx) {
     const head = o.group !== group ? `<tr class="opt-group"><td colspan="6">${esc(o.group)}</td></tr>` : "";
     group = o.group;
     const odds = o.odds ? `${num(o.odds)}${o.estimated ? '<span title="Estimada desde el 1X2 de la misma casa" style="color:var(--muted)">*</span>' : ""}` : "–";
-    const val = vchip(o.verdict, o.odds && o.ev != null ? signed(o.ev) : "");
+    const val = vchip(priceVerdict(o), o.p_fair != null && o.odds && o.ev != null ? signed(o.ev) : "");
     return `${head}<tr><td>${esc(o.label)}</td><td class="r"><b>${pct(o.p, 1)}</b></td><td class="r">${odds}</td>
       <td class="r" style="color:var(--text-2)">${num(o.fair)}</td><td class="r">${val}</td>
       <td class="r"><button class="add" data-ref="${esc(ctx.ref)}" data-keys="${o.key}">+</button></td></tr>`;
