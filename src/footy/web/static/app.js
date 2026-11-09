@@ -124,6 +124,7 @@ function paintSystemStatus() {
     : mode || "Asistente disponible";
   box.classList.toggle("status-strip--warn", state !== "fresh");
   box.dataset.state = state;
+  $("#more-assistant-state").textContent = [assistant, mode].filter(Boolean).join(" · ");
   const unit = (label, small, title) => `<span class="status-unit" role="group" title="${esc(title)}" aria-label="${esc(title)}">
     <span class="status-full" aria-hidden="true">${esc(label)}</span><span class="status-short" aria-hidden="true">${esc(small)}</span></span>`;
   const markup = unit(full, short, full) + unit([assistant, mode].filter(Boolean).join(" · "), smallAssistant, [assistant, mode].filter(Boolean).join(" · "))
@@ -189,25 +190,47 @@ function setTheme(t) {
   document.documentElement.dataset.theme = t;
   try { localStorage.setItem("theme", t); } catch (e) { /* sin storage */ }
   redrawCharts();
+  $("#more-theme-label").textContent = `Tema ${t === "light" ? "claro" : "oscuro"}. Cambiar a ${t === "light" ? "oscuro" : "claro"}.`;
 }
-$("#theme").addEventListener("click", () => {
+function toggleTheme() {
   setTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light");
+}
+$("#theme").addEventListener("click", toggleTheme);
+$("#more-theme").addEventListener("click", toggleTheme);
+$("#more-assistant").addEventListener("click", () => toggleChat(true));
+$("#more-prefs").addEventListener("click", async () => {
+  const error = $("#more-action-error"); error.hidden = true;
+  try { await openPrefs(); } catch (e) { error.textContent = "No se pudieron cargar las preferencias. Vuelve a intentarlo."; error.hidden = false; }
 });
 
 /* ---------- navegación ---------- */
 const views = { inicio: renderHome, partidos: renderMatches, combinadas: () => renderCombos(), resultados: renderTracking,
-  rendimiento: renderBacktest, simulador: renderSimulator, "como-funciona": () => {} };
+    rendimiento: renderBacktest, simulador: renderSimulator, "como-funciona": () => {}, explorar: () => {}, mas: () => {} };
+const pageTitles = { inicio: "Hoy", partidos: "Partidos", resultados: "Seguimiento", combinadas: "Combinadas",
+  simulador: "Simulador de partido", rendimiento: "¿Qué tan fiable es?", "como-funciona": "Cómo funciona", explorar: "Explorar", mas: "Más" };
+const navGroups = { combinadas: "explorar", simulador: "explorar", rendimiento: "mas", "como-funciona": "mas" };
 const rendered = new Set();
-function route() {
+function route(event) {
   const id = (location.hash || "#inicio").slice(1);
-  const key = id in views ? id : "inicio";             // "#sugeridas" (enlaces antiguos) cae en el panel
+  if (id === "main" && event && event.type === "hashchange") { $("#main").focus({ preventScroll: true }); return; }
+  // El enlace de salto conserva la vista; abrir /#main directamente debe seguir mostrando Hoy.
+  const key = id === "main" ? (document.querySelector("section.view.active")?.id || "v-inicio").slice(2)
+    : id in views ? id : "inicio";             // "#sugeridas" (enlaces antiguos) cae en Hoy
   document.querySelectorAll("section.view").forEach((s) => s.classList.toggle("active", s.id === "v-" + key));
-  document.querySelectorAll(".navlink").forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + key));
-  const link = document.querySelector(`#nav a[href="#${key}"]`);
+  document.querySelectorAll(".navlink").forEach((a) => {
+    const active = a.dataset.navGroup === (navGroups[key] || key);
+    a.classList.toggle("active", active);
+    if (active) a.setAttribute("aria-current", navGroups[key] ? "location" : "page");
+    else a.removeAttribute("aria-current");
+  });
   const view = $("#v-" + key), strip = $("#system-status");
   $(".view-head", view).after(strip);
   strip.classList.toggle("status-strip--compact", key !== "inicio");
-  if (link) { $("#page-title").textContent = link.dataset.title; document.title = `${link.dataset.title} · Futbol ML`; }
+  $("#page-title").textContent = pageTitles[key]; document.title = `${pageTitles[key]} · Fútbol ML`;
+  if (event && event.type === "hashchange") {
+    const heading = $(".view-head h1", view);
+    (heading.getClientRects().length ? heading : $("#page-title")).focus({ preventScroll: true });
+  }
   if (!rendered.has(key) || key === "combinadas") {          // combinadas se redibuja: depende del boleto
     loadSystemStatus().then(() => {
       if (prospectiveViews.has(key)) {
@@ -585,7 +608,7 @@ async function renderMatches() {
   // Con partidos en juego a la vista, los marcadores se vuelven a pedir cada minuto (solo con la pestaña visible).
   clearInterval(liveTimer);
   liveTimer = setInterval(async () => {
-    if (document.hidden || location.hash !== "#partidos" || !withLive()) return;
+    if (document.hidden || !$("#v-partidos").classList.contains("active") || !withLive()) return;
     delete cache["/api/results?day=today"];
     try { today = await api("/api/results?day=today"); draw(); } catch (e) { /* se reintenta en el próximo ciclo */ }
   }, LIVE_REFRESH_MS);
@@ -1401,6 +1424,7 @@ function renderSimResult(r) {
 
 /* ---------- barra lateral y superior ---------- */
 async function initChrome() {
+  $("#more-theme-label").textContent = `Tema ${document.documentElement.dataset.theme === "light" ? "claro" : "oscuro"}. Cambiar tema.`;
   $("#tb-date").textContent = new Intl.DateTimeFormat("es-CL", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
   await loadSystemStatus();
   setInterval(async () => {

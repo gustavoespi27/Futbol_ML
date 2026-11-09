@@ -85,14 +85,17 @@ async function loadBriefing() {
 
 /* ---------- chat flotante ---------- */
 const chat = { open: false, busy: false };
+let chatReturnFocus = null;
 function chatEl(sel) { return $(sel, $("#agent-chat")); }
 
 function toggleChat(force) {
+  if ((force ?? !chat.open) && !chat.open) chatReturnFocus = document.activeElement;
   chat.open = force ?? !chat.open;
   $("#agent-chat").hidden = !chat.open;
   $("#agent-fab").setAttribute("aria-expanded", String(chat.open));
+  $("#more-assistant").setAttribute("aria-expanded", String(chat.open));
   if (chat.open) chatEl("textarea").focus();
-  else $("#agent-fab").focus();
+  else (chatReturnFocus && chatReturnFocus.getClientRects().length ? chatReturnFocus : $("#agent-fab")).focus();
 }
 
 function chatBubble(role, html = "") {
