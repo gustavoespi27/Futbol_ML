@@ -60,9 +60,9 @@ def write(days: int, matches: list[dict], expected_signature: str) -> None:
     starts = [datetime.fromisoformat(m["kickoff"].replace("Z", "+00:00")).timestamp() for m in matches]
     saved = {"version": FORMAT_VERSION, "created": now, "expires": min([now + MAX_AGE, midnight, *starts]),
              "signature": expected_signature, "matches": to_json(matches)}
-    DIRECTORY.mkdir(parents=True, exist_ok=True)
     temporary = None
     try:
+        DIRECTORY.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=DIRECTORY, delete=False) as handle:
             temporary = Path(handle.name)
             json.dump(saved, handle, ensure_ascii=False, allow_nan=False)
@@ -72,4 +72,7 @@ def write(days: int, matches: list[dict], expected_signature: str) -> None:
         log.warning("No se pudo publicar el precalculado web: %s", exc)
     finally:
         if temporary:
-            temporary.unlink(missing_ok=True)
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError as exc:
+                log.warning("No se pudo retirar el archivo temporal del precalculado: %s", exc)

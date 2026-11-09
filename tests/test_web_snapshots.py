@@ -73,11 +73,17 @@ def test_changed_inputs_invalidate_memory_and_do_not_publish_mixed_snapshot(cach
     assert not (cache / "7.json").exists()
 
 
-def test_storage_failure_does_not_break_inline_response(cache, monkeypatch):
+@pytest.mark.parametrize("stage", ["mkdir", "write", "replace"])
+def test_storage_failure_does_not_break_inline_response(cache, monkeypatch, stage):
     monkeypatch.setattr(context, "_upcoming", lambda days: [])
 
-    def denied(*args):
+    def denied(*args, **kwargs):
         raise PermissionError("almacenamiento no escribible")
-    monkeypatch.setattr(snapshots.os, "replace", denied)
+    if stage == "mkdir":
+        monkeypatch.setattr(type(cache), "mkdir", denied)
+    elif stage == "write":
+        monkeypatch.setattr(snapshots.tempfile, "NamedTemporaryFile", denied)
+    else:
+        monkeypatch.setattr(snapshots.os, "replace", denied)
     assert context.upcoming() == []
     assert list(cache.iterdir()) == []
