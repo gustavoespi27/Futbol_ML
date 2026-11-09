@@ -16,6 +16,8 @@ from footy.db.connection import connect
 from footy.ingest.api_football import ApiFootball, ApiUnavailable, BudgetExhausted
 from footy.ingest.collect import collect_odds
 from footy.prediction import tracking
+from footy.web import service
+from footy.web.services import snapshots
 
 log = logging.getLogger("prekickoff")
 
@@ -46,14 +48,19 @@ def main() -> int:
     n = pending(conn, hours)
     if not n:
         return 0
+    snapshots.advance_revision()
     try:
-        client = ApiFootball(conn)
-        matches, rows = collect_odds(client, conn, horizon_hours=hours, refresh_hours=hours)
-    except (BudgetExhausted, ApiUnavailable) as e:
-        log.warning("Sin cuotas pre-partido: %s", e)
-        return 0
-    log.info("Pendientes %s · cuotas %s partidos (%s filas) · quedan %s peticiones · pronósticos finales %s",
-             n, matches, rows, client.remaining, tracking.register_scheduled(conn, horizon_hours=hours))
+        try:
+            client = ApiFootball(conn)
+            matches, rows = collect_odds(client, conn, horizon_hours=hours, refresh_hours=hours)
+        except (BudgetExhausted, ApiUnavailable) as e:
+            log.warning("Sin cuotas pre-partido: %s", e)
+            return 0
+        log.info("Pendientes %s · cuotas %s partidos (%s filas) · quedan %s peticiones · pronósticos finales %s",
+                 n, matches, rows, client.remaining, tracking.register_scheduled(conn, horizon_hours=hours))
+    finally:
+        snapshots.advance_revision()
+    log.info("Precalculado web: %s partidos", len(service.upcoming(refresh=True)))
     return 0
 
 

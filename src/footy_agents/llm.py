@@ -1,10 +1,12 @@
-"""Cliente LLM con API compatible con OpenAI (Ollama local por defecto, costo cero).
+"""Cliente LLM con API compatible con OpenAI (Ollama local, sin pago por llamada a proveedor).
 
 El orquestador solo depende del protocolo `LLMClient`: cambiar de proveedor (Ollama, Groq, Gemini...) es cambiar
 `base_url` y `model` en settings.yaml, y los tests usan un cliente simulado sin red ni tokens.
 """
 
 import json
+import threading
+import time
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any, Protocol
@@ -16,6 +18,13 @@ from footy import config
 
 class LLMUnavailable(Exception):
     """El servidor del LLM no responde (apagado, sin el modelo descargado o fuera de tiempo)."""
+
+
+class LLMBusy(LLMUnavailable):
+    """Se agotó la espera por la única plaza de inferencia del proceso."""
+
+
+_INFERENCE_SLOT = threading.BoundedSemaphore(1)
 
 
 @dataclass
@@ -51,20 +60,36 @@ def _parse_arguments(raw: str) -> tuple[dict[str, Any], str]:
 class OpenAICompatibleClient:
     """POST {base_url}/chat/completions con stream=True (formato SSE de OpenAI, que Ollama replica)."""
 
-    def __init__(self, base_url: str, model: str, timeout: float = 120.0, api_key: str | None = None):
+    def __init__(self, base_url: str, model: str, timeout: float = 60.0, api_key: str | None = None,
+                 max_tokens: int = 384, queue_timeout: float = 2.0):
         self.url = base_url.rstrip("/") + "/chat/completions"
         self.model = model
         self.timeout = timeout
+        self.max_tokens = max_tokens
+        self.queue_timeout = queue_timeout
+        self.last_usage: dict[str, int] = {}
         self.headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
 
     @classmethod
     def from_settings(cls) -> "OpenAICompatibleClient":
         cfg = config.settings().get("agents", {}).get("llm", {})
         return cls(cfg.get("base_url", "http://localhost:11434/v1"), cfg.get("model", "qwen2.5:7b"),
-                   float(cfg.get("timeout", 120)))
+                   float(cfg.get("timeout", 60)), max_tokens=int(cfg.get("max_tokens", 384)),
+                   queue_timeout=float(cfg.get("queue_timeout", 2)))
 
     def stream_chat(self, messages: list[dict], tools: list[dict] | None = None) -> Iterator[LLMEvent]:
-        body: dict[str, Any] = {"model": self.model, "messages": messages, "stream": True, "temperature": 0.2}
+        if not _INFERENCE_SLOT.acquire(timeout=self.queue_timeout):
+            raise LLMBusy("El asistente está atendiendo otra consulta")
+        try:
+            yield from self._stream_chat(messages, tools)
+        finally:
+            _INFERENCE_SLOT.release()
+
+    def _stream_chat(self, messages: list[dict], tools: list[dict] | None) -> Iterator[LLMEvent]:
+        deadline = time.monotonic() + self.timeout
+        self.last_usage = {}
+        body: dict[str, Any] = {"model": self.model, "messages": messages, "stream": True, "temperature": 0.2,
+                                "max_tokens": self.max_tokens, "stream_options": {"include_usage": True}}
         if tools:
             body["tools"] = tools
         try:
@@ -79,12 +104,17 @@ class OpenAICompatibleClient:
         with resp:
             try:
                 for line in resp.iter_lines(decode_unicode=True):
+                    if time.monotonic() >= deadline:
+                        raise LLMUnavailable("Se agotó el tiempo total de respuesta del LLM")
                     if not line or not line.startswith("data:"):
                         continue
                     payload = line[5:].strip()
                     if payload == "[DONE]":
                         break
-                    choices = json.loads(payload).get("choices") or [{}]
+                    parsed = json.loads(payload)
+                    if parsed.get("usage"):
+                        self.last_usage = parsed["usage"]
+                    choices = parsed.get("choices") or [{}]
                     delta = choices[0].get("delta") or {}
                     if delta.get("content"):
                         yield TextDelta(delta["content"])
