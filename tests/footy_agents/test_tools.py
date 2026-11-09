@@ -28,7 +28,7 @@ def test_tool_get_upcoming_matches_mocked(monkeypatch):
     assert record.success is True
     assert len(record.result) == 1
     assert record.result[0]["home"] == "Colo-Colo"
-    assert record.result[0]["has_odds"] is True
+    assert record.result[0]["has_pinnacle_price"] is True
 
 
 def test_tool_get_value_bets_mocked(monkeypatch):
@@ -85,7 +85,7 @@ def test_tool_league_standings_mocked(monkeypatch):
     assert record.success is True
     assert len(record.result["top_standings"]) == 8
     assert record.result["top_standings"][0]["team"] == "Equipo 1"
-    assert "error" in tools.execute_tool("get_league_standings", {"league": "XXX"}).result
+    assert "Códigos cercanos" in tools.execute_tool("get_league_standings", {"league": "XXX"}).error_message
 
 
 def test_tool_failure_is_recorded(monkeypatch):
@@ -109,7 +109,7 @@ def test_tools_spec_matches_registry():
 
 @pytest.mark.parametrize("name,args", [
     ("get_upcoming_matches", {"limit": 21}), ("get_upcoming_matches", {"limit": "5"}),
-    ("get_value_bets", {"min_edge": 0.01}), ("get_value_bets", {"min_edge": float("nan")}),
+    ("get_value_bets", {"min_edge": float("nan")}),
     ("simulate_match", {"league": "PL", "home_team": "A"}),
     ("get_league_standings", {"league": 20}), ("get_system_performance", {"extra": True}),
 ])

@@ -36,6 +36,7 @@ async function agentStream(path, { body, signal, on }) {
 const agentText = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\n/g, "<br>");
 
 const TOOL_LABELS = {
+  get_stake_limits: "Límites de exposición",
   get_upcoming_matches: "Próximos partidos", get_value_bets: "Apuestas con valor", simulate_match: "Simulación",
   get_league_standings: "Tabla de posiciones", get_system_performance: "Rendimiento del sistema",
 };
@@ -119,6 +120,7 @@ async function sendChat(message) {
   chatBubble("user", agentText(message));
   const msg = chatBubble("bot");
   const tools = $(".msg-tools", msg), out = $(".msg-text", msg), log = chatEl(".chat-log");
+  out.textContent = "Consultando…";
   out.classList.add("typing");
   let text = "";
   const scroll = () => { log.scrollTop = log.scrollHeight; };
@@ -137,9 +139,13 @@ async function sendChat(message) {
         b.querySelector(".spin").outerHTML = d.success ? "✓ " : "✕ ";
       },
       token: (d) => { text += d.delta; out.innerHTML = agentText(text); scroll(); },
-      error: (d) => { out.insertAdjacentHTML("beforeend", `<p class="msg-err">${esc(d.error)}</p>`); },
+      error: (d) => {
+        if (!text) out.textContent = "";
+        out.insertAdjacentHTML("beforeend", `<p class="msg-err">${esc(d.error)}</p>`);
+      },
     } });
   } catch (e) {
+    if (!text) out.textContent = "";
     out.insertAdjacentHTML("beforeend", `<p class="msg-err">No se pudo contactar al asistente (${esc(e.message)}).</p>`);
   } finally {
     out.classList.remove("typing");

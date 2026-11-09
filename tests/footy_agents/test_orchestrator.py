@@ -40,7 +40,8 @@ def fake_tool(monkeypatch):
 
 def test_direct_answer_streams_tokens():
     out = events(FakeLLM([TextDelta("Hola, "), TextDelta("¿en qué te ayudo?")]))
-    assert [e.event for e in out] == ["token", "token", "done"]
+    assert [e.event for e in out] == ["token", "done"]
+    assert out[0].data["delta"] == "Hola, ¿en qué te ayudo?"
     assert out[-1].data == {"iterations": 1, "success": True}
 
 

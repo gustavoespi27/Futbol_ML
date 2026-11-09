@@ -5,6 +5,8 @@ Cada herramienta devuelve un payload condensado y seguro para el contexto del LL
 """
 
 import time
+from difflib import get_close_matches
+from math import floor
 from typing import Any
 
 from pydantic import ValidationError
@@ -18,6 +20,38 @@ from footy_agents.tool_args import OPENAI_TOOLS_SPEC, TOOL_MODELS  # noqa: F401 
 MAX_MATCHES = 20
 
 
+def resolve_league(league: str) -> str:
+    """Resuelve códigos y nombres del catálogo; los alias no agregan ligas inexistentes."""
+    catalog = service.league_catalog()
+    names = {normalize_name(str(row[key])): row["code"] for row in catalog for key in ("code", "name")}
+    aliases = {"chilean primera division": "CHL", "primera division chilena": "CHL", "liga chilena": "CHL",
+               "laliga": "SP1", "la liga espanola": "SP1", "english premier league": "E0"}
+    codes = {r["code"] for r in catalog}
+    names.update({alias: code for alias, code in aliases.items() if code in codes})
+    query = normalize_name(league)
+    if query in names:
+        return names[query]
+    close = list(dict.fromkeys(names[n] for n in get_close_matches(query, list(names), n=5, cutoff=.25)))[:3]
+    raise ValueError(f"Liga no reconocida: {league}. Códigos cercanos: {', '.join(close or sorted(codes)[:3])}")
+
+
+def upcoming_focus(message: str) -> dict[str, Any] | None:
+    """Precarga solo cuando la consulta nombra un equipo o liga del calendario disponible."""
+    query = normalize_name(message)
+    matches = service.upcoming()
+    teams = list(dict.fromkeys(m[k] for m in matches for k in ("home", "away")))
+    for name in teams:
+        normalized = normalize_name(name)
+        short = " ".join(w for w in normalized.split() if w not in {"fc", "cf", "afc", "sc", "club"})
+        if normalized and (f" {normalized} " in f" {query} " or (len(short) >= 4 and f" {short} " in f" {query} ")):
+            return {"team": name, "limit": MAX_MATCHES}
+    for league in service.league_catalog():
+        if (normalize_name(league["code"]) in query.split() or normalize_name(league["name"]) in query) \
+                and any(m["league"] == league["code"] for m in matches):
+            return {"league": league["code"], "limit": MAX_MATCHES}
+    return None
+
+
 def _pct(p: float | None) -> str | None:
     return None if p is None else f"{p * 100:.1f}%"
 
@@ -27,7 +61,8 @@ def tool_get_upcoming_matches(limit: int = 10, league: str | None = None,
     """Próximos partidos con liga, fecha, probabilidades 1X2 del sistema y si tienen cuotas."""
     matches = service.upcoming()
     if league:
-        matches = [m for m in matches if m.get("league") == league]
+        code = resolve_league(league)
+        matches = [m for m in matches if m.get("league") == code]
     if team:
         q = normalize_name(team)
         matches = [m for m in matches
@@ -46,8 +81,12 @@ def tool_get_upcoming_matches(limit: int = 10, league: str | None = None,
         "away": m.get("away"),
         "probabilities_1x2": probs(m),
         "probability_source": m.get("source"),
-        "has_odds": bool(m.get("pro")),
-        "recommendation": (m.get("recommendation") or {}).get("text"),
+        "has_pinnacle_price": bool(m.get("pro")),
+        "value_status": "sin_precio_pinnacle" if not m.get("pro") else
+                        "con_ventaja" if any(o.get("bet") for o in m["pro"]) else "sin_ventaja",
+        "recommendation": "Sin referencia Pinnacle; no evaluar ventaja" if not m.get("pro") else
+                          "Selección con ventaja frente a Pinnacle" if any(o.get("bet") for o in m["pro"])
+                          else "Ninguna selección cumple la regla de ventaja",
     } for m in matches[:max(1, min(limit, MAX_MATCHES))]]
 
 
@@ -67,12 +106,12 @@ def tool_get_value_bets(min_edge: float = pro.MIN_EDGE) -> list[dict[str, Any]]:
         "edge": round(s["edge"], 4),
         "stake": s.get("stake"),
         "reason": s.get("reason"),
-    } for s in singles if s["edge"] >= min_edge]
+    } for s in singles if s["edge"] >= max(min_edge, pro.MIN_EDGE)]
 
 
 def tool_simulate_match(league: str, home_team: str, away_team: str) -> dict[str, Any]:
     """Simula un partido entre dos equipos de una liga con el modelo del sistema (xG y probabilidades 1X2)."""
-    res = service.predict(league, home_team, away_team, None)
+    res = service.predict(resolve_league(league), home_team, away_team, None)
     p_home, p_draw, p_away = res["p_model"]
     return {
         "home": res["home"],
@@ -86,6 +125,7 @@ def tool_simulate_match(league: str, home_team: str, away_team: str) -> dict[str
 
 def tool_get_league_standings(league: str) -> dict[str, Any]:
     """Obtiene la tabla de posiciones y la racha reciente de una liga."""
+    league = resolve_league(league)
     st = service.standings(league)
     if not st:
         return {"error": f"No hay tabla disponible para la liga {league}"}
@@ -120,12 +160,24 @@ def tool_get_system_performance() -> dict[str, Any]:
 
 
 # Mapeo de herramientas para ejecución dinámica
+def tool_get_stake_limits(bankroll: float) -> dict[str, Any]:
+    """Topes enteros CLP redondeados hacia abajo: no equivale a recomendar ese monto."""
+    single, daily = floor(bankroll * pro.MAX_STAKE), floor(bankroll * pro.MAX_DAILY)
+    clp = lambda value: "$" + f"{value:,}".replace(",", ".")  # noqa: E731
+    return {"bankroll": bankroll, "bankroll_clp": clp(floor(bankroll)), "max_per_bet": single, "max_daily": daily,
+            "max_per_bet_clp": clp(single), "max_daily_clp": clp(daily),
+            "kelly_fraction": pro.KELLY_FRACTION, "max_stake_fraction": pro.MAX_STAKE,
+            "max_daily_fraction": pro.MAX_DAILY,
+            "note": "Son topes de exposición, no una apuesta sugerida. El monto depende del precio justo de Pinnacle."}
+
+
 TOOLS_REGISTRY: dict[str, Any] = {
     "get_upcoming_matches": tool_get_upcoming_matches,
     "get_value_bets": tool_get_value_bets,
     "simulate_match": tool_simulate_match,
     "get_league_standings": tool_get_league_standings,
     "get_system_performance": tool_get_system_performance,
+    "get_stake_limits": tool_get_stake_limits,
 }
 
 
