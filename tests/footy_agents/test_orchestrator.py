@@ -35,7 +35,7 @@ def events(client, message="¿Qué partidos hay hoy?"):
 @pytest.fixture
 def fake_tool(monkeypatch):
     monkeypatch.setitem(tools.TOOLS_REGISTRY, "get_upcoming_matches",
-                        lambda limit=10, league=None: [{"home": "Colo Colo", "away": "Everton"}])
+                        lambda limit=10, league=None, team=None: [{"home": "Colo Colo", "away": "Everton"}])
 
 
 def test_direct_answer_streams_tokens():
