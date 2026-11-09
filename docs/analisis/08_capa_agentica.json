@@ -1,0 +1,1065 @@
+[
+  {
+    "modelo": "qwen2.5:7b",
+    "casos": [
+      {
+        "pregunta": "¿Qué partidos hay en los próximos días?",
+        "esperada": "get_upcoming_matches",
+        "usadas": [
+          "get_upcoming_matches"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 10.157,
+        "tokens_s": 10.93,
+        "errores": [],
+        "respuesta": "En los próximos días, hay un partido entre Arsenal y Everton en la Premier League (E0). El partido comenzará el 1 de enero de 2099 a las 18:00 horas. Las probabilidades oficiales son: victoria de Arsenal del 60.0%, empate del 25.0% y victoria de Everton del 15.0%.",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_upcoming_matches",
+            "arguments": {
+              "limit": 5,
+              "league": null,
+              "team": null
+            },
+            "result": [
+              {
+                "home": "Arsenal",
+                "away": "Everton",
+                "league": "E0",
+                "kickoff": "2099-01-01T18:00:00Z",
+                "probabilities_1x2": {
+                  "home_win": "60.0%",
+                  "draw": "25.0%",
+                  "away_win": "15.0%"
+                }
+              }
+            ],
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "¿Cuándo juega Arsenal su próximo partido?",
+        "esperada": "get_upcoming_matches",
+        "usadas": [
+          "get_upcoming_matches"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": false,
+        "segundos": 7.038,
+        "tokens_s": 17.19,
+        "errores": [
+          "La respuesta contiene cifras sin respaldo: 2029"
+        ],
+        "respuesta": "CallChecka con la función `get_upcoming_matches` para obtener la información del próximo partido de Arsenal.\nArsenal jugará su próximo partido contra Everton el 1 de enero de 2029 a las 18:00 horas. La probabilidad oficial de la casa de apuestas para este partido es: Victoria de Arsenal del 60.0%, Empate del 25.0%, y Victoria de Everton del 15.0%.",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_upcoming_matches",
+            "arguments": {
+              "limit": 10,
+              "league": null,
+              "team": "Arsenal"
+            },
+            "result": [
+              {
+                "home": "Arsenal",
+                "away": "Everton",
+                "league": "E0",
+                "kickoff": "2099-01-01T18:00:00Z",
+                "probabilities_1x2": {
+                  "home_win": "60.0%",
+                  "draw": "25.0%",
+                  "away_win": "15.0%"
+                }
+              }
+            ],
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "Dame los próximos 2 partidos de la liga E0.",
+        "esperada": "get_upcoming_matches",
+        "usadas": [
+          "get_upcoming_matches"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 6.783,
+        "tokens_s": 16.22,
+        "errores": [],
+        "respuesta": "El próximo partido de la liga E0 es entre Arsenal y Everton, programado para el 2026-12-31 a las 18:00 horas. Las probabilidades oficiales son: victoria de Arsenal del 60.0%, empate del 25.0%, y victoria de Everton del 15.0%.",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_upcoming_matches",
+            "arguments": {
+              "limit": 2,
+              "league": "E0",
+              "team": null
+            },
+            "result": [
+              {
+                "home": "Arsenal",
+                "away": "Everton",
+                "league": "E0",
+                "kickoff": "2099-01-01T18:00:00Z",
+                "probabilities_1x2": {
+                  "home_win": "60.0%",
+                  "draw": "25.0%",
+                  "away_win": "15.0%"
+                }
+              }
+            ],
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "¿Qué apuestas con valor frente a Pinnacle hay?",
+        "esperada": "get_value_bets",
+        "usadas": [
+          "get_value_bets"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": false,
+        "cifras_verificadas": true,
+        "segundos": 5.378,
+        "tokens_s": 9.48,
+        "errores": [],
+        "respuesta": "Lo siento, actualmente no hay apuestas con valor frente al precio justo de Pinnacle según la herramienta.",
+        "datos_herramientas": []
+      },
+      {
+        "pregunta": "Busca oportunidades con ventaja mínima de 8%.",
+        "esperada": "get_value_bets",
+        "usadas": [
+          "get_value_bets"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 6.132,
+        "tokens_s": 13.7,
+        "errores": [],
+        "respuesta": "En el partido entre Arsenal y Everton, hay una oportunidad con un margen de 9%. La cuota es 2.18, mientras que la cuota justa sería 2.0. Se recomienda apostar un 2% de tu bankroll.",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_value_bets",
+            "arguments": {
+              "min_edge": 0.08
+            },
+            "result": [
+              {
+                "match": "Arsenal vs Everton",
+                "edge": 0.09,
+                "odds": 2.18,
+                "fair_odds": 2.0,
+                "stake": 0.02
+              }
+            ],
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "¿Hay alguna apuesta con ventaja superior a 10%?",
+        "esperada": "get_value_bets",
+        "usadas": [
+          "get_value_bets"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": false,
+        "segundos": 5.466,
+        "tokens_s": 9.51,
+        "errores": [
+          "La respuesta contiene cifras sin respaldo: 10%"
+        ],
+        "respuesta": "Actualmente no hay apuestas con un ventaja superior a 10%. Mantente atento a las actualizaciones.",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_value_bets",
+            "arguments": {
+              "min_edge": 0.1
+            },
+            "result": [],
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "Simula Arsenal contra Everton en E0.",
+        "esperada": "simulate_match",
+        "usadas": [
+          "simulate_match"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 7.151,
+        "tokens_s": 16.36,
+        "errores": [],
+        "respuesta": "La simulación del partido entre Arsenal y Everton en la E0 da los siguientes resultados:\n\n- Goles esperados: Arsenal 1.8, Everton 0.9\n- Probabilidades 1X2: Ganador de Arsenal 60%, Empate 25%, Ganador de Everton 15%\n\nEstas probabilidades pueden variar en el mercado real.",
+        "datos_herramientas": [
+          {
+            "tool_name": "simulate_match",
+            "arguments": {
+              "league": "E0",
+              "home_team": "Arsenal",
+              "away_team": "Everton"
+            },
+            "result": {
+              "home": "Arsenal",
+              "away": "Everton",
+              "league": "E0",
+              "expected_goals": {
+                "home": 1.8,
+                "away": 0.9
+              },
+              "probabilities_1x2": {
+                "home_win": 0.6,
+                "draw": 0.25,
+                "away_win": 0.15
+              }
+            },
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "¿Cuántos goles esperados tiene Arsenal contra Everton en E0?",
+        "esperada": "simulate_match",
+        "usadas": [
+          "simulate_match"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 5.922,
+        "tokens_s": 12.49,
+        "errores": [],
+        "respuesta": "En el partido entre Arsenal y Everton de la Premier League (E0), los goles esperados son de 1.8 para Arsenal y 0.9 para Everton.",
+        "datos_herramientas": [
+          {
+            "tool_name": "simulate_match",
+            "arguments": {
+              "league": "E0",
+              "home_team": "Arsenal",
+              "away_team": "Everton"
+            },
+            "result": {
+              "home": "Arsenal",
+              "away": "Everton",
+              "league": "E0",
+              "expected_goals": {
+                "home": 1.8,
+                "away": 0.9
+              },
+              "probabilities_1x2": {
+                "home_win": 0.6,
+                "draw": 0.25,
+                "away_win": 0.15
+              }
+            },
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "Simula Everton como local frente a Arsenal en la liga E0.",
+        "esperada": "simulate_match",
+        "usadas": [
+          "simulate_match"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 6.623,
+        "tokens_s": 16.16,
+        "errores": [],
+        "respuesta": "La simulación del partido entre Everton como local y Arsenal en la liga E0 da los siguientes resultados:\n\n- Goles esperados: Everton (1.8), Arsenal (0.9)\n- Probabilidades 1X2: Gana Everton (60%), Empate (25%), Gana Arsenal (15%)",
+        "datos_herramientas": [
+          {
+            "tool_name": "simulate_match",
+            "arguments": {
+              "league": "E0",
+              "home_team": "Everton",
+              "away_team": "Arsenal"
+            },
+            "result": {
+              "home": "Everton",
+              "away": "Arsenal",
+              "league": "E0",
+              "expected_goals": {
+                "home": 1.8,
+                "away": 0.9
+              },
+              "probabilities_1x2": {
+                "home_win": 0.6,
+                "draw": 0.25,
+                "away_win": 0.15
+              }
+            },
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "¿Cómo va la tabla de la liga E0?",
+        "esperada": "get_league_standings",
+        "usadas": [
+          "get_league_standings"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 5.875,
+        "tokens_s": 11.92,
+        "errores": [],
+        "respuesta": "La tabla actual de la Premier League (E0) muestra que Arsenal está en la primera posición con 30 puntos después de 12 partidos, consiguiendo victorias en sus dos últimos partidos.",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_league_standings",
+            "arguments": {
+              "league": "E0"
+            },
+            "result": {
+              "league": "E0",
+              "top_standings": [
+                {
+                  "position": 1,
+                  "team": "Arsenal",
+                  "points": 30,
+                  "played": 12,
+                  "recent": [
+                    "W",
+                    "W",
+                    "D"
+                  ]
+                }
+              ]
+            },
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "¿Quién lidera la liga E0?",
+        "esperada": "get_league_standings",
+        "usadas": [
+          "get_league_standings"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 5.239,
+        "tokens_s": 8.21,
+        "errores": [],
+        "respuesta": "El equipo que lidera la liga E0 es Arsenal con 30 puntos.",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_league_standings",
+            "arguments": {
+              "league": "E0"
+            },
+            "result": {
+              "league": "E0",
+              "top_standings": [
+                {
+                  "position": 1,
+                  "team": "Arsenal",
+                  "points": 30,
+                  "played": 12,
+                  "recent": [
+                    "W",
+                    "W",
+                    "D"
+                  ]
+                }
+              ]
+            },
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "Muéstrame los puntos y la racha de Arsenal en la tabla E0.",
+        "esperada": "get_league_standings",
+        "usadas": [
+          "get_league_standings"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": false,
+        "cifras_verificadas": true,
+        "segundos": 6.176,
+        "tokens_s": 13.6,
+        "errores": [],
+        "respuesta": "Lo siento, parece que hubo un error en la solicitud. Podrías indicarme solo la liga sin mencionar el equipo, por favor? Estoy listo para mostrar la tabla de posiciones para la Premier League (E0).",
+        "datos_herramientas": []
+      },
+      {
+        "pregunta": "¿Cómo está rindiendo el sistema?",
+        "esperada": "get_system_performance",
+        "usadas": [
+          "get_system_performance"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 6.497,
+        "tokens_s": 14.78,
+        "errores": [],
+        "respuesta": "El sistema actual (versión v3) ha evaluado 400 apuestas, con un rendimiento de rendimiento bruto del 96.63%. Sin embargo, el yield es de -7.4% y el CLV (Capital Lifetime Value) es de -3.0%, lo que indica que no está rindiendo como se esperaba.",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_system_performance",
+            "arguments": {},
+            "result": {
+              "model_version": "v3",
+              "tracking": {
+                "evaluated": 400,
+                "bets_yield": "-7.4%",
+                "bets_clv": "-3.0%",
+                "ll_official": 0.9663
+              }
+            },
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "¿Cuál es el CLV del sistema?",
+        "esperada": "get_system_performance",
+        "usadas": [
+          "get_system_performance"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 5.001,
+        "tokens_s": 7.2,
+        "errores": [],
+        "respuesta": "El CLV (Capital Liquidación Esperada) del sistema es -3.0%.",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_system_performance",
+            "arguments": {},
+            "result": {
+              "model_version": "v3",
+              "tracking": {
+                "evaluated": 400,
+                "bets_yield": "-7.4%",
+                "bets_clv": "-3.0%",
+                "ll_official": 0.9663
+              }
+            },
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "¿Cuántos partidos evaluados y qué yield tiene el seguimiento?",
+        "esperada": "get_system_performance",
+        "usadas": [
+          "get_system_performance"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 5.926,
+        "tokens_s": 12.32,
+        "errores": [],
+        "respuesta": "El sistema ha evaluado 400 partidos y el yield de las apuestas es de -7.4%. El CLV (Capital Liquidación de Valor) es de -3.0%. La ll_official es 0.9663.",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_system_performance",
+            "arguments": {},
+            "result": {
+              "model_version": "v3",
+              "tracking": {
+                "evaluated": 400,
+                "bets_yield": "-7.4%",
+                "bets_clv": "-3.0%",
+                "ll_official": 0.9663
+              }
+            },
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      }
+    ],
+    "memoria_modelo_mb": 4535.099998474121,
+    "vram_modelo_mb": 4535.099998474121
+  },
+  {
+    "modelo": "qwen2.5:3b",
+    "casos": [
+      {
+        "pregunta": "¿Qué partidos hay en los próximos días?",
+        "esperada": "get_upcoming_matches",
+        "usadas": [
+          "get_upcoming_matches"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 8.356,
+        "tokens_s": 17.71,
+        "errores": [],
+        "respuesta": "Los próximos partidos incluyen a Arsenal contra Everton en la liga E0. Aquí tienes los detalles:\n\n- Arsenal vs Everton: 18:00 del 2099-01-01 (Fecha y hora en UTC, posiblemente no coinciden con tu zona horaria). \n\nLas probabilidades 1X2 son:\n- Arsenal ganar: 60.0%\n- Empate: 25.0%\n- Everton ganar: 15.0%\n\nPor favor, verifica la fecha y hora ya que son futuras.",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_upcoming_matches",
+            "arguments": {
+              "limit": 10,
+              "league": null,
+              "team": null
+            },
+            "result": [
+              {
+                "home": "Arsenal",
+                "away": "Everton",
+                "league": "E0",
+                "kickoff": "2099-01-01T18:00:00Z",
+                "probabilities_1x2": {
+                  "home_win": "60.0%",
+                  "draw": "25.0%",
+                  "away_win": "15.0%"
+                }
+              }
+            ],
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "¿Cuándo juega Arsenal su próximo partido?",
+        "esperada": "get_upcoming_matches",
+        "usadas": [
+          "get_upcoming_matches"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 5.114,
+        "tokens_s": 14.47,
+        "errores": [],
+        "respuesta": "El próximo partido de Arsenal será el 2099-01-01 a las 18:00 horas contra Everton en la liga E0. La probabilidad de que gane Arsenal es del 60%.",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_upcoming_matches",
+            "arguments": {
+              "limit": 10,
+              "league": null,
+              "team": "Arsenal"
+            },
+            "result": [
+              {
+                "home": "Arsenal",
+                "away": "Everton",
+                "league": "E0",
+                "kickoff": "2099-01-01T18:00:00Z",
+                "probabilities_1x2": {
+                  "home_win": "60.0%",
+                  "draw": "25.0%",
+                  "away_win": "15.0%"
+                }
+              }
+            ],
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "Dame los próximos 2 partidos de la liga E0.",
+        "esperada": "get_upcoming_matches",
+        "usadas": [
+          "get_upcoming_matches"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 5.248,
+        "tokens_s": 14.29,
+        "errores": [],
+        "respuesta": "El próximo partido de la liga E0 es entre Arsenal y Everton. La probabilidad de victoria de Arsenal es del 60%, de empate del 25% y de Everton del 15%.",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_upcoming_matches",
+            "arguments": {
+              "limit": 2,
+              "league": "E0",
+              "team": null
+            },
+            "result": [
+              {
+                "home": "Arsenal",
+                "away": "Everton",
+                "league": "E0",
+                "kickoff": "2099-01-01T18:00:00Z",
+                "probabilities_1x2": {
+                  "home_win": "60.0%",
+                  "draw": "25.0%",
+                  "away_win": "15.0%"
+                }
+              }
+            ],
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "¿Qué apuestas con valor frente a Pinnacle hay?",
+        "esperada": "get_value_bets",
+        "usadas": [
+          "get_value_bets"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": false,
+        "cifras_verificadas": false,
+        "segundos": 5.296,
+        "tokens_s": 14.35,
+        "errores": [
+          "La respuesta contiene cifras sin respaldo: 0.06%"
+        ],
+        "respuesta": "Lo siento, parece que no hay apuestas con un margen de ventaja mayor al 0.06% frente a Pinnacle. Puedes ajustar el margen de ventaja o verificar si hay partidos disponibles.",
+        "datos_herramientas": []
+      },
+      {
+        "pregunta": "Busca oportunidades con ventaja mínima de 8%.",
+        "esperada": "get_value_bets",
+        "usadas": [
+          "get_value_bets"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": false,
+        "segundos": 5.059,
+        "tokens_s": 12.85,
+        "errores": [
+          "La respuesta contiene cifras sin respaldo: 8%"
+        ],
+        "respuesta": "Hay una oportunidad con una ventaja mínima del 8% para la apuesta en el partido entre Arsenal y Everton. El stake recomendado es de $0.02.",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_value_bets",
+            "arguments": {
+              "min_edge": 0.08
+            },
+            "result": [
+              {
+                "match": "Arsenal vs Everton",
+                "edge": 0.09,
+                "odds": 2.18,
+                "fair_odds": 2.0,
+                "stake": 0.02
+              }
+            ],
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "¿Hay alguna apuesta con ventaja superior a 10%?",
+        "esperada": "get_value_bets",
+        "usadas": [
+          "get_value_bets"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": false,
+        "cifras_verificadas": false,
+        "segundos": 4.796,
+        "tokens_s": 8.97,
+        "errores": [
+          "La respuesta contiene cifras sin respaldo: 10%"
+        ],
+        "respuesta": "No hay apuestas con una ventaja superior al 10% en el momento.",
+        "datos_herramientas": []
+      },
+      {
+        "pregunta": "Simula Arsenal contra Everton en E0.",
+        "esperada": "simulate_match",
+        "usadas": [
+          "simulate_match"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 5.545,
+        "tokens_s": 19.66,
+        "errores": [],
+        "respuesta": "El simulador de partidos predice que Arsenal (local) podría ganar con una probabilidad del 60%, empatar con una del 25% y Everton (visitante) ganar con una del 15%. Los goles esperados son de 1.8 para Arsenal y 0.9 para Everton.",
+        "datos_herramientas": [
+          {
+            "tool_name": "simulate_match",
+            "arguments": {
+              "league": "E0",
+              "home_team": "Arsenal",
+              "away_team": "Everton"
+            },
+            "result": {
+              "home": "Arsenal",
+              "away": "Everton",
+              "league": "E0",
+              "expected_goals": {
+                "home": 1.8,
+                "away": 0.9
+              },
+              "probabilities_1x2": {
+                "home_win": 0.6,
+                "draw": 0.25,
+                "away_win": 0.15
+              }
+            },
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "¿Cuántos goles esperados tiene Arsenal contra Everton en E0?",
+        "esperada": "simulate_match",
+        "usadas": [
+          "simulate_match"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 5.523,
+        "tokens_s": 21.0,
+        "errores": [],
+        "respuesta": "Espera que en el partido entre Arsenal y Everton en la E0, se espera un marcador con un promedio de 1.8 goles para Arsenal y 0.9 goles para Everton. Las probabilidades de victoria para Arsenal son del 60%, para un empate del 25% y para que Everton gane del 15%.",
+        "datos_herramientas": [
+          {
+            "tool_name": "simulate_match",
+            "arguments": {
+              "league": "E0",
+              "home_team": "Arsenal",
+              "away_team": "Everton"
+            },
+            "result": {
+              "home": "Arsenal",
+              "away": "Everton",
+              "league": "E0",
+              "expected_goals": {
+                "home": 1.8,
+                "away": 0.9
+              },
+              "probabilities_1x2": {
+                "home_win": 0.6,
+                "draw": 0.25,
+                "away_win": 0.15
+              }
+            },
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "Simula Everton como local frente a Arsenal en la liga E0.",
+        "esperada": "simulate_match",
+        "usadas": [
+          "simulate_match"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": false,
+        "segundos": 5.459,
+        "tokens_s": 19.24,
+        "errores": [
+          "La respuesta contiene cifras sin respaldo: 1, 0"
+        ],
+        "respuesta": "El simulador de partidos predice que Everton como local frente a Arsenal en la liga E0 podría tener un marcador de 1 a 0 a favor de Everton. Las probabilidades de 1X2 son: Everton ganar 60%, Empate 25%, Arsenal ganar 15%.",
+        "datos_herramientas": [
+          {
+            "tool_name": "simulate_match",
+            "arguments": {
+              "league": "E0",
+              "home_team": "Everton",
+              "away_team": "Arsenal"
+            },
+            "result": {
+              "home": "Everton",
+              "away": "Arsenal",
+              "league": "E0",
+              "expected_goals": {
+                "home": 1.8,
+                "away": 0.9
+              },
+              "probabilities_1x2": {
+                "home_win": 0.6,
+                "draw": 0.25,
+                "away_win": 0.15
+              }
+            },
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "¿Cómo va la tabla de la liga E0?",
+        "esperada": "get_league_standings",
+        "usadas": [
+          "get_league_standings"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 4.929,
+        "tokens_s": 12.58,
+        "errores": [],
+        "respuesta": "La tabla de la liga E0 se encuentra así:\n\n1. Arsenal (30 puntos, 12 partidos jugados, reciente: W, W, D)",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_league_standings",
+            "arguments": {
+              "league": "E0"
+            },
+            "result": {
+              "league": "E0",
+              "top_standings": [
+                {
+                  "position": 1,
+                  "team": "Arsenal",
+                  "points": 30,
+                  "played": 12,
+                  "recent": [
+                    "W",
+                    "W",
+                    "D"
+                  ]
+                }
+              ]
+            },
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "¿Quién lidera la liga E0?",
+        "esperada": "get_league_standings",
+        "usadas": [
+          "get_league_standings"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 4.954,
+        "tokens_s": 11.71,
+        "errores": [],
+        "respuesta": "El Arsenal lidera la liga E0 con 30 puntos. Su reciente racha de resultados es: victoria, victoria y empate.",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_league_standings",
+            "arguments": {
+              "league": "E0"
+            },
+            "result": {
+              "league": "E0",
+              "top_standings": [
+                {
+                  "position": 1,
+                  "team": "Arsenal",
+                  "points": 30,
+                  "played": 12,
+                  "recent": [
+                    "W",
+                    "W",
+                    "D"
+                  ]
+                }
+              ]
+            },
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "Muéstrame los puntos y la racha de Arsenal en la tabla E0.",
+        "esperada": "get_league_standings",
+        "usadas": [
+          "get_league_standings"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 4.98,
+        "tokens_s": 12.05,
+        "errores": [],
+        "respuesta": "Arsenal está en la posición 1 de la tabla E0 con 30 puntos. Su racha reciente es ganar, ganar y empatar.",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_league_standings",
+            "arguments": {
+              "league": "E0"
+            },
+            "result": {
+              "league": "E0",
+              "top_standings": [
+                {
+                  "position": 1,
+                  "team": "Arsenal",
+                  "points": 30,
+                  "played": 12,
+                  "recent": [
+                    "W",
+                    "W",
+                    "D"
+                  ]
+                }
+              ]
+            },
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "¿Cómo está rindiendo el sistema?",
+        "esperada": "get_system_performance",
+        "usadas": [
+          "get_system_performance"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 5.165,
+        "tokens_s": 14.33,
+        "errores": [],
+        "respuesta": "El sistema ha evaluado 400 partidos y ha tenido un rendimiento de CLV (-3.0%) y un rendimiento de apuestas (yield) de -7.4%. La probabilidad oficial es de 0.9663.",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_system_performance",
+            "arguments": {},
+            "result": {
+              "model_version": "v3",
+              "tracking": {
+                "evaluated": 400,
+                "bets_yield": "-7.4%",
+                "bets_clv": "-3.0%",
+                "ll_official": 0.9663
+              }
+            },
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "¿Cuál es el CLV del sistema?",
+        "esperada": "get_system_performance",
+        "usadas": [
+          "get_system_performance"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 4.73,
+        "tokens_s": 7.82,
+        "errores": [],
+        "respuesta": "El CLV (Cumulative Log-Loss) del sistema es de -3.0%.",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_system_performance",
+            "arguments": {},
+            "result": {
+              "model_version": "v3",
+              "tracking": {
+                "evaluated": 400,
+                "bets_yield": "-7.4%",
+                "bets_clv": "-3.0%",
+                "ll_official": 0.9663
+              }
+            },
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      },
+      {
+        "pregunta": "¿Cuántos partidos evaluados y qué yield tiene el seguimiento?",
+        "esperada": "get_system_performance",
+        "usadas": [
+          "get_system_performance"
+        ],
+        "herramienta_correcta": true,
+        "argumentos_validos": true,
+        "cifras_verificadas": true,
+        "segundos": 4.8,
+        "tokens_s": 9.37,
+        "errores": [],
+        "respuesta": "El seguimiento ha evaluado 400 partidos y el rendimiento actual es de un yield del -7.4%.",
+        "datos_herramientas": [
+          {
+            "tool_name": "get_system_performance",
+            "arguments": {},
+            "result": {
+              "model_version": "v3",
+              "tracking": {
+                "evaluated": 400,
+                "bets_yield": "-7.4%",
+                "bets_clv": "-3.0%",
+                "ll_official": 0.9663
+              }
+            },
+            "success": true,
+            "execution_time_ms": 0.0,
+            "error_message": null
+          }
+        ]
+      }
+    ],
+    "memoria_modelo_mb": 2063.3399991989136,
+    "vram_modelo_mb": 2063.3399991989136
+  }
+]

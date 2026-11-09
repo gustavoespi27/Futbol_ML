@@ -25,10 +25,7 @@ _locks_guard = threading.Lock()
 def _prewarm():
     """Calcula en segundo plano lo más pesado (evaluación 2026, combinadas, próximos partidos)
     para que la primera visita sea rápida."""
-    for key, ttl, fn in (("upcoming", 300, service.upcoming), ("suggestions", 300, service.suggestions_data),
-                         ("reliable", 300, service.reliable_data), ("league_catalog", 300, service.league_catalog),
-                         ("backtest", 3600, service.backtest), ("combo_history", 3600, service.combo_history),
-                         ("ml", 3600, service.ml_report)):
+    for key, ttl, fn in (("upcoming", 300, service.upcoming),):
         try:
             cached(key, ttl, fn)
         except Exception:  # noqa: BLE001 - si falla, se recalcula al pedirlo y ahí se ve el error

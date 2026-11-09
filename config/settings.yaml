@@ -498,4 +498,8 @@ agents:
   llm:
     base_url: http://localhost:11434/v1
     model: qwen2.5:7b                    # para mayor capacidad si hay GPU potente: qwen2.5:14b-instruct-q4_K_M
-    timeout: 120                         # segundos por respuesta
+    timeout: 60                          # tiempo máximo por inferencia (con lectura de red acotada)
+    max_tokens: 384                      # presupuesto de salida por inferencia
+    queue_timeout: 2                     # espera máxima si otra consulta ocupa el LLM
+  briefing:
+    use_llm: false                       # plantilla por defecto; redacción con IA opcional

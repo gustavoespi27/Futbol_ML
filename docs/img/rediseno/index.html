@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Futbol ML · Wireframes para revisión</title>
+  <style>
+    :root { color-scheme: light; --bg:#f4f4f3; --surface:#fff; --text:#202522; --muted:#555e58; --line:#b8bab9; }
+    :root[data-theme="oscuro"] { color-scheme:dark; --bg:#111613; --surface:#1d2520; --text:#f0f3ef; --muted:#b5bfb6; --line:#6b766e; }
+    * { box-sizing:border-box; }
+    body { margin:0; padding:24px; font:16px/1.6 system-ui,sans-serif; background:var(--bg); color:var(--text); }
+    main { max-width:1560px; margin:auto; }
+    h1 { margin:8px 0; font-size:clamp(25px,4vw,38px); line-height:1.2; }
+    h2 { margin:0 0 12px; font-size:24px; }
+    p { max-width:80ch; margin:8px 0; }
+    a { color:inherit; text-underline-offset:4px; }
+    nav, .tools { display:flex; flex-wrap:wrap; gap:8px 20px; margin:20px 0; align-items:center; }
+    nav a, select { min-height:44px; padding:8px 12px; border:1px solid var(--line); border-radius:8px; }
+    select { background:var(--surface); color:var(--text); font:inherit; }
+    :focus-visible { outline:3px solid var(--text); outline-offset:4px; }
+    .note { border-left:4px solid var(--text); padding:12px 20px; background:var(--surface); }
+    section { margin-top:48px; scroll-margin-top:20px; }
+    .pair { display:grid; grid-template-columns:minmax(0,390px) minmax(0,1fr); gap:24px; align-items:start; }
+    figure { margin:0; min-width:0; background:var(--surface); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+    figcaption { padding:12px 16px; font-weight:600; }
+    figure a { display:block; }
+    img { display:block; width:100%; height:auto; }
+    .description { color:var(--muted); margin-bottom:18px; }
+    table { border-collapse:collapse; width:100%; font-size:15px; }
+    th, td { padding:12px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; overflow-wrap:anywhere; }
+    .states { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+    article { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:18px; }
+    article h3 { margin:0 0 6px; font-size:18px; }
+    article a { display:inline-block; padding:10px 0; min-height:44px; }
+    footer { margin:40px 0 16px; color:var(--muted); }
+    @media(max-width:800px) { body{padding:16px} .pair{grid-template-columns:minmax(0,1fr)} .pair figure:first-child{width:100%;max-width:390px;margin:auto} .states{grid-template-columns:minmax(0,1fr)} }
+    @media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto} }
+  </style>
+</head>
+<body>
+<main>
+  <p>Futbol ML · Paso 1 · 9 de noviembre de 2026</p>
+  <h1>Primero la estructura, después el diseño.</h1>
+  <p>Wireframes de Hoy, Partidos, ficha y Más. Compara la jerarquía móvil y de escritorio antes de aprobar la implementación.</p>
+  <p class="note">Los corchetes indican contenido que vendrá del backend. No son cifras, partidos ni estados reales. Estas láminas muestran estructura; la tipografía, paleta y componentes definitivos se trabajan en pasos posteriores.</p>
+  <div class="tools">
+    <label for="theme">Variante de revisión</label>
+    <select id="theme"><option value="claro">Clara</option><option value="oscuro">Oscura</option></select>
+    <a href="README.md">Decisiones, rutas y alcance del paso</a>
+  </div>
+  <nav aria-label="Láminas"><a href="#hoy">Hoy</a><a href="#partidos">Partidos</a><a href="#ficha">Ficha</a><a href="#mas">Más</a><a href="#estados">Estados y recorridos</a></nav>
+  <section id="hoy">
+    <h2>Hoy · Qué hay para mí</h2>
+    <p class="description">Estado de datos arriba; favoritos antes de indicadores; solo dos cifras con periodo y contexto. Resumen y partidos después. El histórico y la bitácora salen de esta vista.</p>
+    <div class="pair">
+      <figure><figcaption>Móvil · 390 px</figcaption><a data-frame="hoy-390" href="hoy-390-claro.svg"><img src="hoy-390-claro.svg" width="390" height="900" alt="Hoy en móvil: estado, favoritos, dos indicadores, resumen y partidos."></a></figure>
+      <figure><figcaption>Escritorio · 1440 px</figcaption><a data-frame="hoy-1440" href="hoy-1440-claro.svg"><img src="hoy-1440-claro.svg" width="1440" height="900" alt="Hoy en escritorio con navegación lateral y el mismo orden de información."></a></figure>
+    </div>
+  </section>
+  <section id="partidos">
+    <h2>Partidos · Buscar y elegir</h2>
+    <p class="description">Fecha y búsqueda a mano. Las tarjetas sustituyen tablas comprimidas en móvil; Filtros abre una hoja. La ficha es una vista, sin un segundo scroll vertical.</p>
+    <div class="pair">
+      <figure><figcaption>Móvil · 390 px</figcaption><a data-frame="partidos-390" href="partidos-390-claro.svg"><img src="partidos-390-claro.svg" width="390" height="900" alt="Lista móvil de partidos con búsqueda, fechas y acceso a filtros."></a></figure>
+      <figure><figcaption>Escritorio · 1440 px</figcaption><a data-frame="partidos-1440" href="partidos-1440-claro.svg"><img src="partidos-1440-claro.svg" width="1440" height="900" alt="Lista de partidos en escritorio con filtros visibles."></a></figure>
+    </div>
+  </section>
+  <section id="ficha">
+    <h2>Ficha · Probabilidad y precio, separados</h2>
+    <p class="description">Equipos, fecha y estado primero. Probabilidad con fuente y vigencia; evaluación del precio en un bloque distinto. Forma, tabla, cuotas y modelo se expanden cuando se necesitan.</p>
+    <div class="pair">
+      <figure><figcaption>Móvil · 390 px</figcaption><a data-frame="ficha-390" href="ficha-390-claro.svg"><img src="ficha-390-claro.svg" width="390" height="900" alt="Ficha móvil con probabilidades y ventaja de precio en bloques separados."></a></figure>
+      <figure><figcaption>Escritorio · 1440 px</figcaption><a data-frame="ficha-1440" href="ficha-1440-claro.svg"><img src="ficha-1440-claro.svg" width="1440" height="900" alt="Ficha en escritorio con comparación en columnas y regreso a Partidos."></a></figure>
+    </div>
+  </section>
+  <section id="mas">
+    <h2>Más · Ninguna sección desaparece en móvil</h2>
+    <p class="description">Fiabilidad, metodología, preferencias, tema y asistente quedan al mismo alcance. Explorar agrupa Simulador y Combinadas; Seguimiento reúne resultados y bitácora.</p>
+    <div class="pair">
+      <figure><figcaption>Móvil · 390 px</figcaption><a data-frame="mas-390" href="mas-390-claro.svg"><img src="mas-390-claro.svg" width="390" height="900" alt="Menú Más móvil con acceso a Fiabilidad, Cómo funciona, preferencias, tema y asistente."></a></figure>
+      <figure><figcaption>Escritorio · 1440 px</figcaption><a data-frame="mas-1440" href="mas-1440-claro.svg"><img src="mas-1440-claro.svg" width="1440" height="900" alt="Menú Más en escritorio con los mismos destinos."></a></figure>
+    </div>
+  </section>
+  <section id="estados">
+    <h2>Estados que reemplazan el contenido, sin apilar avisos</h2>
+    <p class="description">Composición de referencia para el mensaje único. Su activación dependerá de datos reales; aquí no se afirma que el sistema esté en alguno de estos estados.</p>
+    <div class="states">
+      <article><h3>Sin datos recientes</h3><p>No hay datos recientes desde [fecha local]. Las recomendaciones están en pausa.</p><a href="#partidos">Acción prevista: Ver últimos resultados</a></article>
+      <article><h3>Sin partidos</h3><p>No hay partidos de tus ligas en las próximas horas.</p><a href="#partidos">Acción prevista: Ver todos los partidos</a></article>
+      <article><h3>Sin oportunidades</h3><p>Analizamos [total] partidos: ninguno tiene ventaja frente al precio justo de Pinnacle.</p><a href="#hoy">Acción prevista: Ver el semáforo</a></article>
+      <article><h3>Error de carga</h3><p>No se pudo cargar esta información. Los datos no se interpretan como una lista vacía.</p><a href="#estados">Acción prevista: Reintentar</a></article>
+    </div>
+    <p>Los enlaces anteriores señalan el recorrido del wireframe; no ejecutan acciones en la aplicación. El estado sin datos reemplaza resumen y oportunidades, pero permite consultar resultados históricos.</p>
+  </section>
+  <footer>Solo documentación del paso 1. No cambia la aplicación, A2, la API, el SSE ni los modelos. Revisión de Gustavo pendiente.</footer>
+</main>
+<script>
+  const theme = document.querySelector("#theme");
+  theme.addEventListener("change", () => {
+    document.documentElement.dataset.theme = theme.value;
+    for (const link of document.querySelectorAll("[data-frame]")) {
+      const file = `${link.dataset.frame}-${theme.value}.svg`;
+      link.href = file;
+      link.querySelector("img").src = file;
+    }
+  });
+</script>
+</body>
+</html>

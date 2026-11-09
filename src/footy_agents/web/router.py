@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
 from footy.db.connection import connect
-from footy_agents.briefing import run_briefing
+from footy_agents.briefing_cache import cached_briefing
 from footy_agents.llm import LLMClient, OpenAICompatibleClient
 from footy_agents.orchestrator import run_chat
 from footy_agents.preferences import repo, service
@@ -63,7 +63,7 @@ def briefing(user_id: str = Query("default", description="Identificador del usua
     with closing(connect()) as conn:
         prefs = repo.get_preferences(conn, user_id=user_id)
         feed = service.get_personalized_feed(conn, user_id=user_id)
-    return _sse(run_briefing(client, prefs, feed))
+    return _sse(cached_briefing(client, prefs, feed))
 
 
 def _sse(events: Iterator[ChatEvent]) -> StreamingResponse:

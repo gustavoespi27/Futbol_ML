@@ -1,6 +1,9 @@
 """Pruebas unitarias para las herramientas (tools) del agente."""
 
+import pytest
+
 from footy_agents import tools
+from footy_agents.tool_args import TOOL_MODELS
 
 
 def test_execute_unknown_tool():
@@ -99,6 +102,23 @@ def test_tool_failure_is_recorded(monkeypatch):
 def test_tools_spec_matches_registry():
     """Cada herramienta anunciada al LLM existe en el registro y viceversa."""
     assert {t["function"]["name"] for t in tools.OPENAI_TOOLS_SPEC} == set(tools.TOOLS_REGISTRY)
+    for spec in tools.OPENAI_TOOLS_SPEC:
+        function = spec["function"]
+        assert function["parameters"] == TOOL_MODELS[function["name"]].model_json_schema()
+
+
+@pytest.mark.parametrize("name,args", [
+    ("get_upcoming_matches", {"limit": 21}), ("get_upcoming_matches", {"limit": "5"}),
+    ("get_value_bets", {"min_edge": 0.01}), ("get_value_bets", {"min_edge": float("nan")}),
+    ("simulate_match", {"league": "PL", "home_team": "A"}),
+    ("get_league_standings", {"league": 20}), ("get_system_performance", {"extra": True}),
+])
+def test_invalid_arguments_never_execute(name, args, monkeypatch):
+    def forbidden(**kwargs):
+        pytest.fail("No debe ejecutar argumentos inválidos")
+    monkeypatch.setitem(tools.TOOLS_REGISTRY, name, forbidden)
+    result = tools.execute_tool(name, args)
+    assert not result.success and "Argumentos inválidos" in result.error_message
 
 
 def test_upcoming_by_team_with_probabilities(monkeypatch):

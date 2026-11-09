@@ -7,10 +7,13 @@ Cada herramienta devuelve un payload condensado y seguro para el contexto del LL
 import time
 from typing import Any
 
+from pydantic import ValidationError
+
 from footy.betting import pro
 from footy.web import service
 from footy_agents.names import normalize_name
 from footy_agents.schemas import ToolCallRecord
+from footy_agents.tool_args import OPENAI_TOOLS_SPEC, TOOL_MODELS  # noqa: F401 - fachada p?blica
 
 MAX_MATCHES = 20
 
@@ -125,83 +128,6 @@ TOOLS_REGISTRY: dict[str, Any] = {
     "get_system_performance": tool_get_system_performance,
 }
 
-# Esquema para compatibilidad con OpenAI / Ollama tool-calling
-OPENAI_TOOLS_SPEC = [
-    {
-        "type": "function",
-        "function": {
-            "name": "get_upcoming_matches",
-            "description": "Próximos partidos con horario y probabilidades 1X2 del sistema. Úsala para preguntas "
-                           "sobre el próximo partido de un equipo o la probabilidad de que gane.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "limit": {"type": "integer", "description": "Cantidad máxima de partidos a retornar (máximo 20)"},
-                    "league": {"type": "string", "description": "Código opcional de la liga (ej: 'CHL', 'ARG', 'PL')"},
-                    "team": {"type": "string", "description": "Nombre opcional de un equipo (ej: 'Colo Colo')"}
-                }
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_value_bets",
-            "description": "Obtiene apuestas con ventaja frente al precio justo (sin margen) de Pinnacle.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "min_edge": {
-                        "type": "number",
-                        "description": "Ventaja mínima porcentual sobre Pinnacle (ej: 0.06 para 6%)"
-                    }
-                }
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "simulate_match",
-            "description": "Simula un partido con el modelo matemático Dixon-Coles y retorna xG y probabilidades 1X2.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "league": {"type": "string", "description": "Código de la liga (ej: 'CHL', 'ARG')"},
-                    "home_team": {"type": "string", "description": "Nombre del equipo local"},
-                    "away_team": {"type": "string", "description": "Nombre del equipo visitante"}
-                },
-                "required": ["league", "home_team", "away_team"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_league_standings",
-            "description": "Consulta la tabla de posiciones y racha reciente de una liga.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "league": {"type": "string", "description": "Código de la liga (ej: 'CHL', 'ARG', 'PL')"}
-                },
-                "required": ["league"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_system_performance",
-            "description": "Consulta las métricas globales del sistema y estado de las predicciones.",
-            "parameters": {
-                "type": "object",
-                "properties": {}
-            }
-        }
-    }
-]
-
 
 def execute_tool(name: str, arguments: dict[str, Any]) -> ToolCallRecord:
     """Ejecuta una herramienta registrada de forma segura y mide el tiempo de respuesta."""
@@ -220,7 +146,8 @@ def execute_tool(name: str, arguments: dict[str, Any]) -> ToolCallRecord:
         )
 
     try:
-        res = func(**arguments)
+        validated = TOOL_MODELS[name].model_validate(arguments)
+        res = func(**validated.model_dump())
         elapsed = (time.perf_counter() - start_time) * 1000
         return ToolCallRecord(
             tool_name=name,
@@ -229,6 +156,10 @@ def execute_tool(name: str, arguments: dict[str, Any]) -> ToolCallRecord:
             success=True,
             execution_time_ms=round(elapsed, 2)
         )
+    except ValidationError as exc:
+        return ToolCallRecord(tool_name=name, arguments=arguments, result=None, success=False,
+                              execution_time_ms=round((time.perf_counter() - start_time) * 1000, 2),
+                              error_message=f"Argumentos inválidos: {exc}")
     except Exception as exc:  # noqa: BLE001 - una herramienta que falla no debe tumbar al agente
         elapsed = (time.perf_counter() - start_time) * 1000
         return ToolCallRecord(
