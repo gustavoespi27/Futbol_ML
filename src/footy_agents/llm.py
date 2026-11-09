@@ -1,4 +1,4 @@
-"""Cliente LLM con API compatible con OpenAI (Ollama local por defecto, costo cero).
+"""Cliente LLM con API compatible con OpenAI (Ollama local, sin pago por llamada a proveedor).
 
 El orquestador solo depende del protocolo `LLMClient`: cambiar de proveedor (Ollama, Groq, Gemini...) es cambiar
 `base_url` y `model` en settings.yaml, y los tests usan un cliente simulado sin red ni tokens.
@@ -67,6 +67,7 @@ class OpenAICompatibleClient:
         self.timeout = timeout
         self.max_tokens = max_tokens
         self.queue_timeout = queue_timeout
+        self.last_usage: dict[str, int] = {}
         self.headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
 
     @classmethod
@@ -86,8 +87,9 @@ class OpenAICompatibleClient:
 
     def _stream_chat(self, messages: list[dict], tools: list[dict] | None) -> Iterator[LLMEvent]:
         deadline = time.monotonic() + self.timeout
+        self.last_usage = {}
         body: dict[str, Any] = {"model": self.model, "messages": messages, "stream": True, "temperature": 0.2,
-                                "max_tokens": self.max_tokens}
+                                "max_tokens": self.max_tokens, "stream_options": {"include_usage": True}}
         if tools:
             body["tools"] = tools
         try:
@@ -109,7 +111,10 @@ class OpenAICompatibleClient:
                     payload = line[5:].strip()
                     if payload == "[DONE]":
                         break
-                    choices = json.loads(payload).get("choices") or [{}]
+                    parsed = json.loads(payload)
+                    if parsed.get("usage"):
+                        self.last_usage = parsed["usage"]
+                    choices = parsed.get("choices") or [{}]
                     delta = choices[0].get("delta") or {}
                     if delta.get("content"):
                         yield TextDelta(delta["content"])
