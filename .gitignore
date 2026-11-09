@@ -40,3 +40,5 @@ AGENTS.md
 docs/plan_codex.md
 docs/plan_frontend.md
 SKILL.md
+.coverage
+htmlcov/

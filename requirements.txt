@@ -14,3 +14,4 @@ uvicorn>=0.30
 
 # Desarrollo (lint): ruff check src scripts tests
 ruff>=0.6
+pytest-cov>=7.0
