@@ -10,7 +10,7 @@ from collections.abc import Iterator
 from datetime import datetime
 
 from footy.web.services.context import LOCAL_TZ
-from footy_agents.llm import LLMClient, LLMUnavailable, TextDelta, ToolCall
+from footy_agents.llm import LLMBusy, LLMClient, LLMUnavailable, TextDelta, ToolCall
 from footy_agents.schemas import ChatEvent, ToolCallRecord, UserPreferences
 from footy_agents.tools import OPENAI_TOOLS_SPEC, execute_tool
 
@@ -89,6 +89,10 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
                     yield ChatEvent(event="token", data={"delta": ev.text})
                 else:
                     calls.append(ev)
+        except LLMBusy as exc:
+            yield ChatEvent(event="error", data={"error": str(exc)})
+            yield ChatEvent(event="done", data={"iterations": iteration, "success": False})
+            return
         except LLMUnavailable:
             if iteration == 1:
                 yield ChatEvent(event="token", data={"delta": UNAVAILABLE_TEXT})
