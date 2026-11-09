@@ -60,7 +60,7 @@ def test_llm_writes_from_facts_only():
     client = FakeLLM([TextDelta("Hoy juega Colo Colo a las 20:00.")])
     out = list(briefing.run_briefing(client, UserPreferences(), FEED, NOW))
     assert [e.event for e in out] == ["token", "done"] and out[-1].data["success"] is True
-    assert json.loads(client.messages[1]["content"]) == briefing.facts(FEED, NOW)
+    assert json.loads(client.messages[1]["content"]) == briefing.facts(FEED, NOW)      # las 3 secciones traen datos
     assert "SOLO la ficha" in client.messages[0]["content"]
 
 
@@ -89,3 +89,21 @@ def test_briefing_endpoint(monkeypatch):
         return [chunk async for chunk in resp.body_iterator]
     body = "".join(asyncio.run(collect()))
     assert body.startswith("event: token\n") and '"success": true' in body
+
+
+def test_llm_facts_omit_empty_sections():
+    """El LLM no recibe secciones vacías (no puede mencionarlas); las apuestas con valor van siempre."""
+    client = FakeLLM([TextDelta("Hoy juega Colo Colo.")])
+    only_fav = feed(item(1, "2026-10-23T23:00:00Z", fav_team=True, home="Colo Colo", away="Everton"))
+    list(briefing.run_briefing(client, UserPreferences(), only_fav, NOW))
+    sent = json.loads(client.messages[1]["content"])
+    assert set(sent) == {"partidos_equipos_favoritos", "apuestas_con_valor"} and sent["apuestas_con_valor"] == []
+
+
+def test_empty_facts_skip_llm():
+    """Sin nada que contar no se consulta al LLM: con la ficha vacía inventaba partidos."""
+    client = FakeLLM([TextDelta("Hoy juegan Arsenal y Manchester City.")])
+    out = list(briefing.run_briefing(client, UserPreferences(), feed(item(1, "2026-10-23T18:00:00Z")), NOW))
+    assert client.messages is None
+    assert "no conviene apostar" in out[0].data["delta"]
+    assert out[-1].data == {"iterations": 0, "success": True}

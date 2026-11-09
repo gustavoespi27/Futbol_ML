@@ -19,7 +19,8 @@ MAX_ITEMS = 5
 BRIEFING_PROMPT = """Eres el asistente de Futbol_ML. Escribe en español un resumen breve (3 a 5 oraciones, un solo
 párrafo, sin listas ni títulos) de lo que le interesa hoy al usuario, usando SOLO la ficha de hechos en JSON.
 Reglas estrictas:
-- No agregues cifras, cuotas, probabilidades ni resultados que no estén en la ficha.
+- No agregues partidos, equipos, cifras, cuotas, probabilidades ni resultados que no estén en la ficha.
+- Habla solo de las secciones que trae la ficha: si no trae equipos favoritos o ligas favoritas, no los menciones.
 - Menciona primero los partidos de sus equipos favoritos, luego las apuestas con valor (edge frente a Pinnacle).
 - Si no hay apuestas con valor, dilo: no apostar también es una decisión.
 - Las apuestas son seguimiento en papel, no consejo financiero.
@@ -60,6 +61,12 @@ def facts(feed: PersonalizedFeedResponse, now: datetime | None = None) -> dict:
     }
 
 
+def llm_facts(f: dict) -> dict:
+    """Ficha para el LLM: sin secciones vacías (un modelo pequeño las menciona igual, p. ej. "tus ligas favoritas"
+    cuando el usuario no tiene ninguna). Las apuestas con valor van siempre: que no haya también es información."""
+    return {k: v for k, v in f.items() if v or k == "apuestas_con_valor"}
+
+
 def template_briefing(f: dict) -> str:
     """Resumen sin LLM (respaldo cuando el motor de IA local no está disponible)."""
     parts = []
@@ -81,10 +88,16 @@ def template_briefing(f: dict) -> str:
 
 def run_briefing(client: LLMClient, prefs: UserPreferences, feed: PersonalizedFeedResponse,
                  now: datetime | None = None) -> Iterator[ChatEvent]:
-    """Mismo contrato SSE que el chat (token, done); done.success indica si lo redactó el LLM."""
+    """Mismo contrato SSE que el chat (token, done). done.iterations = 0: sin hechos que narrar, se usó la plantilla
+    sin consultar al LLM; done.success = False: el LLM no respondió y también se usó la plantilla."""
     f = facts(feed, now)
+    if not any(f.values()):
+        # con la ficha vacía un modelo pequeño inventa partidos para llenar el párrafo: no se le consulta
+        yield ChatEvent(event="token", data={"delta": template_briefing(f)})
+        yield ChatEvent(event="done", data={"iterations": 0, "success": True})
+        return
     messages = [{"role": "system", "content": BRIEFING_PROMPT.format(risk=prefs.risk_profile)},
-                {"role": "user", "content": json.dumps(f, ensure_ascii=False)}]
+                {"role": "user", "content": json.dumps(llm_facts(f), ensure_ascii=False)}]
     wrote = False
     try:
         for ev in client.stream_chat(messages, None):
