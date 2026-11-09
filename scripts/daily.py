@@ -68,7 +68,7 @@ def work() -> int:
     from footy.db.connection import connect
     from footy.ingest.api_football import ApiFootball
     from footy.ingest.collect import run_daily, run_espn
-    from footy.models import cross_league
+    from footy.models import cross_league, international
     from footy.prediction import ml_predict, recalibration, tracking
     from footy.web import service
     from footy.web.services import snapshots
@@ -80,6 +80,7 @@ def work() -> int:
         ("espn", lambda: log.info("ESPN: %s", run_espn(conn))),
         ("api_football", lambda: log.info("Resumen API: %s", run_daily(conn, ApiFootball(conn)))),
         ("football_data", lambda: update_current_season(conn)),
+        ("international", lambda: log.info("Selecciones: %s", international.prepare(conn))),
         ("models", lambda: update_models(conn, recalibration, cross_league, ml_predict)),
         ("tracking", lambda: log.info("Seguimiento: %s", tracking.register(conn, tracking.fetch_fixtures()))),
         ("tracking_api", lambda: log.info("Seguimiento API: %s", tracking.register_scheduled(conn))),

@@ -30,6 +30,7 @@ def worker(root: Path, label: str) -> None:
     from scripts import daily
 
     from footy.ingest import api_football, collect
+    from footy.ingest import international as international_source
     from footy.prediction import tracking
     from footy_agents import automation
 
@@ -39,6 +40,7 @@ def worker(root: Path, label: str) -> None:
           patch.object(collect, "run_daily", lambda *args: {"congelado": True}),
           patch.object(api_football, "ApiFootball", lambda conn: None),
           patch.object(daily, "update_current_season", lambda conn: None),
+          patch.object(international_source, "refresh_results", lambda **kw: international_source.RAW),
           patch.object(tracking, "fetch_fixtures", lambda: fixtures),
           patch.object(requests, "post", lambda *args, **kwargs: None),
           patch.object(automation, "pc_usage", lambda: (0, 0))):
@@ -68,6 +70,8 @@ def main() -> None:
     shutil.copytree(ROOT / "config", root / "config")
     shutil.copytree(ROOT / "artifacts", root / "artifacts")
     shutil.copytree(config.path("processed"), root / "data/processed")
+    if (config.path("raw") / "international").exists():
+        shutil.copytree(config.path("raw") / "international", root / "data/raw/international")
     (root / "docs").mkdir()
     database = root / "data/db/football.sqlite"
     database.parent.mkdir(parents=True, exist_ok=True)

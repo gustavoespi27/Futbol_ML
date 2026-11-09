@@ -432,7 +432,8 @@ function miniBar(p) {
 function stat(label, value, hint = "") {
   return `<div class="card stat"><div class="label">${label}</div><div class="value num">${value}</div>${hint ? `<div class="hint">${hint}</div>` : ""}</div>`;
 }
-const SOURCE_PILL = { "modelo + mercado": "good", modelo: "", "modelo entre ligas": "", mercado: "warn", "sin datos": "", error: "bad" };
+const SOURCE_PILL = { "modelo + mercado": "good", modelo: "", "modelo entre ligas": "", "modelo selecciones": "",
+  mercado: "warn", "sin datos": "", error: "bad" };
 const KPI_ICONS = {
   value: '<path d="M3 17 9 11l4 4 8-8"/><path d="M15 7h6v6"/>',
   reliable: '<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/>',
@@ -1102,7 +1103,8 @@ function matchCard(m) {
     ${teamsRow(m)}
     <button type="button" class="chip" data-match-close>Volver a la lista</button>
     <section class="mc-sec"><h4>Probabilidad de acertar</h4>${compactProb(p)}
-      <p class="mc-note">Fuente: ${esc(m.source)} · modelo ${esc(systemState.overview?.model_version || "sin verificar")}. ${esc(FootyTrust.updatedTime(systemState.overview.last_daily_run))}.</p>
+      <p class="mc-note">Fuente: ${esc(m.source)} · ${esc(m.model_name || systemState.overview?.model_version || "Modelo sin verificar")}. ${esc(FootyTrust.updatedTime(systemState.overview?.last_daily_run))}.</p>
+      ${m.model_name?.includes("selecciones") ? `<p class="mc-note">${esc(r.text || "")}</p>` : ""}
       <p>Una probabilidad alta no equivale a una ventaja de precio.</p></section>
     ${priceAdvantage(m)}
     <details class="match-context"><summary>Forma, tabla, modelo y cuotas</summary>

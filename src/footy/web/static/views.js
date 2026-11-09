@@ -14,6 +14,7 @@ function priceAdvantage(m) {
   const all = m.pro || [], eligible = all.filter(o => o.bet);
   const o = (eligible.length ? eligible : all).reduce((best, x) => !best || x.edge > best.edge ? x : best, null);
   const bank = getBank();
+  const scope = m.model_name?.includes("selecciones") ? "Solo consulta; sin registro en papel." : "Seguimiento en papel.";
   const registered = (cache["/api/suggestions"]?.ledger?.items || []).some(i => `m:${i.match_id}` === m.ref);
   const content = o ? `<dl class="price-facts">
     <div><dt>Selección</dt><dd>${esc({ "1": "Local", X: "Empate", "2": "Visita" }[o.key] || o.sel)}</dd></div>
@@ -24,7 +25,7 @@ function priceAdvantage(m) {
     <span class="pill ${o.bet ? "good" : "warn"}">${o.bet ? "Con ventaja según la regla" : "Sin ventaja que cumpla la regla"}</span>`
     : '<p>Sin referencia de Pinnacle: no se evalúa una ventaja de precio ni un monto sugerido.</p>';
   return `<section class="mc-sec price-advantage"><h4>Ventaja de precio</h4>${content}
-    <p class="mc-note">¼ de Kelly · tope 2 % por apuesta (${clp(bank * .02)}) · máximo diario 10 %. Seguimiento en papel.</p>
+    <p class="mc-note">¼ de Kelly · tope 2 % por apuesta (${clp(bank * .02)}) · máximo diario 10 %. ${scope}</p>
     <a class="paper-link" href="#resultados" ${registered ? "" : "hidden"}>Ver apuesta registrada en Seguimiento</a></section>`;
 }
 function updateSecondaryNav(key, group) {

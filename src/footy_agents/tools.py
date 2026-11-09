@@ -81,6 +81,7 @@ def tool_get_upcoming_matches(limit: int = 10, league: str | None = None,
         "away": m.get("away"),
         "probabilities_1x2": probs(m),
         "probability_source": m.get("source"),
+        "model_name": m.get("model_name"),
         "has_pinnacle_price": bool(m.get("pro")),
         "value_status": "sin_precio_pinnacle" if not m.get("pro") else
                         "con_ventaja" if any(o.get("bet") for o in m["pro"]) else "sin_ventaja",

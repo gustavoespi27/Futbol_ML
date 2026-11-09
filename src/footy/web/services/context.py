@@ -67,6 +67,24 @@ def _cross_probs(code: str, home_id: int | None, away_id: int | None) -> np.ndar
     return hit[1].probabilities(int(home_id), int(away_id))
 
 
+def _international_prediction(code: str, home: str, away: str, kickoff: str | None,
+                              round_name: str | None) -> tuple | None:
+    if config.settings()["competitions"].get(code, {}).get("type") != "international":
+        return None
+    from footy.ingest.international import neutral_policy
+    from footy.models import international
+
+    model = international.load()
+    if model is None:
+        return None
+    when = datetime.fromisoformat(kickoff.replace("Z", "+00:00")) if kickoff else datetime.now(timezone.utc)
+    try:
+        return (*model.predict(home, away, when, neutral_policy(code, round_name)),
+                neutral_policy(code, round_name))
+    except ValueError:
+        return None  # Juveniles, femenino, clubes o selección sin alias: no inventar un rating.
+
+
 # --- predictores por liga ---------------------------------------------------
 
 def _data_signature() -> str:
@@ -226,7 +244,7 @@ def _stats(r: dict | None, conn=None, home_id: int | None = None, away_id: int |
 
 def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | None, odds: dict,
                    home_id: int | None = None, away_id: int | None = None,
-                   cross_probs: np.ndarray | None = None) -> dict:
+                   cross_probs: np.ndarray | None = None, round_name: str | None = None) -> dict:
     """`cross_probs`: probabilidades del modelo entre ligas ya calculadas (simulador entre ligas): se usan aunque la
     liga de `code` tenga modelo propio."""
     params, names = load_params(), league_names()
@@ -239,7 +257,23 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
     ctx = {"ref": ref, "league": code, "league_name": names.get(code, code), "home": home, "away": away,
            "kickoff": kickoff, "market_book": ref_book, "home_id": home_id, "away_id": away_id}
     cross = None
-    if cross_probs is None and code in params:
+    national = _international_prediction(code, home, away, kickoff, round_name)
+    if national is not None:
+        from footy.markets.scoreline import score_matrix
+
+        p_model, lam, mu, neutral = national
+        # Solo Pinnacle puede sustituir la probabilidad del modelo de selecciones.
+        ref_book = "Pinnacle" if "Pinnacle" in books else None
+        p_off = proportional(books[ref_book][None, :])[0] if ref_book else p_model
+        M = combos.fit_matrix(lam, mu, 0, p_off, p_mkt_over) if ref_book else score_matrix(lam, mu)
+        note = "Probabilidades de Pinnacle sin margen." if ref_book else "Pronóstico del modelo de selecciones."
+        if neutral is None:
+            note += " Sede sin verificar: no se aplica ventaja local."
+        ctx.update({"source": "mercado" if ref_book else "modelo selecciones", "market_book": ref_book,
+                    "model_name": "Elo de selecciones + Poisson (v1)", "p_model": _probs(p_model),
+                    "p_market": _probs(p_off) if ref_book else None, "stats": stats,
+                    "xg": [_f(lam, 2), _f(mu, 2)], "recommendation": {"bet": False, "text": note}})
+    elif cross_probs is None and code in params:
         pred = predictor(code)
         if home_id is None:
             home_id, away_id = pred.find_team(home).id, pred.find_team(away).id
@@ -360,7 +394,8 @@ def match_context(conn, match_id: int) -> dict:
         if r is None:
             raise KeyError(f"Partido {match_id} no encontrado")
         ctx = _build_context(f"m:{match_id}", r["code"], r["home"], r["away"], r["kickoff_utc"],
-                             tracking.latest_market_odds(conn, match_id), r["home_team_id"], r["away_team_id"])
+                             tracking.latest_market_odds(conn, match_id), r["home_team_id"], r["away_team_id"],
+                             round_name=r["round"])
         if r["type"] == "cup" and r["round"]:          # fase de la copa (Champions: "League Stage - 3", "Final"...)
             ctx["round"] = r["round"]
         # Forma reciente de ambos (puntos G/E/P y detalle): solo partidos que empezaron antes de este partido y de

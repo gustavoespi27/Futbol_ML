@@ -17,4 +17,5 @@ Las aprobaciones A1/A2 siguen vigentes. No se aprueban F3c, modificaciones de `t
 - A: implementado y validado; comparación real antes/después y límites pendientes en `analisis/08_capa_agentica.md`.
 - B1: implementado y medido; descarga natural tras cinco minutos en `analisis/09_consumo.md`.
 - B2: implementado, medido y registrado en Windows; evidencia en `analisis/09_consumo.md`.
-- C (A3 selecciones): siguiente tarea. Pasos 9–11: pendientes después de C.
+- C (A3 selecciones): implementado y validado; métricas, limitaciones y n=0 frente a Pinnacle en `analisis/11_selecciones.md`.
+- Paso 9: siguiente tarea. Pasos 10–11: pendientes después del 9.
