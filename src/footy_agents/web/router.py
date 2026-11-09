@@ -11,12 +11,19 @@ from fastapi.responses import StreamingResponse
 
 from footy.db.connection import connect
 from footy_agents.briefing_cache import cached_briefing
+from footy_agents.health import get_health
 from footy_agents.llm import LLMClient, OpenAICompatibleClient
 from footy_agents.orchestrator import run_chat
 from footy_agents.preferences import repo, service
-from footy_agents.schemas import ChatEvent, ChatRequest, PersonalizedFeedResponse, UserPreferences
+from footy_agents.schemas import AgentHealth, ChatEvent, ChatRequest, PersonalizedFeedResponse, UserPreferences
 
 router = APIRouter(prefix="/api/agent", tags=["Agent"])
+
+
+@router.get("/health", response_model=AgentHealth)
+def health() -> AgentHealth:
+    """Disponibilidad del modelo y modo del resumen, con sondeo de un segundo y caché de 60 segundos."""
+    return get_health()
 
 
 @router.get("/preferences", response_model=UserPreferences)

@@ -17,6 +17,12 @@ class AgentSchema(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
 
+class AgentHealth(AgentSchema):
+    llm_available: bool
+    briefing_mode: Literal["llm", "template"]
+    model: str
+
+
 class UserPreferences(AgentSchema):
     user_id: str = Field(default="default", description="Identificador único del usuario (por defecto 'default')")
     favorite_teams: list[str] = Field(
