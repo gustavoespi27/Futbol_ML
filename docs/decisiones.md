@@ -535,3 +535,19 @@ mayoría de esos partidos aún no tiene cuotas, así que se muestran con el pron
 
 Los registros prospectivos no cambian: pronósticos fiables y apuestas en papel se registran solo con los partidos de
 hoy y mañana (`REGISTER_DAYS = 2`, `within_days`), para que la serie auditada mantenga la misma anticipación.
+
+## 2026-11-09 — A2: unificar el tope por apuesta en 2%
+
+Con aprobación de Gustavo se reduce `suggestions.MAX_STAKE` de 0,025 a 0,02, coincidiendo con `pro.MAX_STAKE`.
+Se conservan cuarto de Kelly y el máximo diario profesional de 10%. Los textos de índice, glosario y lectura del
+histórico se actualizan en el mismo commit; no se reescriben apuestas ni predicciones prospectivas.
+
+`scripts/regenerate_stake_reports.py` regenera la curva histórica y el informe profesional sin reentrenar ni elegir
+umbrales nuevos. Sobre los mismos datos, ambas versiones de la regla original eligen 154 apuestas y yield plano
+−5,00%; banca final 93,32 con 2,5% frente a 91,44 con 2%, caída máxima 19,50% frente a 18,91%.
+Menor tope limita exposición por apuesta, sin garantizar mayor beneficio realizado. El profesional mantiene sus
+resultados porque ya usaba 2%. Los estudios 02/03 son experimentos independientes (Kelly histórico 5% en 02,
+yield plano en 03); no se alteran sus cifras para aparentar una política que no evaluaron.
+
+Las pruebas fijan numéricamente ambos topes en 0,02 y comprueban Kelly, ausencia de valor y cuotas inválidas.
+Al actualizar una instalación se debe regenerar el artefacto y reiniciar el servidor para retirar cachés anteriores.

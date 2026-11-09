@@ -123,7 +123,7 @@ function drawHistory(h) {
       pasó de 100 a ${num(h.kelly_final, 1)}. El intervalo de confianza es amplio: no demuestra ni pérdida ni ganancia.</p>
     <p><b style="color:var(--text)">Las apuestas "con valor" se aciertan menos de lo que el sistema espera</b> (${pct(h.hit, 1)} vs ${pct(h.p_mean, 1)}):
       cuando una casa paga más que el resto, muchas veces tiene una razón que el modelo no ve.</p>
-    <p>Por eso los montos son pequeños (¼ de Kelly, máximo 2,5%): limitan la pérdida mientras se mide la regla con partidos futuros.</p>`;
+    <p>Por eso los montos son pequeños (¼ de Kelly, máximo 2%): limitan la pérdida mientras se mide la regla con partidos futuros.</p>`;
 }
 
 /* ---------- apostador profesional: cartera e histórico ---------- */

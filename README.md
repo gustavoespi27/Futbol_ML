@@ -155,13 +155,18 @@ combinadas, el porcentaje anunciado se cumple: 25 % anunciado, 26 % acertadas.
 
 ### Apostador profesional en el histórico
 
+Ambas reglas de producción tienen ahora tope de 2% por apuesta. El gráfico de la regla original fue regenerado
+desde sus predicciones históricas, sin reentrenar modelos. El profesional ya aplicaba ese tope:
+[comparación y alcance de A2](docs/analisis/10_riesgo_unificado.md). Para regenerar los artefactos locales tras
+actualizar el código: `python scripts/regenerate_stake_reports.py`; reiniciar el servidor para descartar cachés.
+
 La regla se eligió con 2013-2021 y se probó en 2022-2026, sobre cuotas tempranas de 22 ligas europeas
 ([análisis 06](docs/analisis/06_profesional.md)):
 
 | Período | Apuestas | CLV medio | Superan al cierre | Rendimiento [IC95 %] | Bankroll (inicio 100) |
 |---|---:|---:|---:|---|---:|
-| Selección 2013-2021 | 419 | +6,8 % | 76 % | +30,0 % [+15 %; +45 %] | 354 |
-| Prueba 2022-2026 | 213 | +5,3 % | **77 %** | +2,9 % [−17 %; +23 %] | 122 |
+| Selección 2013-2021 | 419 | +6,8 % | 76% | +30,0 % [+14,7 %; +45,3 %] | 354,0 |
+| Prueba 2022-2026 | 213 | +5,3 % | 77% | +2,9 % [−17,1 %; +22,9 %] | 122,3 |
 
 Superar la cuota de cierre 3 de cada 4 veces es la firma de un apostador con ventaja. La ganancia en dinero aún
 **no es estadísticamente concluyente**, y por eso todo sigue registrándose en papel.
