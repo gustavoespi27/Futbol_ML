@@ -285,10 +285,17 @@ confianza y un id externo por club. Cuando aparecen duplicados, se fusionan los 
 
 ## Inicio rápido
 
-El endpoint `GET /api/agent/health` devuelve `llm_available`, `briefing_mode` (`llm` o `template`) y `model`.
+El endpoint `GET /api/agent/health` devuelve `llm_available`, `briefing_mode` (`llm` o `template`), `model`,
+`autostart` y `startup_failed`. Solo sondea: nunca inicia Ollama ni carga el modelo.
 Consulta la lista de modelos del servidor configurado con timeout de un segundo y caché de 60 segundos por
 proceso; requiere que el modelo configurado figure en la lista. No carga modelos ni ejecuta inferencia.
 Si el servidor falla o falta el modelo, responde normalmente con `llm_available: false`; el resto sigue operativo.
+
+Con `agents.llm.autostart: true`, el asistente inicia Ollama al solicitar una respuesta; el resumen por plantilla
+no lo inicia. Instala Ollama y descarga `qwen2.5:7b` una vez (`ollama pull qwen2.5:7b`). Puedes configurar
+`agents.llm.executable` con una ruta explícita. El modelo se descarga de memoria tras cinco minutos sin uso;
+al cerrar el dashboard solo se detiene el Ollama iniciado por ese servidor. La redacción del resumen con modelo
+local queda limitada a un intento por usuario y día; los cambios posteriores usan una plantilla actualizada.
 
 **Requisitos:** Python ≥ 3.11 y una clave gratuita de [API-Football](https://www.api-football.com/).
 

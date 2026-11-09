@@ -496,6 +496,8 @@ betting:
 # Capa agéntica (src/footy_agents): LLM local con API compatible con OpenAI (Ollama por defecto, costo cero)
 agents:
   llm:
+    autostart: true                      # inicia Ollama solo al solicitar inferencia
+    executable: ollama                    # PATH o instalación local; admite ruta explícita
     base_url: http://localhost:11434/v1
     model: qwen2.5:7b                    # para mayor capacidad si hay GPU potente: qwen2.5:14b-instruct-q4_K_M
     timeout: 60                          # tiempo máximo por inferencia (con lectura de red acotada)

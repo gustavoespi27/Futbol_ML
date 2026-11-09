@@ -137,14 +137,96 @@ def endpoint(base: str, path: str, body: dict | None = None) -> dict:
         return {"ruta": path, "error": type(exc).__name__}
 
 
+def runtime_cycle(output: Path) -> None:
+    """Experimento explícito de cinco minutos; nunca se ejecuta en la medición habitual."""
+    from footy_agents.ollama_runtime import runtime
+
+    if os.name != "nt":
+        raise RuntimeError("--runtime-cycle mide árboles de procesos en Windows")
+    base_llm = "http://localhost:11434/v1"
+    if runtime.probe(base_llm):
+        raise RuntimeError("El experimento requiere Ollama apagado; no detiene servidores ajenos")
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    base = f"http://127.0.0.1:{port}"
+    process = subprocess.Popen([sys.executable, "-m", "uvicorn", "footy.web.app:app", "--host", "127.0.0.1",
+                                "--port", str(port), "--log-level", "error"], cwd=ROOT,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    rows = []
+
+    def snapshot(label: str) -> None:
+        roots = f"{process.pid}" + (f",{runtime.process.pid}" if runtime.process else "")
+        command = (f"$taskPids = @({roots}); $taskProcesses = @(Get-CimInstance Win32_Process); "
+                   "do { $taskBefore = $taskPids.Count; foreach ($taskProcess in $taskProcesses) { "
+                   "$taskParent = $taskProcesses | Where-Object ProcessId -eq $taskProcess.ParentProcessId; "
+                   "if ($taskPids -contains $taskProcess.ParentProcessId -and "
+                   "$taskPids -notcontains $taskProcess.ProcessId -and "
+                   "$taskProcess.CreationDate -ge $taskParent.CreationDate) { "
+                   "$taskPids += $taskProcess.ProcessId } } "
+                   "} while ($taskBefore -ne $taskPids.Count); "
+                   "Get-Process | Where-Object { $taskPids -contains $_.Id } | "
+                   "Select-Object Id,ProcessName,@{Name='ram_mb';Expression={[math]::Round($_.WorkingSet64/1MB,2)}} | "
+                   "ConvertTo-Json -Compress")
+        processes = json.loads(subprocess.check_output(["powershell", "-NoProfile", "-Command", command], text=True))
+        resident = requests.get("http://localhost:11434/api/ps", timeout=3).json() if runtime.process else {}
+        gpu = None
+        try:
+            gpu = subprocess.check_output(["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
+                                          text=True, timeout=5).strip()
+        except (OSError, subprocess.SubprocessError):
+            pass
+        rows.append({"estado": label, "procesos": processes, "modelos": resident.get("models", []),
+                     "vram_total_gpu_mib": gpu})
+        output.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(label, flush=True)
+
+    try:
+        deadline = time.monotonic() + 60
+        while time.monotonic() < deadline:
+            try:
+                requests.get(base + "/api/docs", timeout=1).raise_for_status()
+                break
+            except requests.RequestException:
+                time.sleep(.2)
+        else:
+            raise TimeoutError("Servidor sin respuesta")
+        snapshot("servidor_solo")
+        if not runtime.ensure_running():
+            raise RuntimeError("No arrancó Ollama")
+        snapshot("ollama_en_reposo")
+        result = endpoint(base, "/api/agent/chat", {"message": "Hola, salúdame brevemente"})
+        snapshot("modelo_cargado")
+        rows[-1]["chat"] = result
+        deadline = time.monotonic() + 330
+        while time.monotonic() < deadline:
+            if not requests.get("http://localhost:11434/api/ps", timeout=3).json().get("models"):
+                snapshot("despues_keep_alive")
+                break
+            time.sleep(1)
+        else:
+            snapshot("modelo_no_descargado_en_330s")
+    finally:
+        runtime.shutdown()
+        process.terminate()
+        process.wait(timeout=15)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--worker", action="store_true")
+    parser.add_argument("--runtime-cycle", action="store_true", help="Medir cuatro estados y esperar el keep_alive")
     parser.add_argument("--label", default="linea_base")
     parser.add_argument("--llm", action="store_true", help="Consultar chat y resumen: consume inferencia real")
     parser.add_argument("--live-check", action="store_true", help="Medir escrituras live_scores en copia aislada")
     parser.add_argument("--output", type=Path, default=ROOT / "docs/analisis/09_consumo.md")
     args = parser.parse_args()
+    if args.runtime_cycle:
+        if args.output.suffix.lower() != ".json":
+            parser.error("--runtime-cycle requiere --output con extensión .json; no sobrescribe informes Markdown")
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        runtime_cycle(args.output)
+        return
     if args.worker:
         worker(args.live_check)
         return

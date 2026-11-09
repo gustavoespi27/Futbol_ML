@@ -6,11 +6,12 @@ import time
 import requests
 
 from footy import config
+from footy_agents.ollama_runtime import runtime
 from footy_agents.schemas import AgentHealth
 
 TTL = 60
 _lock = threading.Lock()
-_cache: tuple[tuple[str, str, str], float, AgentHealth] | None = None
+_cache: tuple[tuple, float, AgentHealth] | None = None
 
 
 def get_health() -> AgentHealth:
@@ -20,7 +21,8 @@ def get_health() -> AgentHealth:
     base = llm.get("base_url", "http://localhost:11434/v1").rstrip("/")
     model = llm.get("model", "qwen2.5:7b")
     mode = "llm" if agents.get("briefing", {}).get("use_llm", False) else "template"
-    key = (base, model, mode)
+    autostart = bool(llm.get("autostart", False))
+    key = (base, model, mode, autostart, runtime.startup_failed)
     with _lock:
         if _cache and _cache[0] == key and time.monotonic() < _cache[1]:
             return _cache[2].model_copy()
@@ -35,6 +37,7 @@ def get_health() -> AgentHealth:
         except (requests.RequestException, ValueError):
             # Servidor apagado, respuesta HTTP fallida o JSON inválido: el resto de la aplicación sigue disponible.
             pass
-        health = AgentHealth(llm_available=available, briefing_mode=mode, model=model)
+        health = AgentHealth(llm_available=available, briefing_mode=mode, model=model,
+                             autostart=autostart, startup_failed=runtime.startup_failed)
         _cache = (key, time.monotonic() + TTL, health)
         return health.model_copy()

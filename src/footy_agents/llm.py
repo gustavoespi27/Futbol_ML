@@ -7,7 +7,7 @@ El orquestador solo depende del protocolo `LLMClient`: cambiar de proveedor (Oll
 import json
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -69,18 +69,25 @@ class OpenAICompatibleClient:
         self.queue_timeout = queue_timeout
         self.last_usage: dict[str, int] = {}
         self.headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        self.ensure_available: Callable[[], bool] | None = None
 
     @classmethod
     def from_settings(cls) -> "OpenAICompatibleClient":
         cfg = config.settings().get("agents", {}).get("llm", {})
-        return cls(cfg.get("base_url", "http://localhost:11434/v1"), cfg.get("model", "qwen2.5:7b"),
+        client = cls(cfg.get("base_url", "http://localhost:11434/v1"), cfg.get("model", "qwen2.5:7b"),
                    float(cfg.get("timeout", 60)), max_tokens=int(cfg.get("max_tokens", 384)),
                    queue_timeout=float(cfg.get("queue_timeout", 2)))
+        if cfg.get("autostart", False):
+            from footy_agents.ollama_runtime import runtime
+            client.ensure_available = runtime.ensure_running
+        return client
 
     def stream_chat(self, messages: list[dict], tools: list[dict] | None = None) -> Iterator[LLMEvent]:
         if not _INFERENCE_SLOT.acquire(timeout=self.queue_timeout):
             raise LLMBusy("El asistente está atendiendo otra consulta")
         try:
+            if self.ensure_available and not self.ensure_available():
+                raise LLMUnavailable("No se pudo iniciar el asistente local")
             yield from self._stream_chat(messages, tools)
         finally:
             _INFERENCE_SLOT.release()

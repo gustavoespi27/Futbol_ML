@@ -56,7 +56,15 @@ def _live_loop():
 async def lifespan(_app):
     threading.Thread(target=_prewarm, daemon=True).start()
     threading.Thread(target=_live_loop, daemon=True, name="espn-live").start()
-    yield
+    try:
+        yield
+    finally:
+        try:
+            from footy_agents.ollama_runtime import runtime
+        except ImportError:
+            pass
+        else:
+            runtime.shutdown()
 
 
 app = FastAPI(title="Futbol_ML", docs_url="/api/docs", lifespan=lifespan)

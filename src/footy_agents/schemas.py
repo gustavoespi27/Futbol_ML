@@ -18,6 +18,8 @@ class AgentSchema(BaseModel):
 
 
 class AgentHealth(AgentSchema):
+    autostart: bool = False
+    startup_failed: bool = False
     llm_available: bool
     briefing_mode: Literal["llm", "template"]
     model: str

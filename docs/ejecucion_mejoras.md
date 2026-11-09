@@ -15,4 +15,5 @@ Las aprobaciones A1/A2 siguen vigentes. No se aprueban F3c, modificaciones de `t
 
 - Paso 8: implementado y validado; evidencia en `validacion_frontend_paso8.md`.
 - A: implementado y validado; comparación real antes/después y límites pendientes en `analisis/08_capa_agentica.md`.
-- B1: siguiente tarea. B2, C y 9–11: pendientes, en ese orden.
+- B1: implementado y medido; descarga natural tras cinco minutos en `analisis/09_consumo.md`.
+- B2: siguiente tarea. C y 9–11: pendientes, en ese orden.

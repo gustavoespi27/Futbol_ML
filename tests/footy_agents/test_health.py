@@ -53,7 +53,8 @@ def test_health_http_cache_expiry_and_config_change(setup, monkeypatch):
     monkeypatch.setattr(health.requests, "get", get)
     response = client.get("/api/agent/health")
     assert response.status_code == 200
-    assert response.json() == {"llm_available": True, "briefing_mode": "template", "model": "model"}
+    assert response.json() == {"llm_available": True, "briefing_mode": "template", "model": "model",
+                               "autostart": False, "startup_failed": False}
     clock[0] += 59
     assert client.get("/api/agent/health").json() == response.json()
     assert calls == [("http://local/v1/models", {"timeout": 1.0})]

@@ -117,10 +117,13 @@ function paintSystemStatus() {
     : state === "stale" ? `Datos sin actualizar desde ${when}`
     : state === "error" ? "No se pudo comprobar la actualización de los datos" : "Sin fecha de actualización verificable";
   const short = state === "fresh" ? `Datos · ${when}` : full;
+  const resting = h && !h.llm_available && h.autostart && !h.startup_failed;
   const assistant = !h ? "No se pudo comprobar el estado del asistente" : h.llm_available
-    ? "Asistente disponible" : "Asistente no disponible (el resto funciona)";
+    ? "Asistente disponible" : resting ? "Asistente en reposo (se activa al usarlo)"
+    : "Asistente no disponible (el resto funciona)";
   const mode = h && h.briefing_mode === "template" ? "Resumen por plantilla" : "";
-  const smallAssistant = !h ? "Asistente: sin verificar" : !h.llm_available ? "Asistente: no disponible"
+  const smallAssistant = !h ? "Asistente: sin verificar" : resting ? "Asistente en reposo"
+    : !h.llm_available ? "Asistente: no disponible"
     : mode || "Asistente disponible";
   box.classList.toggle("status-strip--warn", state !== "fresh");
   box.dataset.state = state;
