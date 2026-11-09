@@ -1,7 +1,7 @@
 # Paso 1 — Wireframes para revisión
 
 2026-11-09. Propuesta de estructura basada en la versión unificada de `docs/plan_frontend.md`.
-**Pendiente de revisión de Gustavo. El paso 2 no se inició.**
+**Paso 1 aprobado con ajustes incorporados. Pasos 2 (A2) y 3 (health) publicados. Paso 4 no iniciado.**
 
 Abrir [la galería local](index.html) en un navegador. No necesita servidor, red, fuentes externas ni instalación.
 El selector permite alternar las variantes clara y oscura. Cada lámina se puede abrir a tamaño completo.
@@ -11,12 +11,16 @@ El selector permite alternar las variantes clara y oscura. Cada lámina se puede
 | Vista | Móvil | Escritorio |
 |---|---|---|
 | Hoy | [390 claro](hoy-390-claro.svg) · [oscuro](hoy-390-oscuro.svg) | [1440 claro](hoy-1440-claro.svg) · [oscuro](hoy-1440-oscuro.svg) |
+| Hoy con datos atrasados | [390 claro](hoy-atrasado-390-claro.svg) · [oscuro](hoy-atrasado-390-oscuro.svg) | [1440 claro](hoy-atrasado-1440-claro.svg) · [oscuro](hoy-atrasado-1440-oscuro.svg) |
 | Partidos | [390 claro](partidos-390-claro.svg) · [oscuro](partidos-390-oscuro.svg) | [1440 claro](partidos-1440-claro.svg) · [oscuro](partidos-1440-oscuro.svg) |
 | Ficha | [390 claro](ficha-390-claro.svg) · [oscuro](ficha-390-oscuro.svg) | [1440 claro](ficha-1440-claro.svg) · [oscuro](ficha-1440-oscuro.svg) |
 | Más | [390 claro](mas-390-claro.svg) · [oscuro](mas-390-oscuro.svg) | [1440 claro](mas-1440-claro.svg) · [oscuro](mas-1440-oscuro.svg) |
 
-Son ocho composiciones en dos variantes, no dos propuestas visuales competidoras. El tamaño de cada lámina
-es 390×900 o 1440×900. Los tonos neutros marcan jerarquía; no fijan la paleta final. Los valores entre corchetes
+Son diez composiciones en dos temas, no dos propuestas visuales competidoras. Las de escritorio miden 1440×900;
+las móviles tienen 390 px de ancho y muestran el recorrido completo: Hoy 1012 px de alto, Partidos/Más 964 y
+ficha 1122. La altura no afirma que todo quepa en un viewport móvil: la implementación mantendrá un solo scroll
+de página y navegación fija con área segura. Los tonos neutros marcan jerarquía; no fijan la paleta final.
+Los valores entre corchetes
 son campos del backend. No se muestran probabilidades, cuotas, montos, resultados ni fechas de captura inventados.
 
 ## Decisiones a revisar
@@ -66,8 +70,9 @@ no se comunica que no hay valor por el solo hecho de no tener información.
 
 ## Alcance y validación
 
-Solo se añaden archivos de documentación en este directorio. No se implementan componentes ni se cambia A2,
-salud de IA, rutas, API o SSE. La galería no consume servicios ni guarda preferencias.
+Esta revisión solo cambia la documentación de este directorio. A2 y health están implementados en sus commits
+separados; las láminas no implementan componentes del paso 4 ni cambian rutas o SSE.
+La galería no consume servicios ni guarda preferencias.
 
 Los SVG se generan con [generar_wireframes.py](generar_wireframes.py), usando solo la biblioteca estándar:
 
@@ -79,13 +84,28 @@ La revisión de esta entrega evalúa jerarquía, contenido y recorridos. Las pru
 ejecutándose como exige el plan. Lighthouse, teclado virtual, zoom de producto y pruebas de lector de pantalla
 de la interfaz definitiva corresponden a la implementación; los wireframes no prueban esas características.
 
-Verificación realizada: 16 SVG con XML válido y sin texto fuera del lienzo en Chrome; galería a 360, 390 y
+Verificación realizada: 20 SVG con XML válido y sin texto fuera del lienzo en Chrome; galería a 360, 390 y
 1440 px, ambos temas, con imágenes cargadas y sin desbordamiento horizontal ni excepciones JavaScript.
 El script de la galería pasa `node --check`. Ruff pasa para el proyecto y el generador documental. La suite
-del proyecto mantiene 198 pruebas en verde y 95,65% de cobertura de `footy_agents`.
+del proyecto mantiene 212 pruebas en verde y 95,92% de cobertura de `footy_agents`.
 
 Vistas previas rápidas: [Hoy móvil](vista-previa-hoy-movil.png) y
 [Hoy escritorio](vista-previa-hoy-escritorio.png). Los SVG y la galería son la fuente de revisión completa.
+Estado principal P0: [Hoy atrasado móvil](vista-previa-hoy-atrasado-movil.png) y
+[Hoy atrasado escritorio](vista-previa-hoy-atrasado-escritorio.png).
 
-Antes de seguir, revisar especialmente: si los dos indicadores son útiles, el orden de Hoy, el acceso a filtros,
-la separación probabilidad/precio y los cinco destinos móviles. El paso 1 termina aquí.
+## Ajustes de la revisión aprobada
+
+- Hoy con datos atrasados: franja de advertencia con fecha, indicadores «— / en pausa» y un solo estado vacío
+  que sustituye resumen y oportunidades. Se preservan favoritos guardados sin anunciar próximos partidos antiguos.
+- Tarjetas de Hoy: badge «Con ventaja [+x%] · Pinnacle» o «Sin ventaja» como semáforo integrado, con etiqueta
+  visible además de color. El badge no implica apostar automáticamente.
+- Ficha: selección, cuota, precio justo, ventaja, monto sugerido y máximo 2% explícito. «Ver apuesta en
+  Seguimiento» aparece solo cuando hay registro en papel; se conserva el contexto de vuelta.
+- Vistas secundarias: una línea de estado, sin tarjeta destacada en condiciones normales. Una advertencia sí
+  puede destacarse con el mismo patrón de Hoy; no se añade una segunda franja concurrente.
+- «Asistente» completo en las cabeceras, marca «Fútbol ML», subtítulo de Partidos «Partidos, probabilidades
+  y precio justo». La diferencia probabilidad/ventaja se explica al solicitar ayuda contextual (?), sin tarjeta
+  permanente en Hoy. En móvil los accesos de cabecera pasan a una fila propia para conservar tamaño táctil.
+
+La actualización termina aquí; el paso 4 no se inició.

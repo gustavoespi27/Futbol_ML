@@ -1,27 +1,32 @@
 """Genera los SVG de documentación del paso 1, sin modificar la aplicación ni consultar APIs."""
 
+import re
 from html import escape
 from pathlib import Path
 from textwrap import wrap
 
 ROOT = Path(__file__).resolve().parent
 DESTINATIONS = ["Hoy", "Partidos", "Seguimiento", "Explorar", "Más"]
-VIEWS = {"hoy": "Hoy", "partidos": "Partidos", "ficha": "Partido", "mas": "Más"}
+VIEWS = {"hoy": "Hoy", "hoy-atrasado": "Hoy", "partidos": "Partidos", "ficha": "Partido", "mas": "Más"}
 
 
 class Wireframe:
     def __init__(self, view: str, width: int, theme: str):
-        self.width, self.height, self.mobile = width, 900, width == 390
+        self.width, self.mobile = width, width == 390
+        self.height = (1122 if view == "ficha" else 1012 if view.startswith("hoy") else 964) if self.mobile else 900
+        self.warning = view == "hoy-atrasado"
         self.parts: list[str] = []
         colors = ({"bg": "#f4f4f3", "card": "#ffffff", "line": "#b8bab9", "text": "#202522",
-                   "muted": "#555e58", "soft": "#e8eae7", "active": "#263a30", "on": "#ffffff"}
+                   "muted": "#555e58", "soft": "#e8eae7", "active": "#263a30", "on": "#ffffff",
+                   "warning": "#fff3d6", "warning-text": "#5c3500", "value": "#e1efe5", "value-text": "#205333"}
                   if theme == "claro" else
                   {"bg": "#111613", "card": "#1d2520", "line": "#6b766e", "text": "#f0f3ef",
-                   "muted": "#b5bfb6", "soft": "#303c33", "active": "#dce6dd", "on": "#172019"})
+                   "muted": "#b5bfb6", "soft": "#303c33", "active": "#dce6dd", "on": "#172019",
+                   "warning": "#382b15", "warning-text": "#ffe0a0", "value": "#213c2b", "value-text": "#c1e8cd"})
         tokens = ";".join(f"--{key}:{value}" for key, value in colors.items())
         self.parts.append(
-            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="900" '
-            f'viewBox="0 0 {width} 900" style="{tokens}" role="img" aria-labelledby="title desc">'
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{self.height}" '
+            f'viewBox="0 0 {width} {self.height}" style="{tokens}" role="img" aria-labelledby="title desc">'
             f'<title id="title">Wireframe de {VIEWS[view]}, {width} px, tema {theme}</title>'
             '<desc id="desc">Propuesta de estructura para revisión. Los corchetes indican contenido del backend; '
             'no son estadísticas ni partidos reales. No es una implementación de la aplicación.</desc>'
@@ -33,26 +38,27 @@ class Wireframe:
         )
         active = "Partidos" if view == "ficha" else VIEWS[view]
         if self.mobile:
-            self.text(16, 36, VIEWS[view], 25, bold=True)
-            self.text(16, 63, "[Fecha local]" if view == "hoy" else "Fútbol y análisis en papel", 14, muted=True)
-            if view == "hoy":
-                self.button(202, 18, 116, "Preferencias", size=14)
-                self.button(330, 18, 44, "IA", size=14)
-            else:
-                self.button(260, 18, 114, "Asistente", size=14)
-            self.box(0, 812, 390, 88, radius=0)
+            self.text(16, 20, "Fútbol ML", 13, bold=True)
+            self.text(16, 48, VIEWS[view], 25, bold=True)
+            subtitle = "Partidos, probabilidades y precio justo" if view == "partidos" else "Fútbol y análisis en papel"
+            self.text(16, 73, "[Fecha local]" if view.startswith("hoy") else subtitle, 14, muted=True)
+            self.button(16, 88, 173, "Preferencias", size=14)
+            self.button(201, 88, 173, "Asistente", size=14)
+            nav_y = self.height - 88
+            self.box(0, nav_y, 390, 88, radius=0)
             for index, label in enumerate(DESTINATIONS):
                 x = index * 78
                 if label == active:
-                    self.box(x + 4, 821, 70, 56, cls="active", stroke=False)
-                self.text(x + 39, 844, ("○", "▤", "✓", "◇", "···")[index], 19,
+                    self.box(x + 4, nav_y + 9, 70, 56, cls="active", stroke=False)
+                self.text(x + 39, nav_y + 32, ("○", "▤", "✓", "◇", "···")[index], 19,
                           center=True, cls="on" if label == active else "")
-                self.text(x + 39, 867, label, 11.5, center=True, cls="on" if label == active else "")
-            self.text(195, 894, "Área segura del dispositivo", 10, center=True, muted=True)
+                self.text(x + 39, nav_y + 55, label, 11.5, center=True, cls="on" if label == active else "")
+            self.text(195, self.height - 6, "Área segura del dispositivo", 10, center=True, muted=True)
             self.x, self.w = 16, 358
+            self.parts.append('<g transform="translate(0,64)">')
         else:
             self.box(0, 0, 220, 900, radius=0)
-            self.text(24, 44, "Futbol ML", 23, bold=True)
+            self.text(24, 44, "Fútbol ML", 23, bold=True)
             self.text(24, 70, "Análisis de fútbol", 14, muted=True)
             for index, label in enumerate(DESTINATIONS):
                 y = 118 + index * 64
@@ -60,11 +66,13 @@ class Wireframe:
             self.text(24, 831, "Seguimiento en papel", 13, muted=True)
             self.text(24, 855, "Metodología en Más", 13, muted=True)
             self.text(252, 49, VIEWS[view], 28, bold=True)
-            self.text(252, 80, "[Fecha local]" if view == "hoy" else "Fútbol y análisis con contexto", 15, muted=True)
+            subtitle = ("Partidos, probabilidades y precio justo" if view == "partidos"
+                        else "Fútbol y análisis con contexto")
+            self.text(252, 80, "[Fecha local]" if view.startswith("hoy") else subtitle, 15, muted=True)
             self.button(1124, 25, 148, "Preferencias")
             self.button(1284, 25, 124, "Asistente")
             self.x, self.w = 252, 1156
-        self.status(compact=view != "hoy")
+        self.status(compact=not view.startswith("hoy"))
 
     def box(self, x, y, w, h, radius=10, cls="box", stroke=True):
         stroke_attribute = "" if stroke else ' stroke="none"'
@@ -89,34 +97,51 @@ class Wireframe:
 
     def status(self, compact=False):
         x, w = self.x, self.w
+        if compact and not self.warning:
+            self.text(x + 4, 113 if self.mobile else 139,
+                      "Datos [fecha] · Asistente [estado] · [versión]" if self.mobile else
+                      "Datos: [actualización] · Asistente: [estado] · Modelo: [versión]", 13 if self.mobile else 15,
+                      muted=True)
+            return
         if self.mobile:
             height = 76 if compact else 100
-            self.box(x, 88, w, height)
-            self.text(x + 14, 114, "Datos: [estado y actualización]", 15, bold=True)
+            self.box(x, 88, w, height, cls="box" if not self.warning else "soft")
+            if self.warning:
+                self.parts.append(f'<rect x="{x}" y="88" width="{w}" height="100" rx="10" fill="var(--warning)"/>')
+            self.text(x + 14, 114, "Datos sin actualizar desde [fecha]" if self.warning else
+                      "Datos: [estado y actualización]", 15, bold=True)
             self.text(x + 14, 139, "Asistente: [disponibilidad]", 14, muted=True)
             if not compact:
                 self.text(x + 14, 169, "Modelo: [versión]", 14, muted=True)
         else:
             self.box(x, 108, w, 76)
-            self.text(x + 20, 139, "Datos: [estado según última actualización]", 16, bold=True)
+            if self.warning:
+                self.parts.append(f'<rect x="{x}" y="108" width="{w}" height="76" rx="10" fill="var(--warning)"/>')
+            self.text(x + 20, 139, "Datos sin actualizar desde [fecha]" if self.warning else
+                      "Datos: [estado según última actualización]", 16, bold=True)
             self.text(x + 20, 164, "[Fecha y hora local del backend]", 14, muted=True)
             self.text(x + 550, 139, "Asistente: [disponibilidad]", 15)
             self.text(x + 550, 164, "Resumen: [plantilla o IA]", 14, muted=True)
             self.text(x + 960, 151, "[Versión del modelo]", 14, muted=True)
 
-    def kpi(self, x, y, w, title, context):
+    def kpi(self, x, y, w, title, context, value="[total]"):
         self.box(x, y, w, 96)
         self.text(x + 14, y + 25, title, 14, bold=True)
-        self.text(x + 14, y + 57, "[total]", 25)
+        self.text(x + 14, y + 57, value, 25)
         self.text(x + 14, y + 81, context, 13, muted=True)
 
-    def match(self, x, y, w, h=122):
+    def match(self, x, y, w, h=122, value=None):
         self.box(x, y, w, h)
         self.text(x + 14, y + 23, "[Liga] · [hora local] · [estado]", 14, muted=True)
         self.text(x + 14, y + 53, "Equipo local — Equipo visitante", 16, bold=True)
         self.text(x + 14, y + 81, "Local [dato] · Empate [dato] · Visita [dato]", 14)
         self.text(x + 14, y + 108, "Fuente: [origen]", 13, muted=True)
         self.text(x + w - 18, y + 108, "→", 18, center=True)
+        if value is not None:
+            self.parts.append(f'<rect x="{x + 14}" y="{y + 122}" width="{w - 110}" height="30" '
+                              f'rx="6" fill="var(--{"value" if value else "soft"})"/>')
+            self.text(x + 24, y + 142, "Con ventaja [+x%] · Pinnacle" if value else "Sin ventaja", 13, bold=True)
+            self.text(x + w - 84, y + 142, "Semáforo", 12, muted=True)
 
     def hoy(self):
         x, w = self.x, self.w
@@ -132,8 +157,8 @@ class Wireframe:
             self.text(x + 14, 492, "[Resumen obtenido del sistema]", 15)
             self.text(x + 14, 522, "[Modo de redacción del resumen]", 13, muted=True)
             self.text(x, 578, "Para revisar hoy", 20, bold=True)
-            self.match(x, 594, w)
-            self.button(x, 734, w, "Ver todos los partidos")
+            self.match(x, 594, w, 168, value=True)
+            self.button(x, 782, w, "Ver todos los partidos")
         else:
             self.box(x, 208, 656, 126)
             self.text(x + 20, 241, "Tus equipos, primero", 20, bold=True)
@@ -147,12 +172,25 @@ class Wireframe:
             self.text(x + 20, 452, "[Modo de redacción: plantilla o IA]", 14, muted=True)
             self.text(x, 520, "Para revisar hoy", 22, bold=True)
             self.button(x + w - 224, 490, 224, "Ver todos los partidos")
-            self.match(x, 546, 566, 132)
-            self.match(x + 590, 546, 566, 132)
-            self.box(x, 702, w, 96)
-            self.text(x + 20, 734, "Probabilidad y ventaja de precio son cosas distintas.", 17, bold=True)
-            self.text(x + 20, 765, "Cada oportunidad muestra su fuente y vigencia. El seguimiento es en papel.", 16,
-                      muted=True)
+            self.match(x, 546, 566, 168, value=True)
+            self.match(x + 590, 546, 566, 168, value=False)
+            self.text(x + 14, 752, "(?) Qué significa tener ventaja · Ayuda contextual", 14, muted=True)
+
+    def hoy_atrasado(self):
+        x, w = self.x, self.w
+        self.box(x, 202 if self.mobile else 208, w if self.mobile else 656, 112 if self.mobile else 126)
+        self.text(x + 16, 232 if self.mobile else 242, "Tus equipos", 19, bold=True)
+        self.text(x + 16, 262 if self.mobile else 274, "[Favoritos guardados]", 16, muted=True)
+        self.text(x + 16, 292 if self.mobile else 308, "Actualización pendiente", 14, muted=True)
+        for i, title in enumerate(("Partidos de hoy", "Con ventaja")):
+            xx = x + 185 * i if self.mobile else x + 680 + 250 * i
+            self.kpi(xx, 328 if self.mobile else 208, 173 if self.mobile else 226, title, "Hoy · en pausa", "—")
+        y = 438 if self.mobile else 358
+        self.box(x, y, w, 208)
+        self.text(x + 16, y + 34, "Recomendaciones en pausa", 20, bold=True)
+        self.paragraph(x + 16, y + 70, "No hay datos recientes. El resumen y las oportunidades se mostrarán "
+                       "cuando exista información actualizada.", w - 32, 16)
+        self.button(x + 16, y + 146, min(w - 32, 290), "Ver últimos resultados")
 
     def partidos(self):
         x, w = self.x, self.w
@@ -194,19 +232,24 @@ class Wireframe:
         y = 380 if self.mobile else 422
         left = w if self.mobile else 696
         self.box(x, y, left, 174)
-        self.text(x + 16, y + 30, "Probabilidad de resultado", 19, bold=True)
+        self.text(x + 16, y + 30, "Probabilidad de resultado (?)", 19, bold=True)
         for index, name in enumerate(("Local", "Empate", "Visita")):
             xx = x + left * (index + 0.5) / 3
             self.text(xx, y + 66, name, 15, center=True)
             self.text(xx, y + 102, "[dato]", 24, center=True)
         self.text(x + 16, y + 143, "[Fuente] · [vigencia de la predicción]", 14, muted=True)
         vx, vy, vw = (x, 570, w) if self.mobile else (x + 720, y, 436)
-        self.box(vx, vy, vw, 118 if self.mobile else 174)
-        self.text(vx + 16, vy + 30, "Ventaja de precio", 19, bold=True)
-        self.text(vx + 16, vy + 62, "[Evaluación frente a Pinnacle]", 15)
-        self.paragraph(vx + 16, vy + 90, "Un favorito no implica una apuesta con valor.", vw - 32, 15)
-        self.button(x, 704 if self.mobile else 620, w if self.mobile else 696, "Forma y tabla                       +")
-        self.button(x if self.mobile else x + 720, 760 if self.mobile else 620,
+        self.box(vx, vy, vw, 276)
+        self.text(vx + 16, vy + 30, "Ventaja de precio (?)", 19, bold=True)
+        for dy, line in [(60, "Selección: [mercado y resultado]"),
+                         (90, "Cuota: [dato] · Precio justo: [dato]"),
+                         (120, "Ventaja: [+x%] · Pinnacle"), (150, "Monto sugerido: [dato]"),
+                         (180, "¼ Kelly · máximo 2% por apuesta")]:
+            self.text(vx + 16, vy + dy, line, 15)
+        self.text(vx + 16, vy + 216, "Ver apuesta en Seguimiento →", 15, bold=True)
+        self.text(vx + 16, vy + 245, "Solo si existe apuesta registrada", 13, muted=True)
+        self.button(x, 862 if self.mobile else 620, w if self.mobile else 696, "Forma y tabla                       +")
+        self.button(x if self.mobile else x + 720, 918 if self.mobile else 720,
                     w if self.mobile else 436, "Cuotas y modelo                    +")
 
     def mas(self):
@@ -232,7 +275,8 @@ class Wireframe:
             self.text(x + 612, 637, "Explorar reúne Simulador y Combinadas.", 17, muted=True)
 
     def write(self, filename):
-        (ROOT / filename).write_text("\n".join([*self.parts, "</svg>\n"]), encoding="utf-8")
+        (ROOT / filename).write_text("\n".join([*self.parts, *(('</g>',) if self.mobile else ()), "</svg>\n"]),
+                                     encoding="utf-8")
 
 
 def main():
@@ -240,8 +284,15 @@ def main():
         for width in (390, 1440):
             for theme in ("claro", "oscuro"):
                 frame = Wireframe(view, width, theme)
-                getattr(frame, view)()
+                getattr(frame, view.replace("-", "_"))()
                 frame.write(f"{view}-{width}-{theme}.svg")
+    gallery = ROOT / "index.html"
+    markup = gallery.read_text(encoding="utf-8")
+    for view in VIEWS:
+        frame = Wireframe(view, 390, "claro")
+        markup = re.sub(rf'(src="{view}-390-claro.svg" width="390" height=")\d+(" alt=)',
+                        rf'\g<1>{frame.height}\2', markup)
+    gallery.write_text(markup, encoding="utf-8")
 
 
 if __name__ == "__main__":

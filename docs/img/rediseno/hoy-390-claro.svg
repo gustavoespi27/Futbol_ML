@@ -1,23 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="390" height="900" viewBox="0 0 390 900" style="--bg:#f4f4f3;--card:#ffffff;--line:#b8bab9;--text:#202522;--muted:#555e58;--soft:#e8eae7;--active:#263a30;--on:#ffffff" role="img" aria-labelledby="title desc"><title id="title">Wireframe de Hoy, 390 px, tema claro</title><desc id="desc">Propuesta de estructura para revisión. Los corchetes indican contenido del backend; no son estadísticas ni partidos reales. No es una implementación de la aplicación.</desc><style>text{font-family:Arial,sans-serif;fill:var(--text)}.box{fill:var(--card);stroke:var(--line);stroke-width:1}.soft{fill:var(--soft)}.muted{fill:var(--muted)}.active{fill:var(--active)}.on{fill:var(--on)}</style><rect width="100%" height="100%" fill="var(--bg)"/>
-<text x="16" y="36" font-size="25" font-weight="700" text-anchor="start" class="">Hoy</text>
-<text x="16" y="63" font-size="14" font-weight="400" text-anchor="start" class="muted">[Fecha local]</text>
-<rect x="202" y="18" width="116" height="44" rx="10" class="box"/>
-<text x="260.0" y="46" font-size="14" font-weight="400" text-anchor="middle" class="">Preferencias</text>
-<rect x="330" y="18" width="44" height="44" rx="10" class="box"/>
-<text x="352.0" y="46" font-size="14" font-weight="400" text-anchor="middle" class="">IA</text>
-<rect x="0" y="812" width="390" height="88" rx="0" class="box"/>
-<rect x="4" y="821" width="70" height="56" rx="10" class="active" stroke="none"/>
-<text x="39" y="844" font-size="19" font-weight="400" text-anchor="middle" class="on">○</text>
-<text x="39" y="867" font-size="11.5" font-weight="400" text-anchor="middle" class="on">Hoy</text>
-<text x="117" y="844" font-size="19" font-weight="400" text-anchor="middle" class="">▤</text>
-<text x="117" y="867" font-size="11.5" font-weight="400" text-anchor="middle" class="">Partidos</text>
-<text x="195" y="844" font-size="19" font-weight="400" text-anchor="middle" class="">✓</text>
-<text x="195" y="867" font-size="11.5" font-weight="400" text-anchor="middle" class="">Seguimiento</text>
-<text x="273" y="844" font-size="19" font-weight="400" text-anchor="middle" class="">◇</text>
-<text x="273" y="867" font-size="11.5" font-weight="400" text-anchor="middle" class="">Explorar</text>
-<text x="351" y="844" font-size="19" font-weight="400" text-anchor="middle" class="">···</text>
-<text x="351" y="867" font-size="11.5" font-weight="400" text-anchor="middle" class="">Más</text>
-<text x="195" y="894" font-size="10" font-weight="400" text-anchor="middle" class="muted">Área segura del dispositivo</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="1012" viewBox="0 0 390 1012" style="--bg:#f4f4f3;--card:#ffffff;--line:#b8bab9;--text:#202522;--muted:#555e58;--soft:#e8eae7;--active:#263a30;--on:#ffffff;--warning:#fff3d6;--warning-text:#5c3500;--value:#e1efe5;--value-text:#205333" role="img" aria-labelledby="title desc"><title id="title">Wireframe de Hoy, 390 px, tema claro</title><desc id="desc">Propuesta de estructura para revisión. Los corchetes indican contenido del backend; no son estadísticas ni partidos reales. No es una implementación de la aplicación.</desc><style>text{font-family:Arial,sans-serif;fill:var(--text)}.box{fill:var(--card);stroke:var(--line);stroke-width:1}.soft{fill:var(--soft)}.muted{fill:var(--muted)}.active{fill:var(--active)}.on{fill:var(--on)}</style><rect width="100%" height="100%" fill="var(--bg)"/>
+<text x="16" y="20" font-size="13" font-weight="700" text-anchor="start" class="">Fútbol ML</text>
+<text x="16" y="48" font-size="25" font-weight="700" text-anchor="start" class="">Hoy</text>
+<text x="16" y="73" font-size="14" font-weight="400" text-anchor="start" class="muted">[Fecha local]</text>
+<rect x="16" y="88" width="173" height="44" rx="10" class="box"/>
+<text x="102.5" y="116" font-size="14" font-weight="400" text-anchor="middle" class="">Preferencias</text>
+<rect x="201" y="88" width="173" height="44" rx="10" class="box"/>
+<text x="287.5" y="116" font-size="14" font-weight="400" text-anchor="middle" class="">Asistente</text>
+<rect x="0" y="924" width="390" height="88" rx="0" class="box"/>
+<rect x="4" y="933" width="70" height="56" rx="10" class="active" stroke="none"/>
+<text x="39" y="956" font-size="19" font-weight="400" text-anchor="middle" class="on">○</text>
+<text x="39" y="979" font-size="11.5" font-weight="400" text-anchor="middle" class="on">Hoy</text>
+<text x="117" y="956" font-size="19" font-weight="400" text-anchor="middle" class="">▤</text>
+<text x="117" y="979" font-size="11.5" font-weight="400" text-anchor="middle" class="">Partidos</text>
+<text x="195" y="956" font-size="19" font-weight="400" text-anchor="middle" class="">✓</text>
+<text x="195" y="979" font-size="11.5" font-weight="400" text-anchor="middle" class="">Seguimiento</text>
+<text x="273" y="956" font-size="19" font-weight="400" text-anchor="middle" class="">◇</text>
+<text x="273" y="979" font-size="11.5" font-weight="400" text-anchor="middle" class="">Explorar</text>
+<text x="351" y="956" font-size="19" font-weight="400" text-anchor="middle" class="">···</text>
+<text x="351" y="979" font-size="11.5" font-weight="400" text-anchor="middle" class="">Más</text>
+<text x="195" y="1006" font-size="10" font-weight="400" text-anchor="middle" class="muted">Área segura del dispositivo</text>
+<g transform="translate(0,64)">
 <rect x="16" y="88" width="358" height="100" rx="10" class="box"/>
 <text x="30" y="114" font-size="15" font-weight="700" text-anchor="start" class="">Datos: [estado y actualización]</text>
 <text x="30" y="139" font-size="14" font-weight="400" text-anchor="start" class="muted">Asistente: [disponibilidad]</text>
@@ -40,12 +42,16 @@
 <text x="30" y="492" font-size="15" font-weight="400" text-anchor="start" class="">[Resumen obtenido del sistema]</text>
 <text x="30" y="522" font-size="13" font-weight="400" text-anchor="start" class="muted">[Modo de redacción del resumen]</text>
 <text x="16" y="578" font-size="20" font-weight="700" text-anchor="start" class="">Para revisar hoy</text>
-<rect x="16" y="594" width="358" height="122" rx="10" class="box"/>
+<rect x="16" y="594" width="358" height="168" rx="10" class="box"/>
 <text x="30" y="617" font-size="14" font-weight="400" text-anchor="start" class="muted">[Liga] · [hora local] · [estado]</text>
 <text x="30" y="647" font-size="16" font-weight="700" text-anchor="start" class="">Equipo local — Equipo visitante</text>
 <text x="30" y="675" font-size="14" font-weight="400" text-anchor="start" class="">Local [dato] · Empate [dato] · Visita [dato]</text>
 <text x="30" y="702" font-size="13" font-weight="400" text-anchor="start" class="muted">Fuente: [origen]</text>
 <text x="356" y="702" font-size="18" font-weight="400" text-anchor="middle" class="">→</text>
-<rect x="16" y="734" width="358" height="44" rx="10" class="box"/>
-<text x="195.0" y="762" font-size="15" font-weight="400" text-anchor="middle" class="">Ver todos los partidos</text>
+<rect x="30" y="716" width="248" height="30" rx="6" fill="var(--value)"/>
+<text x="40" y="736" font-size="13" font-weight="700" text-anchor="start" class="">Con ventaja [+x%] · Pinnacle</text>
+<text x="290" y="736" font-size="12" font-weight="400" text-anchor="start" class="muted">Semáforo</text>
+<rect x="16" y="782" width="358" height="44" rx="10" class="box"/>
+<text x="195.0" y="810" font-size="15" font-weight="400" text-anchor="middle" class="">Ver todos los partidos</text>
+</g>
 </svg>

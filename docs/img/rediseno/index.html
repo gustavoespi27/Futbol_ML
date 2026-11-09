@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Futbol ML · Wireframes para revisión</title>
+  <title>Fútbol ML · Wireframes para revisión</title>
   <style>
     :root { color-scheme: light; --bg:#f4f4f3; --surface:#fff; --text:#202522; --muted:#555e58; --line:#b8bab9; }
     :root[data-theme="oscuro"] { color-scheme:dark; --bg:#111613; --surface:#1d2520; --text:#f0f3ef; --muted:#b5bfb6; --line:#6b766e; }
@@ -39,7 +39,7 @@
 </head>
 <body>
 <main>
-  <p>Futbol ML · Paso 1 · 9 de noviembre de 2026</p>
+  <p>Fútbol ML · Paso 1 revisado · 9 de noviembre de 2026</p>
   <h1>Primero la estructura, después el diseño.</h1>
   <p>Wireframes de Hoy, Partidos, ficha y Más. Compara la jerarquía móvil y de escritorio antes de aprobar la implementación.</p>
   <p class="note">Los corchetes indican contenido que vendrá del backend. No son cifras, partidos ni estados reales. Estas láminas muestran estructura; la tipografía, paleta y componentes definitivos se trabajan en pasos posteriores.</p>
@@ -48,28 +48,36 @@
     <select id="theme"><option value="claro">Clara</option><option value="oscuro">Oscura</option></select>
     <a href="README.md">Decisiones, rutas y alcance del paso</a>
   </div>
-  <nav aria-label="Láminas"><a href="#hoy">Hoy</a><a href="#partidos">Partidos</a><a href="#ficha">Ficha</a><a href="#mas">Más</a><a href="#estados">Estados y recorridos</a></nav>
+  <nav aria-label="Láminas"><a href="#hoy">Hoy</a><a href="#hoy-atrasado">Hoy en pausa</a><a href="#partidos">Partidos</a><a href="#ficha">Ficha</a><a href="#mas">Más</a><a href="#estados">Estados y recorridos</a></nav>
   <section id="hoy">
     <h2>Hoy · Qué hay para mí</h2>
-    <p class="description">Estado de datos arriba; favoritos antes de indicadores; solo dos cifras con periodo y contexto. Resumen y partidos después. El histórico y la bitácora salen de esta vista.</p>
+    <p class="description">Estado arriba, favoritos y dos indicadores con periodo. Las tarjetas integran el semáforo: «Con ventaja [+x%] · Pinnacle» / «Sin ventaja». La diferencia entre probabilidad y ventaja pasa a ayuda contextual.</p>
     <div class="pair">
-      <figure><figcaption>Móvil · 390 px</figcaption><a data-frame="hoy-390" href="hoy-390-claro.svg"><img src="hoy-390-claro.svg" width="390" height="900" alt="Hoy en móvil: estado, favoritos, dos indicadores, resumen y partidos."></a></figure>
+      <figure><figcaption>Móvil · 390 px</figcaption><a data-frame="hoy-390" href="hoy-390-claro.svg"><img src="hoy-390-claro.svg" width="390" height="1012" alt="Hoy en móvil: estado, favoritos, dos indicadores, resumen y partidos."></a></figure>
       <figure><figcaption>Escritorio · 1440 px</figcaption><a data-frame="hoy-1440" href="hoy-1440-claro.svg"><img src="hoy-1440-claro.svg" width="1440" height="900" alt="Hoy en escritorio con navegación lateral y el mismo orden de información."></a></figure>
+    </div>
+  </section>
+  <section id="hoy-atrasado">
+    <h2>Hoy en pausa · El estado principal de confianza</h2>
+    <p class="description">Advertencia «Datos sin actualizar desde [fecha]», indicadores «— / en pausa» y un único estado vacío que sustituye resumen y oportunidades. No se concluye que no hay valor por falta de datos.</p>
+    <div class="pair">
+      <figure><figcaption>Móvil · 390 px</figcaption><a data-frame="hoy-atrasado-390" href="hoy-atrasado-390-claro.svg"><img src="hoy-atrasado-390-claro.svg" width="390" height="1012" alt="Hoy móvil con datos atrasados, indicadores en pausa y un único estado vacío."></a></figure>
+      <figure><figcaption>Escritorio · 1440 px</figcaption><a data-frame="hoy-atrasado-1440" href="hoy-atrasado-1440-claro.svg"><img src="hoy-atrasado-1440-claro.svg" width="1440" height="900" alt="Hoy escritorio con advertencia y recomendaciones en pausa."></a></figure>
     </div>
   </section>
   <section id="partidos">
     <h2>Partidos · Buscar y elegir</h2>
     <p class="description">Fecha y búsqueda a mano. Las tarjetas sustituyen tablas comprimidas en móvil; Filtros abre una hoja. La ficha es una vista, sin un segundo scroll vertical.</p>
     <div class="pair">
-      <figure><figcaption>Móvil · 390 px</figcaption><a data-frame="partidos-390" href="partidos-390-claro.svg"><img src="partidos-390-claro.svg" width="390" height="900" alt="Lista móvil de partidos con búsqueda, fechas y acceso a filtros."></a></figure>
+      <figure><figcaption>Móvil · 390 px</figcaption><a data-frame="partidos-390" href="partidos-390-claro.svg"><img src="partidos-390-claro.svg" width="390" height="964" alt="Lista móvil de partidos con búsqueda, fechas y acceso a filtros."></a></figure>
       <figure><figcaption>Escritorio · 1440 px</figcaption><a data-frame="partidos-1440" href="partidos-1440-claro.svg"><img src="partidos-1440-claro.svg" width="1440" height="900" alt="Lista de partidos en escritorio con filtros visibles."></a></figure>
     </div>
   </section>
   <section id="ficha">
     <h2>Ficha · Probabilidad y precio, separados</h2>
-    <p class="description">Equipos, fecha y estado primero. Probabilidad con fuente y vigencia; evaluación del precio en un bloque distinto. Forma, tabla, cuotas y modelo se expanden cuando se necesitan.</p>
+    <p class="description">Selección, cuota, precio justo, ventaja y monto sugerido, con tope 2% visible. El enlace a Seguimiento aparece solo si hay apuesta en papel registrada. Probabilidad y precio siguen separados; los símbolos (?) abren ayuda contextual.</p>
     <div class="pair">
-      <figure><figcaption>Móvil · 390 px</figcaption><a data-frame="ficha-390" href="ficha-390-claro.svg"><img src="ficha-390-claro.svg" width="390" height="900" alt="Ficha móvil con probabilidades y ventaja de precio en bloques separados."></a></figure>
+      <figure><figcaption>Móvil · 390 px</figcaption><a data-frame="ficha-390" href="ficha-390-claro.svg"><img src="ficha-390-claro.svg" width="390" height="1122" alt="Ficha móvil con probabilidades y ventaja de precio en bloques separados."></a></figure>
       <figure><figcaption>Escritorio · 1440 px</figcaption><a data-frame="ficha-1440" href="ficha-1440-claro.svg"><img src="ficha-1440-claro.svg" width="1440" height="900" alt="Ficha en escritorio con comparación en columnas y regreso a Partidos."></a></figure>
     </div>
   </section>
@@ -77,7 +85,7 @@
     <h2>Más · Ninguna sección desaparece en móvil</h2>
     <p class="description">Fiabilidad, metodología, preferencias, tema y asistente quedan al mismo alcance. Explorar agrupa Simulador y Combinadas; Seguimiento reúne resultados y bitácora.</p>
     <div class="pair">
-      <figure><figcaption>Móvil · 390 px</figcaption><a data-frame="mas-390" href="mas-390-claro.svg"><img src="mas-390-claro.svg" width="390" height="900" alt="Menú Más móvil con acceso a Fiabilidad, Cómo funciona, preferencias, tema y asistente."></a></figure>
+      <figure><figcaption>Móvil · 390 px</figcaption><a data-frame="mas-390" href="mas-390-claro.svg"><img src="mas-390-claro.svg" width="390" height="964" alt="Menú Más móvil con acceso a Fiabilidad, Cómo funciona, preferencias, tema y asistente."></a></figure>
       <figure><figcaption>Escritorio · 1440 px</figcaption><a data-frame="mas-1440" href="mas-1440-claro.svg"><img src="mas-1440-claro.svg" width="1440" height="900" alt="Menú Más en escritorio con los mismos destinos."></a></figure>
     </div>
   </section>
@@ -92,7 +100,7 @@
     </div>
     <p>Los enlaces anteriores señalan el recorrido del wireframe; no ejecutan acciones en la aplicación. El estado sin datos reemplaza resumen y oportunidades, pero permite consultar resultados históricos.</p>
   </section>
-  <footer>Solo documentación del paso 1. No cambia la aplicación, A2, la API, el SSE ni los modelos. Revisión de Gustavo pendiente.</footer>
+  <footer>Wireframes revisados con el feedback de Gustavo. A2 y health están implementados en commits separados. Estas láminas no implementan el paso 4 ni cambian el SSE.</footer>
 </main>
 <script>
   const theme = document.querySelector("#theme");
