@@ -127,11 +127,10 @@ code { font: 12px var(--font-mono); background: var(--surface-2); padding: 1px 5
 .sidebar .brand-tag { color: #64748b; }
 .sidebar .brand-mark { --surface-2: #151a24; --border: #242c3d; --text-2: #94a3b8; --accent: #10b981; }
 .sidebar .nav-label { color: #64748b; }
-.sidebar .navlink { color: #94a3b8; }
-.sidebar .navlink:hover { background: #151a24; color: #f3f4f6; }
+.sidebar .navlink { color: #94a3b8; border: 0; background: transparent; }
+.sidebar .navlink:hover { background: transparent; color: #f3f4f6; }
 .sidebar .navlink.active { background: rgba(16, 185, 129, .15); color: #10b981; }
 .sidebar .navlink.active::before { background: #10b981; }
-.sidebar .status { color: #94a3b8; }
 .sidebar .side-foot { border-top-color: #1c222e; }
 .sidebar .icon-btn { background: #121620; border-color: #242c3d; color: #94a3b8; }
 .sidebar .icon-btn:hover { background: #181e2b; color: #f3f4f6; border-color: #10b981; }
@@ -165,9 +164,6 @@ code { font: 12px var(--font-mono); background: var(--surface-2); padding: 1px 5
 }
 .badge:empty { display: none; }
 .side-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 6px 0; border-top: 1px solid var(--border); }
-.status { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--muted); line-height: 1.3; }
-.status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 20%, transparent); flex: none; }
-.status.stale .dot { background: var(--warn); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 20%, transparent); }
 .icon-btn {
   border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
   border-radius: 8px; width: 32px; height: 32px; cursor: pointer; display: grid; place-items: center; flex: none;
@@ -968,23 +964,48 @@ details.mx .opt-table .vchip { white-space: nowrap; }
 .isel-item.off { opacity: .45; cursor: not-allowed; }
 .isel-item small { font-size: 11px; color: var(--muted); font-weight: 500; }
 
-/* ================= ticker del motor (Panel) ================= */
-.quant-ticker {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 0; margin: -6px 0 16px; padding: 2px 8px;
-  scroll-behavior: smooth; scrollbar-width: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
-  background: var(--surface); font: 500 11.5px/1 var(--font-mono);
+/* ================= estado de datos y confianza (P0) ================= */
+.status-strip {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; padding: 14px 16px; margin: 0 0 16px;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
+  color: var(--text); font-size: 14px; line-height: 1.5; min-width: 0;
 }
-.quant-ticker::-webkit-scrollbar { display: none; }
-.quant-ticker:empty { display: none; }
-.ticker-chip {
-  display: inline-flex; align-items: center; gap: 6px; flex: none; padding: 6px 12px; border-radius: 0; white-space: nowrap;
-  border: 0; border-right: 1px solid var(--border); background: transparent; color: var(--muted); cursor: default;
+.status-unit { min-width: 0; overflow-wrap: anywhere; }
+.status-unit:first-child { font-weight: 650; }
+.status-unit:not(:first-child) { color: var(--text-2); }
+.status-short { display: none; }
+.status-strip--compact:not(.status-strip--warn) { padding: 2px 0; border: 0; background: transparent; font-size: 13px; gap: 8px 16px; }
+.status-strip--compact:not(.status-strip--warn) .status-full { display: none; }
+.status-strip--compact:not(.status-strip--warn) .status-short { display: inline; }
+.status-strip--warn { background: var(--warn-bg); border-color: var(--warn); }
+.status-refresh {
+  margin-left: auto; padding: 8px 12px; min-height: 44px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text); font: inherit; cursor: pointer; flex: none;
 }
-.ticker-chip:last-child { border-right: 0; }
-.ticker-chip > span:first-child { text-transform: uppercase; letter-spacing: .08em; font-size: 10px; }
-.ticker-chip b { color: var(--accent-2); font-weight: 700; }
-.ticker-chip.live b { color: var(--ev-text); }
-.ticker-chip.live > span:last-child { text-transform: none; letter-spacing: 0; font-size: 11px; }
+.status-strip--compact:not(.status-strip--warn) .status-refresh { padding: 4px 8px; font-size: 12px; }
+section.view > .trust-hidden { display: none; }
+.view-trust-empty[hidden] { display: none; }
+.view-trust-empty { margin: 16px 0; }
+.empty-state--trust {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; text-align: left; padding: 12px 16px; line-height: 1.35;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);
+}
+.empty-state--trust svg { display: none; }
+.empty-state--trust b { font-size: 16px; }
+.empty-state--trust p { flex: 1 1 100%; margin: 0; color: var(--text-2); max-width: none; font-size: 14px; line-height: 1.4; }
+.empty-state--trust .empty-action { margin: 0; min-height: 44px; padding: 8px 12px; background: var(--surface-2); color: var(--text); }
+@media (max-width: 640px) {
+  .status-strip { gap: 6px; padding: 12px; }
+  .status-unit { flex-basis: 100%; }
+  .status-strip--compact:not(.status-strip--warn) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 4px 8px; }
+  .status-strip--compact:not(.status-strip--warn) .status-unit { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+  .status-strip--compact:not(.status-strip--warn) .status-refresh { grid-column: 1 / -1; justify-self: start; margin: 0; }
+  #home-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reco-head, .sec-row, .toolbar { min-width: 0; flex-wrap: wrap; }
+  .log-layout > *, .hero > *, .stack > .card { min-width: 0; max-width: 100%; }
+}
+
+/* Marcadores en vivo: no implican vigencia de las predicciones. */
 .live-dot {
   width: 8px; height: 8px; border-radius: 50%; background: var(--good); flex: none;
   animation: pulse-green 2s ease-in-out infinite;
@@ -994,7 +1015,6 @@ details.mx .opt-table .vchip { white-space: nowrap; }
   50% { box-shadow: 0 0 0 6px transparent; }
 }
 @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
-@media (max-width: 760px) { .quant-ticker { flex-wrap: nowrap; overflow-x: auto; } }   /* en móvil: una línea con desplazamiento */
 
 /* ================= detalle del partido: goles esperados y forma ================= */
 .xg-cell { display: grid; gap: 8px; }

@@ -40,3 +40,6 @@ jobs:
 
       - name: Pytest
         run: pytest -q --cov=footy_agents --cov-report=term-missing --cov-fail-under=90
+
+      - name: Reglas de presentación P0
+        run: node --test tests/web/trust.test.cjs

@@ -36,7 +36,6 @@
         <a class="navlink" href="#como-funciona" data-title="Cómo funciona"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg><span>Cómo funciona</span></a>
     </nav>
     <div class="side-foot">
-      <div class="status" id="status-line"><i class="dot"></i><span>Conectando…</span></div>
       <button class="icon-btn" id="theme" title="Cambiar tema claro/oscuro" aria-label="Cambiar tema">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
       </button>
@@ -55,12 +54,14 @@
       </div>
     </header>
 <main id="main">
+  <div id="system-status" class="status-strip" role="status" aria-live="polite">
+    Comprobando actualización de datos y disponibilidad del asistente…
+  </div>
   <!-- INICIO: PANEL PRINCIPAL -->
   <section class="view" id="v-inicio">
     <div class="view-head">
       <h1>Apostador profesional</h1>
     </div>
-    <div class="quant-ticker" id="quant-ticker" aria-label="Estado del motor"></div>
     <section class="card brief-card" id="agent-brief" aria-labelledby="brief-title">
       <div class="brief-head">
         <h2 id="brief-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6.3 6.3 4.9 4.9M19.1 19.1l-1.4-1.4M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg>Tu resumen de hoy</h2>
@@ -69,7 +70,7 @@
           <button type="button" class="chip" id="brief-refresh" aria-label="Actualizar resumen" title="Actualizar resumen"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg></button>
         </div>
       </div>
-      <p class="brief-body" aria-live="polite"></p>
+      <div class="brief-body" aria-live="polite"></div>
       <div class="brief-foot"></div>
     </section>
     <div class="grid g4" id="home-tiles" data-skel="kpi:4"></div>
@@ -470,6 +471,7 @@
     </div>
   </form>
 </dialog>
+<script src="/static/trust.js"></script>
 <script src="/static/app.js"></script>
 <script src="/static/leaguepicker.js"></script>
 <script src="/static/combos.js"></script>

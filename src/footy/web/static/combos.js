@@ -86,6 +86,7 @@ async function renderCombos() {
   const histP = api("/api/combos/history");
   const [list, catalog] = await Promise.all([api("/api/upcoming"), leagueCatalog()]);
   const draw = () => {
+    if (systemState.kind !== "fresh") { gateView($("#v-combinadas"), systemState.kind); return; }
     const box = $("#cb-matches");
     // los partidos que ya están en el boleto van arriba (aunque el filtro no los incluya), en el orden en que se agregaron
     const inTicket = [...new Set(ticket.legs.map((l) => l.ref))];

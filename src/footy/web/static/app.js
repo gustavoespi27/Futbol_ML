@@ -57,13 +57,132 @@ const teamsRow = (o) => {
 };
 
 const cache = {};
+const apiPending = {};
 async function api(path, opts) {
   if (!opts && cache[path]) return cache[path];
-  const r = await fetch(path, opts);
-  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
-  const data = await r.json();
-  if (!opts) cache[path] = data;
-  return data;
+  if (!opts && apiPending[path]) return apiPending[path];
+  const request = async () => {
+    const r = await fetch(path, opts);
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+    const data = await r.json();
+    if (!opts) cache[path] = data;
+    return data;
+  };
+  if (opts) return request();
+  apiPending[path] = request();
+  try { return await apiPending[path]; } finally { delete apiPending[path]; }
+}
+
+/* ---------- estado compartido: fallar cerrado para recomendaciones ---------- */
+const systemState = { overview: null, health: null, kind: "loading", checked: 0, pending: null };
+const prospectiveViews = new Set(["inicio", "partidos", "combinadas", "simulador"]);
+const localFormat = (iso, options) => new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", ...options }).format(new Date(iso));
+
+async function loadSystemStatus(force = false) {
+  if (systemState.pending) return systemState.pending;
+  if (!force && systemState.checked && Date.now() - systemState.checked < 60000) {
+    if (systemState.overview) systemState.kind = FootyTrust.classify(systemState.overview);
+    paintSystemStatus();
+    pauseViewsIfNeeded();
+    return systemState;
+  }
+  systemState.pending = (async () => {
+    const [overview, health] = await Promise.allSettled([
+      api("/api/overview", { cache: "no-store" }), api("/api/agent/health", { cache: "no-store" }),
+    ]);
+    systemState.overview = overview.status === "fulfilled" ? overview.value : null;
+    systemState.health = health.status === "fulfilled" ? health.value : null;
+    systemState.kind = overview.status === "rejected" ? "error" : FootyTrust.classify(overview.value);
+    systemState.checked = Date.now();
+    paintSystemStatus();
+    pauseViewsIfNeeded();
+    return systemState;
+  })();
+  try { return await systemState.pending; } finally { systemState.pending = null; }
+}
+
+function pauseViewsIfNeeded() {
+  if (systemState.kind === "fresh") return;
+  document.querySelectorAll("section.view").forEach((view) => {
+    if (prospectiveViews.has(view.id.slice(2))) gateView(view, systemState.kind);
+  });
+  window.dispatchEvent(new Event("footy-data-paused"));
+}
+
+function paintSystemStatus() {
+  const box = $("#system-status"), o = systemState.overview || {}, h = systemState.health;
+  const state = systemState.kind;
+  const valid = ["fresh", "stale"].includes(state);
+  const date = valid ? localFormat(o.last_daily_run, { day: "numeric", month: "long", year: "numeric" }) : "";
+  const time = valid ? localFormat(o.last_daily_run, { hour: "2-digit", minute: "2-digit", hour12: false }) : "";
+  const full = state === "fresh" ? `Datos al día · actualizados el ${date} a las ${time}`
+    : state === "stale" ? `Datos sin actualizar desde el ${date}`
+    : state === "error" ? "No se pudo comprobar la actualización de los datos" : "Sin fecha de actualización verificable";
+  const short = state === "fresh" ? `Datos · ${localFormat(o.last_daily_run, { day: "2-digit", month: "2-digit" })} ${time}` : full;
+  const assistant = !h ? "No se pudo comprobar el estado del asistente" : h.llm_available
+    ? "Asistente disponible" : "Asistente no disponible (el resto funciona)";
+  const mode = h && h.briefing_mode === "template" ? "Resumen por plantilla" : "";
+  const smallAssistant = !h ? "Asistente: sin verificar" : !h.llm_available ? "Asistente: no disponible"
+    : mode || "Asistente disponible";
+  box.classList.toggle("status-strip--warn", state !== "fresh");
+  box.dataset.state = state;
+  const unit = (label, small, title) => `<span class="status-unit" role="group" title="${esc(title)}" aria-label="${esc(title)}">
+    <span class="status-full" aria-hidden="true">${esc(label)}</span><span class="status-short" aria-hidden="true">${esc(small)}</span></span>`;
+  const markup = unit(full, short, full) + unit([assistant, mode].filter(Boolean).join(" · "), smallAssistant, [assistant, mode].filter(Boolean).join(" · "))
+    + unit(`Modelo: ${o.model_version || "sin verificar"}`, o.model_version || "Modelo: —", `Modelo: ${o.model_version || "sin verificar"}`)
+    + '<button type="button" class="status-refresh" aria-label="Volver a comprobar datos y asistente">Actualizar</button>';
+  if (box.innerHTML !== markup) {
+    const focused = box.contains(document.activeElement);
+    box.innerHTML = markup;
+    if (focused) $(".status-refresh", box).focus();
+  }
+  $(".status-refresh", box).onclick = retryCurrentView;
+}
+
+function trustEmpty(box, kind, { count = 0, action = null } = {}) {
+  const messages = {
+    stale: ["Recomendaciones en pausa", "Sin datos recientes para evaluar.", "Ver últimos resultados"],
+    unknown: ["Recomendaciones en pausa", "Falta verificar la actualización.", "Ver últimos resultados"],
+    error: ["No se pudo cargar", "Reintenta la consulta.", "Reintentar"],
+    no_matches: ["Sin partidos próximos", "No hay partidos para esta selección.", "Ver todos los partidos"],
+    no_value: ["Sin oportunidades con valor", `${count} partidos con Pinnacle; sin ventaja.`, "Ver el semáforo"],
+    no_reference: ["Sin referencia de precio", "Faltan cuotas de Pinnacle.", "Ver los partidos"],
+  };
+  const [title, text, label] = messages[kind] || messages.error;
+  box.innerHTML = emptyState({ title, text, action: label });
+  box.querySelector(".empty-state").classList.add("empty-state--trust");
+  box.querySelector(".empty-action").onclick = action || (kind === "error" ? retryCurrentView : () => { location.hash = "#resultados"; });
+}
+
+function gateView(view, kind = null) {
+  const key = view.id.slice(2);
+  view.dataset.trustKind = kind || "";
+  let message = $(".view-trust-empty", view);
+  if (!message) {
+    message = document.createElement("div"); message.className = "view-trust-empty";
+    view.append(message);
+  }
+  [...view.children].forEach((child) => {
+    if (child === message || child.id === "system-status" || child.classList.contains("view-head")) return;
+    child.classList.toggle("trust-hidden", Boolean(kind));
+  });
+  message.hidden = !kind;
+  if (!kind) return;
+  if (key === "inicio") {
+    const tiles = $("#home-tiles"); tiles.classList.remove("trust-hidden");
+    tiles.innerHTML = ["Partidos de hoy", "Con ventaja de precio"].map((title) =>
+      `<div class="card stat"><div class="label">${title}</div><div class="value">${kind === "no_matches" ? "0" : "—"}</div><div class="hint">${kind === "no_matches" ? "Sin partidos próximos" : "En pausa"}</div></div>`).join("");
+    tiles.after(message);
+  }
+  trustEmpty(message, kind, { action: kind === "no_matches" ? () => { location.hash = "#partidos"; } : null });
+}
+
+async function retryCurrentView() {
+  for (const path of Object.keys(cache)) delete cache[path];
+  rendered.clear();
+  await loadSystemStatus(true);
+  route();
+  if (systemState.kind === "fresh" && typeof loadBriefing === "function") loadBriefing();
 }
 
 /* ---------- tema ---------- */
@@ -87,10 +206,19 @@ function route() {
   document.querySelectorAll("section.view").forEach((s) => s.classList.toggle("active", s.id === "v-" + key));
   document.querySelectorAll(".navlink").forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + key));
   const link = document.querySelector(`#nav a[href="#${key}"]`);
+  const view = $("#v-" + key), strip = $("#system-status");
+  $(".view-head", view).after(strip);
+  strip.classList.toggle("status-strip--compact", key !== "inicio");
   if (link) { $("#page-title").textContent = link.dataset.title; document.title = `${link.dataset.title} · Futbol ML`; }
   if (!rendered.has(key) || key === "combinadas") {          // combinadas se redibuja: depende del boleto
-    rendered.add(key);
-    Promise.resolve(views[key]()).catch((e) => showError("v-" + key, e));
+    loadSystemStatus().then(() => {
+      if (prospectiveViews.has(key)) {
+        if (systemState.kind !== "fresh") { gateView(view, systemState.kind); return; }
+        gateView(view);
+      }
+      rendered.add(key);
+      return views[key]();
+    }).catch((e) => showError("v-" + key, e));
   }
   window.scrollTo(0, 0);
 }
@@ -144,8 +272,8 @@ function emptyMatches(box, filtered, reset, sel = null, catalog = []) {
     ? emptyState({ icon: "search", title: league ? `${esc(league.name)} no tiene partidos para este filtro` : "Sin partidos para este filtro",
       text: canSimulate ? "Puedes simular cualquier partido de esta liga o volver a ver todos." : "Prueba con otra liga, equipo o día.",
       action: "Ver todos los partidos" })
-    : emptyState({ title: "No hay partidos programados para hoy ni mañana",
-      text: "Puede ser fecha FIFA. La tarea diaria agrega partidos y cuotas a medida que se publican." });
+    : emptyState({ title: "No hay partidos en el calendario próximo",
+      text: "Los datos están actualizados. Puedes revisar otras ligas o los últimos resultados.", action: "Ver todos los partidos" });
   const b = box.querySelector(".empty-action");
   if (b) b.onclick = reset;
   if (canSimulate && b) {
@@ -167,7 +295,13 @@ const isFiltered = (sel, date) => (sel && sel.type !== "all") || (date && date.t
 
 function showError(id, e) {
   const el = document.getElementById(id);
-  el.insertAdjacentHTML("beforeend", `<div class="callout warn" style="margin-top:16px">No se pudieron cargar los datos: ${esc(e.message)}</div>`);
+  rendered.delete(id.slice(2));
+  if (prospectiveViews.has(id.slice(2))) gateView(el, "error");
+  else {
+    let box = $(".view-load-error", el);
+    if (!box) { box = document.createElement("div"); box.className = "view-load-error"; el.prepend(box); }
+    trustEmpty(box, "error");
+  }
 }
 
 /* ---------- gráficos ---------- */
@@ -325,6 +459,7 @@ let semSel = { type: "all" }, semDate = { type: "all" };
 async function renderSemaphore() {
   const [list, catalog] = await Promise.all([api("/api/upcoming"), leagueCatalog()]);
   const draw = () => {
+    if (systemState.kind !== "fresh") { gateView($("#v-inicio"), systemState.kind); return; }
     const shown = list.filter((m) => leagueSelMatch(semSel, m, catalog) && dateSelMatch(semDate, m.kickoff));
     if (!shown.length) return emptyMatches($("#semaforo"), isFiltered(semSel, semDate), reset, semSel, catalog);
     $("#semaforo").innerHTML = `<table class="sem"><thead><tr><th>Partido</th>${SEM_COLS.map(([, n]) => `<th style="text-align:center">${n}</th>`).join("")}
@@ -354,27 +489,12 @@ function semRow(m) {
 }
 
 /* ---------- INICIO ---------- */
-// Ticker del motor: datos vigentes de /api/overview (nada escrito a mano).
-function renderTicker(o) {
-  const e = o.engine || {};
-  const ago = o.last_daily_run ? Math.max(0, Math.round((Date.now() - new Date(o.last_daily_run)) / 3600000)) : null;
-  const chip = (k, v, title = "") => `<span class="ticker-chip" title="${esc(title)}"><span>${k}</span><b>${v}</b></span>`;
-  const model = e.ml_model === "poisson_goals" ? "Poisson λ/μ" : esc(e.ml_model || "Elo + DC");
-  $("#quant-ticker").innerHTML = [
-    `<span class="ticker-chip live"><span class="live-dot"></span><b>Motor activo</b>${ago != null ? `<span>datos hace ${ago} h</span>` : ""}</span>`,
-    chip("Ligas", `${o.n_leagues_model} con modelo · ${e.n_competitions} seguidas`),
-    chip("Modelo", `${model}${e.rho != null ? ` · ρ ${num(e.rho, 3)}` : ""}`, "Goles esperados del local (λ) y la visita (μ); todos los mercados salen de la misma matriz"),
-    chip("Sharp", esc(e.sharp || "–"), "Precio justo de referencia: cuotas de Pinnacle sin margen"),
-    chip("Edge", `≥ ${signed(e.min_edge, 1)}`, "Ventaja mínima sobre el precio justo para apostar"),
-    chip("Cuota", `≤ ${num(e.max_odds, 1)}`),
-    chip("Stake", `${e.kelly_fraction === 0.25 ? "1/4" : num(e.kelly_fraction, 2)} Kelly · máx ${pct(e.max_stake, 0)}`, `Máximo ${pct(e.max_daily, 0)} del bankroll por día`),
-    chip("Calibración", `T ${num(e.temperature, 2)}`, "Ajuste automático con resultados reales: T > 1 suaviza, T < 1 agudiza"),
-  ].join("");
-}
-
 async function renderHome() {
-  const o = await api("/api/overview");
-  renderTicker(o);
+  await loadSystemStatus();
+  if (systemState.kind !== "fresh") { gateView($("#v-inicio"), systemState.kind); return; }
+  const list = await api("/api/upcoming");
+  if (!list.length) { gateView($("#v-inicio"), "no_matches"); return; }
+  const o = systemState.overview;
   const b = o.backtest, t = o.tracking;
   $("#hero-acc").innerHTML = `${pct(b.acc_official, 1)} <small>de ${b.n.toLocaleString("es-CL")} partidos</small>`;
   $("#hero-sub").textContent = `Partidos de ${b.leagues} ligas entre ${fmtDate(b.from, false)} y ${fmtDate(b.to, false)}, que el sistema no había visto al elegir sus parámetros.`;
@@ -390,6 +510,8 @@ async function renderHome() {
   // Cada sección se dibuja por su cuenta en cuanto llega su dato; los indicadores esperan a ambos.
   renderSemaphore().catch((e) => showError("v-inicio", e));
   const [sug, rel] = await Promise.all([renderSuggestions(), renderReliable()]);
+  if (systemState.kind !== "fresh") { gateView($("#v-inicio"), systemState.kind); return; }
+  if ($("#v-inicio").dataset.trustKind === "error") return;
   const L = sug.ledger || {}, R = rel.record || {};
   // Cada indicador lleva un ícono de su tema; el acento esmeralda solo aparece cuando hay apuestas con valor.
   $("#home-tiles").innerHTML = [
@@ -435,6 +557,7 @@ async function renderMatches() {
   // Los partidos en juego van arriba, en su propio bloque, en Todos, Hoy y Jugados hoy (con el filtro de liga).
   const withLive = () => ["all", "today", "played"].includes(matchDate.type);
   const draw = () => {
+    if (systemState.kind !== "fresh") { gateView($("#v-partidos"), systemState.kind); return; }
     const done = { yesterday: past, played: today }[matchDate.type];
     const live = withLive() ? today.matches.filter((m) => m.status === "live" && leagueSelMatch(matchSel, m, catalog)) : [];
     const shown = (done ? done.matches : list).filter((m) => leagueSelMatch(matchSel, m, catalog) && dateSelMatch(matchDate, m.kickoff)
@@ -1261,16 +1384,13 @@ function renderSimResult(r) {
 /* ---------- barra lateral y superior ---------- */
 async function initChrome() {
   $("#tb-date").textContent = new Intl.DateTimeFormat("es-CL", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
-  try {
-    const o = await api("/api/overview");
-    const el = $("#status-line");
-    if (o.last_daily_run) {
-      const h = (Date.now() - new Date(o.last_daily_run)) / 3.6e6;
-      const ago = h < 1 ? `hace ${Math.max(1, Math.round(h * 60))} min` : h < 48 ? `hace ${Math.round(h)} h` : `hace ${Math.round(h / 24)} días`;
-      el.classList.toggle("stale", h > 30);
-      el.innerHTML = `<i class="dot"></i><span>Datos actualizados ${ago}<br>modelo ${esc(o.model_version)}</span>`;
-    }
-  } catch (e) { /* el estado es informativo */ }
+  await loadSystemStatus();
+  setInterval(async () => {
+    if (document.hidden) return;
+    const previous = systemState.kind, stamp = systemState.overview && systemState.overview.last_daily_run;
+    await loadSystemStatus(true);
+    if (systemState.kind === "fresh" && (previous !== "fresh" || stamp !== systemState.overview.last_daily_run)) retryCurrentView();
+  }, 60000);
 }
 
 // combos.js se carga después de este archivo: se enruta cuando ambos están listos.

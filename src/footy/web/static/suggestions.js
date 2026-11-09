@@ -29,6 +29,7 @@ async function renderRuleHistory() {
 }
 
 function drawCurrent(d) {
+  if (systemState.kind !== "fresh") { gateView($("#v-inicio"), systemState.kind); return; }
   const bank = getBank();
   const r = d.rules;
   setTabCount("value", d.singles.length);
@@ -54,9 +55,7 @@ function drawCurrent(d) {
         sigue en <b>${num((1 + r.min_edge / 2) / s.p)}</b> o más. Si bajó, la ventaja desapareció.</div></div>
       <button class="chip" style="justify-self:start" onclick="toggleLeg('${esc(s.ref)}','${s.key}'); this.textContent='En tu combinada ✓'">Agregar a combinada</button>
     </article>`).join("")
-    : `<div class="card empty" style="grid-column:1/-1">Hoy ninguna casa paga ≥ ${signed(r.min_edge, 0)} sobre el precio justo de Pinnacle
-       (cuota ≤ ${num(r.max_odds, 1)}) en los ${d.n_matches_sharp} partidos con Pinnacle disponible. Un profesional no fuerza apuestas:
-       la mayoría de los días no hay valor. Mira la pestaña «Casi con valor».</div>`;
+    : ""; // El mensaje se resuelve más abajo según calendario, referencia disponible y resultado.
 
   $("#sg-doubles-wrap").innerHTML = d.doubles.length ? `<h2 style="margin-bottom:12px">Dobles sugeridas</h2>
     <div class="card"><div class="table-wrap"><table><thead><tr><th>Selecciones</th><th class="r">Probabilidad</th><th class="r">Cuota</th>
@@ -80,6 +79,14 @@ function drawCurrent(d) {
     : `<div class="empty">Sin partidos con cuotas en los próximos días.</div>`;
 
   syncAddButtons();
+  if (!d.singles.length) {
+    const matches = cache["/api/upcoming"] || [];
+    const kind = FootyTrust.emptyKind(systemState.kind, matches.length, d.singles.length, d.n_matches_sharp);
+    trustEmpty($("#sg-singles"), kind, { count: d.n_matches_sharp, action: () => {
+      if (kind === "no_value") $("#semaforo").scrollIntoView({ behavior: "auto", block: "start" });
+      else location.hash = "#partidos";
+    } });
+  }
 }
 
 function drawHistory(h) {

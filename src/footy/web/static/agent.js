@@ -42,32 +42,43 @@ const TOOL_LABELS = {
 
 /* ---------- resumen del día ---------- */
 let briefCtl = null;
+window.addEventListener("footy-data-paused", () => { if (briefCtl) briefCtl.abort(); });
 async function loadBriefing() {
   const box = $("#agent-brief");
   if (!box) return;
   const body = $(".brief-body", box), foot = $(".brief-foot", box);
   if (briefCtl) briefCtl.abort();
   briefCtl = new AbortController();
+  const controller = briefCtl;
   let text = "";
   body.classList.add("typing");
   body.innerHTML = `<span class="skeleton" style="width:92%"></span><span class="skeleton" style="width:70%"></span>`;
   foot.textContent = "Preparando tu resumen…";
   try {
-    await agentStream(`/api/agent/briefing?user_id=${AGENT_USER}`, { signal: briefCtl.signal, on: {
+    await loadSystemStatus();
+    if (systemState.kind !== "fresh" || controller !== briefCtl) return;
+    const list = await api("/api/upcoming");
+    if (!list.length) { gateView($("#v-inicio"), "no_matches"); return; }
+    const suggestions = await api("/api/suggestions");
+    if (systemState.kind !== "fresh" || controller !== briefCtl) return;
+    if (!suggestions.n_matches_sharp) {
+      body.textContent = "Hay partidos próximos, pero todavía no hay referencia de Pinnacle suficiente para evaluar oportunidades. Consulta el calendario y sus estadísticas.";
+      foot.textContent = "Resumen automático (sin IA)";
+      return;
+    }
+    await agentStream(`/api/agent/briefing?user_id=${AGENT_USER}`, { signal: controller.signal, on: {
       token: (d) => { text += d.delta; body.innerHTML = agentText(text); },
       error: (d) => { foot.textContent = d.error; },
       done: (d) => {
-        foot.textContent = !d.success ? "Resumen automático: la IA local no está disponible"
-          : d.iterations === 0 ? "Resumen automático: nada destacado para tus preferencias en las próximas 24 h"
-          : "Redactado por la IA local con datos del sistema";
+        foot.textContent = FootyTrust.briefingLabel(d);
       },
     } });
   } catch (e) {
     if (e.name === "AbortError") return;
-    body.textContent = "No se pudo cargar el resumen.";
-    foot.textContent = e.message;
+    trustEmpty(body, "error", { action: loadBriefing });
+    foot.textContent = "";
   } finally {
-    body.classList.remove("typing");
+    if (controller === briefCtl) body.classList.remove("typing");
   }
 }
 

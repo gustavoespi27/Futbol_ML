@@ -1,7 +1,7 @@
 # Paso 1 — Wireframes para revisión
 
 2026-11-09. Propuesta de estructura basada en la versión unificada de `docs/plan_frontend.md`.
-**Paso 1 aprobado con ajustes incorporados. Pasos 2 (A2) y 3 (health) publicados. Paso 4 no iniciado.**
+**Pasos 2, 3 y wireframes aprobados. Paso 4 implementado en la rama, con validación propia de P0.**
 
 Abrir [la galería local](index.html) en un navegador. No necesita servidor, red, fuentes externas ni instalación.
 El selector permite alternar las variantes clara y oscura. Cada lámina se puede abrir a tamaño completo.
@@ -108,4 +108,11 @@ Estado principal P0: [Hoy atrasado móvil](vista-previa-hoy-atrasado-movil.png) 
   y precio justo». La diferencia probabilidad/ventaja se explica al solicitar ayuda contextual (?), sin tarjeta
   permanente en Hoy. En móvil los accesos de cabecera pasan a una fila propia para conservar tamaño táctil.
 
-La actualización termina aquí; el paso 4 no se inició.
+## Indicaciones posteriores de implementación
+
+Los ítems inactivos del menú lateral se implementan como texto sin borde, con relleno solo en el activo.
+Los recuadros de navegación de las láminas no son el estilo definitivo del menú. El contraste, la tipografía y
+la navegación de cinco destinos se trabajan en sus pasos correspondientes.
+
+Pendiente del paso 11: unificar la tabla profesional del README con espacio antes de todos los porcentajes,
+el 77 % de prueba en negrita y banca sin «,0». Esta corrección documental no se adelanta al paso 4.
