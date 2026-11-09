@@ -43,9 +43,12 @@ const TOOL_LABELS = {
 /* ---------- resumen del día ---------- */
 let briefCtl = null;
 window.addEventListener("footy-data-paused", () => { if (briefCtl) briefCtl.abort(); });
+window.addEventListener("hashchange", () => {
+  if (!$("#v-inicio").classList.contains("active") && briefCtl) briefCtl.abort();
+});
 async function loadBriefing() {
   const box = $("#agent-brief");
-  if (!box) return;
+  if (!box || !$("#v-inicio").classList.contains("active")) return;
   const body = $(".brief-body", box), foot = $(".brief-foot", box);
   if (briefCtl) briefCtl.abort();
   briefCtl = new AbortController();
@@ -187,7 +190,8 @@ async function savePrefs(ev) {
     body: JSON.stringify(prefs) });
   if (!r.ok) { $("#pref-status").textContent = "No se pudieron guardar las preferencias."; return; }
   dlg.close();
-  loadBriefing();
+  rendered.delete("inicio");
+  if ($("#v-inicio").classList.contains("active")) route();
 }
 
 /* ---------- arranque ---------- */
@@ -226,6 +230,5 @@ function initAgent() {
     renderPrefTeams();
   });
 
-  loadBriefing();
 }
 initAgent();

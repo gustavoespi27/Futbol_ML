@@ -169,7 +169,7 @@ function gateView(view, kind = null) {
   if (!kind) return;
   if (key === "inicio") {
     const tiles = $("#home-tiles"); tiles.classList.remove("trust-hidden");
-    tiles.innerHTML = ["Partidos de hoy", "Con ventaja de precio"].map((title) =>
+    tiles.innerHTML = ["Partidos próximos", "Con ventaja de precio"].map((title) =>
       `<div class="card stat"><div class="label">${title}</div><div class="value">${kind === "no_matches" ? "0" : "—"}</div><div class="hint">${kind === "no_matches" ? "Sin partidos próximos" : "En pausa"}</div></div>`).join("");
     tiles.after(message);
   }
@@ -181,7 +181,6 @@ async function retryCurrentView() {
   rendered.clear();
   await loadSystemStatus(true);
   route();
-  if (systemState.kind === "fresh" && typeof loadBriefing === "function") loadBriefing();
 }
 
 /* ---------- tema ---------- */
@@ -210,6 +209,7 @@ const pageTitles = { inicio: "Hoy", partidos: "Partidos", resultados: "Seguimien
   simulador: "Simulador de partido", rendimiento: "¿Qué tan fiable es?", "como-funciona": "Cómo funciona", explorar: "Explorar", mas: "Más" };
 const navGroups = { combinadas: "explorar", simulador: "explorar", rendimiento: "mas", "como-funciona": "mas" };
 const rendered = new Set();
+let homeMatchRef = null;
 function route(event) {
   const id = (location.hash || "#inicio").slice(1);
   if (id === "main" && event && event.type === "hashchange") { $("#main").focus({ preventScroll: true }); return; }
@@ -231,7 +231,7 @@ function route(event) {
     const heading = $(".view-head h1", view);
     (heading.getClientRects().length ? heading : $("#page-title")).focus({ preventScroll: true });
   }
-  if (!rendered.has(key) || key === "combinadas") {          // combinadas se redibuja: depende del boleto
+  if (!rendered.has(key) || key === "combinadas" || (key === "partidos" && homeMatchRef)) {          // combinadas se redibuja: depende del boleto
     loadSystemStatus().then(() => {
       if (prospectiveViews.has(key)) {
         if (systemState.kind !== "fresh") { gateView(view, systemState.kind); return; }
@@ -240,7 +240,7 @@ function route(event) {
       rendered.add(key);
       return views[key]();
     }).catch((e) => showError("v-" + key, e));
-  }
+  } else if (key === "inicio") loadBriefing();
   window.scrollTo(0, 0);
 }
 window.addEventListener("hashchange", route);
@@ -498,7 +498,7 @@ let semSel = { type: "all" }, semDate = { type: "all" };
 async function renderSemaphore() {
   const [list, catalog] = await Promise.all([api("/api/upcoming"), leagueCatalog()]);
   const draw = () => {
-    if (systemState.kind !== "fresh") { gateView($("#v-inicio"), systemState.kind); return; }
+    if (systemState.kind !== "fresh") { gateView($("#v-partidos"), systemState.kind); return; }
     const shown = list.filter((m) => leagueSelMatch(semSel, m, catalog) && dateSelMatch(semDate, m.kickoff));
     if (!shown.length) return emptyMatches($("#semaforo"), isFiltered(semSel, semDate), reset, semSel, catalog);
     $("#semaforo").innerHTML = `<table class="sem"><thead><tr><th>Partido</th>${SEM_COLS.map(([, n]) => `<th style="text-align:center">${n}</th>`).join("")}
@@ -528,13 +528,83 @@ function semRow(m) {
 }
 
 /* ---------- INICIO ---------- */
+let homeFavoriteRefs = new Set();
+const homeTeamKey = name => String(name).normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+async function renderHomeFavorites(list) {
+  const box = $("#home-favorites-body");
+  homeFavoriteRefs = new Set();
+  try {
+    const p = await api(`/api/agent/preferences?user_id=${AGENT_USER}`, { cache: "no-store" });
+    const teams = new Set(p.favorite_teams.map(homeTeamKey));
+    const favorites = list.filter(m => teams.has(homeTeamKey(m.home)) || teams.has(homeTeamKey(m.away)))
+      .sort((a, b) => Date.parse(a.kickoff) - Date.parse(b.kickoff));
+    homeFavoriteRefs = new Set(favorites.map(m => m.ref));
+    box.innerHTML = favorites.length ? `<p>${matchTag(favorites[0])} · ${esc(fmtDate(favorites[0].kickoff))}</p>
+      <button type="button" class="chip" data-home-ref="${esc(favorites[0].ref)}">Ver próximo partido</button>`
+      : `<p>${teams.size ? "Tus equipos no tienen partidos en el calendario disponible." : "Elige favoritos para priorizar sus próximos partidos."}</p>
+        <button type="button" class="chip" data-home-prefs>${teams.size ? "Cambiar favoritos" : "Elegir mis equipos"}</button>`;
+  } catch (e) {
+    box.innerHTML = '<p>No se pudieron cargar tus favoritos.</p><button type="button" class="chip" data-home-retry>Reintentar</button>';
+  }
+}
+function renderHomeReview(list) {
+  const best = m => {
+    const all = m.pro || [], eligible = all.filter(o => o.bet);
+    return (eligible.length ? eligible : all).reduce((top, o) => !top || o.edge > top.edge ? o : top, null);
+  };
+  const chosen = [...list].sort((a, b) => Number(Boolean(best(b)?.bet)) - Number(Boolean(best(a)?.bet))
+    || Number(homeFavoriteRefs.has(b.ref)) - Number(homeFavoriteRefs.has(a.ref)) || Date.parse(a.kickoff) - Date.parse(b.kickoff)).slice(0, 3);
+  $("#home-review").innerHTML = chosen.map(m => {
+    const o = best(m), level = !o ? "neutral" : o.bet ? "good" : "warn";
+    const badge = !o ? "Sin referencia de precio" : o.bet ? `Con ventaja ${signed(o.edge)} · Pinnacle` : "Sin ventaja detectada";
+    return `<button type="button" class="review-card" data-home-ref="${esc(m.ref)}">
+      <span class="review-meta">${esc(m.league_name || m.league)} · ${esc(fmtDate(m.kickoff))}</span>
+      <span class="review-teams">${matchTag(m, 24)}</span><span class="pill ${level}"><i aria-hidden="true"></i>${esc(badge)}</span>
+      <span class="review-action">Ver partido →</span></button>`;
+  }).join("");
+}
+$("#v-inicio").addEventListener("click", async e => {
+  const button = e.target.closest("button"); if (!button) return;
+  if (button.dataset.homeRef) { homeMatchRef = button.dataset.homeRef; matchSel = { type: "all" }; matchDate = { type: "all" }; location.hash = "#partidos"; }
+  if (button.hasAttribute("data-home-retry")) { await renderHomeFavorites(cache["/api/upcoming"] || []); renderHomeReview(cache["/api/upcoming"] || []); }
+  if (button.hasAttribute("data-home-prefs")) $("#brief-prefs").click();
+});
+function setupMatchAnalysis() {
+  const details = $("#match-analysis"); details.dataset.loaded = "";
+  details.ontoggle = async () => {
+    if (!details.open || details.dataset.loaded || systemState.kind !== "fresh") return;
+    details.dataset.loaded = "loading";
+    try {
+      await Promise.all([renderSuggestions(), renderReliable({ current: true }), renderSemaphore()]);
+      details.dataset.loaded = "true"; $("#analysis-error")?.remove();
+    } catch (e) {
+      details.dataset.loaded = "";
+      if (!$("#analysis-error")) details.insertAdjacentHTML("afterbegin", '<p id="analysis-error" role="alert">No se pudo cargar el análisis. Cierra y vuelve a abrir para reintentar.</p>');
+    }
+  };
+  if (details.open) details.ontoggle();
+}
 async function renderHome() {
+  $("#home-date").textContent = new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", weekday: "long", day: "numeric", month: "long" }).format(new Date());
   await loadSystemStatus();
   if (systemState.kind !== "fresh") { gateView($("#v-inicio"), systemState.kind); return; }
   const list = await api("/api/upcoming");
   if (!list.length) { gateView($("#v-inicio"), "no_matches"); return; }
-  const o = systemState.overview;
-  const b = o.backtest, t = o.tracking;
+  const sug = await api("/api/suggestions");
+  if (systemState.kind !== "fresh") return;
+  loadBriefing();
+  $("#home-tiles").innerHTML = [
+    kpi("reliable", "Partidos próximos", list.length, "Calendario disponible"),
+    kpi("value", "Con ventaja de precio", sug.singles.length, "En el calendario próximo", sug.singles.length > 0),
+  ].join("");
+  await renderHomeFavorites(list);
+  if (systemState.kind !== "fresh") return;
+  renderHomeReview(list);
+}
+
+async function renderHomeHistory() {
+  const o = await api("/api/overview");
+  const b = o.backtest;
   $("#hero-acc").innerHTML = `${pct(b.acc_official, 1)} <small>de ${b.n.toLocaleString("es-CL")} partidos</small>`;
   $("#hero-sub").textContent = `Partidos de ${b.leagues} ligas entre ${fmtDate(b.from, false)} y ${fmtDate(b.to, false)}, que el sistema no había visto al elegir sus parámetros.`;
   $("#hero-note").innerHTML = `<div><b>¿50% es poco?</b> Hay tres resultados posibles: adivinando al azar se acierta 33%, y siempre al local ${pct(b.acc_naive_home)}.
@@ -545,23 +615,6 @@ async function renderHome() {
     ["Modelo solo", pct(b.acc_model, 1), "Elo + Dixon-Coles"],
     ["Casas de apuestas", pct(b.acc_market, 1), "cuotas de cierre"],
   ].map(([l, v, h]) => `<div class="stat"><div class="label">${l}</div><div class="value num" style="font-size:var(--fs-lg)">${v}</div><div class="hint">${h}</div></div>`).join("");
-
-  // Cada sección se dibuja por su cuenta en cuanto llega su dato; los indicadores esperan a ambos.
-  renderSemaphore().catch((e) => showError("v-inicio", e));
-  const [sug, rel] = await Promise.all([renderSuggestions(), renderReliable()]);
-  if (systemState.kind !== "fresh") { gateView($("#v-inicio"), systemState.kind); return; }
-  if ($("#v-inicio").dataset.trustKind === "error") return;
-  const L = sug.ledger || {}, R = rel.record || {};
-  // Cada indicador lleva un ícono de su tema; el acento esmeralda solo aparece cuando hay apuestas con valor.
-  $("#home-tiles").innerHTML = [
-    kpi("value", "Apuestas con valor hoy", sug.singles.length, FootyTrust.coverage(list).label,
-      sug.singles.length > 0),
-    kpi("reliable", "Pronósticos fiables hoy", rel.today.length, `selecciones con ${pct(rel.min_p)} o más`),
-    kpi("accuracy", "Precisión en vivo", R.n ? pct(R.hit, 1) : "–",
-      R.n ? `esperaba ${pct(R.expected, 1)} · ${R.n} pronósticos` : `${R.pending || 0} pronósticos esperando resultado`),
-    kpi("ledger", "Cartera en papel", L.settled ? signed(L.yield) : `${L.open || 0} <small>abiertas</small>`,
-      L.clv != null ? `CLV ${signed(L.clv)} · ${pct(L.clv_pos)} sobre el cierre` : L.settled ? `${L.won} ganadas de ${L.settled}` : "se mide al terminar cada partido"),
-  ].join("");
 
   chart("ch-confidence", () => ({
     type: "bar",
@@ -604,6 +657,11 @@ async function renderMatches() {
     if (chips) chips.sync();
     if (!shown.length && !live.length) return emptyMatches($("#matches"), isFiltered(matchSel, matchDate), reset, matchSel, catalog);
     $("#matches").innerHTML = liveBlock(live, today) + (done ? resultsNote(done) + resultGroups(shown) : matchGroups(shown));
+    if (homeMatchRef) {
+      const ref = homeMatchRef; homeMatchRef = null;
+      const row = [...document.querySelectorAll("#matches .mrow")].find(r => r.dataset.ref === ref);
+      if (row) { row.click(); row.focus({ preventScroll: true }); row.scrollIntoView({ block: "center" }); }
+    }
   };
   // Con partidos en juego a la vista, los marcadores se vuelven a pedir cada minuto (solo con la pestaña visible).
   clearInterval(liveTimer);
@@ -640,6 +698,7 @@ async function renderMatches() {
     e.preventDefault(); toggle(e.target);
   };
   draw();
+  setupMatchAnalysis();
 }
 function matchGroups(list) {
   const groups = new Map();
@@ -1047,6 +1106,8 @@ function matchCard(m) {
 
 /* ---------- RESULTADOS ---------- */
 async function renderTracking() {
+  const [suggestions] = await Promise.all([api("/api/suggestions"), renderReliable({ record: true })]);
+  drawLedger(suggestions.ledger || {});
   const d = await api("/api/tracking");
   const s = d.summary;
   const llTxt = s.ll_market != null
@@ -1078,6 +1139,9 @@ async function renderTracking() {
 
 /* ---------- RENDIMIENTO ---------- */
 async function renderBacktest() {
+  renderHomeHistory().catch((e) => showError("v-rendimiento", e));
+  renderReliable({ metrics: true }).catch((e) => showError("v-rendimiento", e));
+  api("/api/suggestions").then(d => drawProBacktest(d.pro_backtest || {}, d.ledger || {})).catch((e) => showError("v-rendimiento", e));
   renderRuleHistory().catch((e) => showError("v-rendimiento", e));
   renderML().catch((e) => showError("v-rendimiento", e));
   const d = await api("/api/backtest");

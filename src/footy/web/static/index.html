@@ -56,23 +56,38 @@
   </div>
   <!-- INICIO: PANEL PRINCIPAL -->
   <section class="view" id="v-inicio">
-    <div class="view-head">
-      <h1 tabindex="-1">Hoy</h1>
-    </div>
-    <section class="card brief-card" id="agent-brief" aria-labelledby="brief-title">
+  <div class="view-head home-head"><div><h1 tabindex="-1">Hoy</h1><p id="home-date"></p></div><button type="button" class="chip" id="brief-prefs">Preferencias</button></div>
+  <section class="card home-favorites" id="home-favorites" aria-labelledby="favorites-title">
+    <h2 id="favorites-title">Tus equipos, primero</h2><div id="home-favorites-body"></div>
+  </section>
+  <div class="grid g2" id="home-tiles" data-skel="kpi:2"></div>
+  <section class="card brief-card" id="agent-brief" aria-labelledby="brief-title">
       <div class="brief-head">
-        <h2 id="brief-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6.3 6.3 4.9 4.9M19.1 19.1l-1.4-1.4M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg>Tu resumen de hoy</h2>
+        <h2 id="brief-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6.3 6.3 4.9 4.9M19.1 19.1l-1.4-1.4M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg>Tu resumen</h2>
         <div class="brief-actions">
-          <button type="button" class="chip" id="brief-prefs">Preferencias</button>
+
           <button type="button" class="chip" id="brief-refresh" aria-label="Actualizar resumen" title="Actualizar resumen"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg></button>
         </div>
       </div>
       <div class="brief-body" aria-live="polite"></div>
       <div class="brief-foot"></div>
     </section>
-    <div class="grid g4" id="home-tiles" data-skel="kpi:4"></div>
 
-    <div class="card reco-card" style="margin-top:16px">
+  <section class="home-review" aria-labelledby="review-title">
+    <div class="reco-head"><h2 id="review-title">Para revisar hoy</h2><a href="#partidos">Ver todos los partidos</a></div>
+    <div id="home-review" class="home-review-grid" data-skel="cards:3"></div>
+  </section>
+</section>
+
+  <!-- PRÓXIMOS PARTIDOS -->
+  <section class="view" id="v-partidos">
+    <div class="view-head">
+      <h1 tabindex="-1">Partidos</h1>
+    </div>
+    <div class="toolbar"><div class="filters" id="league-filter"></div><div id="match-date"></div></div>
+    <div class="qchips" id="match-chips"></div>
+    <div id="matches" data-skel="rows:6"></div>
+  <details id="match-analysis" class="match-analysis"><summary>Recomendaciones y semáforo</summary><div class="card reco-card" style="margin-top:16px">
       <div class="reco-head">
         <div><h2>Recomendaciones de la máquina</h2>
           <p class="sub" style="margin:2px 0 0">Lo que el sistema encontró para los próximos partidos y por qué.</p></div>
@@ -112,82 +127,8 @@
         <span class="vchip red"><b>No apostar</b> probabilidad muy baja, cuota muy alta o paga mucho menos de lo que vale</span>
       </div></div>
 
-    <h2 class="sec">Bitácora de la máquina</h2>
-    <div class="log-layout">
-      <div class="card">
-        <div class="tabs" id="log-tabs">
-          <button class="tab on" data-tab="bets">Apuestas realizadas <span id="tab-n-bets"></span></button>
-          <button class="tab" data-tab="picks">Pronósticos registrados <span id="tab-n-picks"></span></button>
-        </div>
-        <div class="tab-pane on" data-pane="bets">
-          <p class="pane-note">Apuestas en papel que la máquina registró antes de cada partido, con su motivo, resultado y CLV
-            (si consiguió mejor cuota que la del cierre).</p>
-          <div class="table-wrap" id="sg-record" data-skel="table:5"></div>
-        </div>
-        <div class="tab-pane" data-pane="picks">
-          <p class="pane-note">Pronósticos fiables registrados antes de cada partido: así la máquina pone a prueba su precisión todos los días.</p>
-          <div class="table-wrap" id="rel-record" data-skel="table:5"></div>
-        </div>
-      </div>
-      <div class="stack">
-        <div class="card">
-          <h2>Precisión en vivo</h2>
-          <p class="sub" id="acc-sub">Pronósticos fiables: probabilidad que dio la máquina vs. acierto real.</p>
-          <div class="chart" style="height:220px"><canvas id="ch-reliable"></canvas></div>
-          <div id="acc-empty"></div>
-        </div>
-        <div class="card">
-          <h2>Ajuste automático</h2>
-          <p class="sub">Con cada resultado la máquina corrige si fue demasiado segura (T &gt; 1 suaviza) o demasiado tímida (T &lt; 1).</p>
-          <div id="calib-box" data-skel="lines:3"></div>
-        </div>
-      </div>
-    </div>
-
-    <h2 class="sec">Respaldo histórico (2012-2026)</h2>
-    <div class="grid g2">
-      <div class="card">
-        <h2>Bankroll de la regla en el histórico</h2>
-        <p class="sub" id="pro-bt-sub">Misma regla sobre las cuotas tempranas de 22 ligas europeas.</p>
-        <div class="chart tall"><canvas id="ch-pro-bank"></canvas></div>
-      </div>
-      <div class="card">
-        <h2>Selección vs prueba</h2>
-        <p class="sub">La regla se eligió con 2013-2021; 2022 en adelante es la prueba.</p>
-        <div class="table-wrap" id="pro-bt-table"></div>
-        <div id="pro-bt-reading" class="stack" style="font-size:var(--fs-base);color:var(--text-2);margin-top:14px"></div>
-      </div>
-    </div>
-    <div class="hero" style="margin-top:14px">
-      <div class="card">
-        <h3>Acierto del resultado más probable</h3>
-        <div class="hero-num num" id="hero-acc">–</div>
-        <p class="sub" id="hero-sub">Partidos de 2026 que el sistema no había visto al ajustarse.</p>
-        <div class="grid g3" id="hero-stats"></div>
-        <div class="callout" id="hero-note" style="margin-top:18px"></div>
-      </div>
-      <div class="card">
-        <h3>Cuando el sistema está más seguro, acierta más</h3>
-        <p class="sub">Probabilidad que dio el sistema vs. porcentaje de veces que realmente ocurrió.</p>
-        <div class="chart"><canvas id="ch-confidence"></canvas></div>
-      </div>
-    </div>
-    <div class="callout warn" style="margin-top:16px">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
-      <div><b>Sin ventaja demostrada en dinero.</b> Las probabilidades son fiables y la regla de valor mostró CLV positivo en el
-        histórico, pero la ganancia aún no es concluyente. Todo se registra en papel antes de cada partido para medirlo.</div>
-    </div>
-  </section>
-
-  <!-- PRÓXIMOS PARTIDOS -->
-  <section class="view" id="v-partidos">
-    <div class="view-head">
-      <h1 tabindex="-1">Partidos</h1>
-    </div>
-    <div class="toolbar"><div class="filters" id="league-filter"></div><div id="match-date"></div></div>
-    <div class="qchips" id="match-chips"></div>
-    <div id="matches" data-skel="rows:6"></div>
-  </section>
+    </details>
+</section>
 
   <!-- COMBINADAS -->
   <section class="view" id="v-combinadas">
@@ -241,7 +182,23 @@
       <p>Cada predicción se guarda <b>antes</b> de que empiece el partido y no se puede modificar. Cuando llega el resultado
         se compara con lo que pasó. Es la prueba más limpia, pero necesita cientos de partidos para ser concluyente.</p>
     </div>
-    <div class="grid g4" id="trk-tiles" data-skel="kpi:4"></div>
+    <section id="paper-ledger"><h2 class="sec">Bitácora en papel</h2><p id="paper-summary"></p><div class="card">
+        <div class="tabs" id="log-tabs">
+          <button class="tab on" data-tab="bets">Apuestas realizadas <span id="tab-n-bets"></span></button>
+          <button class="tab" data-tab="picks">Pronósticos registrados <span id="tab-n-picks"></span></button>
+        </div>
+        <div class="tab-pane on" data-pane="bets">
+          <p class="pane-note">Apuestas en papel que la máquina registró antes de cada partido, con su motivo, resultado y CLV
+            (si consiguió mejor cuota que la del cierre).</p>
+          <div class="table-wrap" id="sg-record" data-skel="table:5"></div>
+        </div>
+        <div class="tab-pane" data-pane="picks">
+          <p class="pane-note">Pronósticos fiables registrados antes de cada partido: así la máquina pone a prueba su precisión todos los días.</p>
+          <div class="table-wrap" id="rel-record" data-skel="table:5"></div>
+        </div>
+      </div></section>
+<h2 class="sec">Evaluación de predicciones</h2>
+<div class="grid g4" id="trk-tiles" data-skel="kpi:4"></div>
     <div class="card" style="margin-top:16px">
       <h2>Predicciones evaluadas</h2>
       <p class="sub">"Pronóstico" es el resultado al que el sistema le dio más probabilidad.</p>
@@ -262,7 +219,53 @@
       <p id="bt-intro">Evaluación sobre todos los partidos de 2026 de 38 ligas. Los pesos se ajustaron con datos de 2016-2025,
         así que estos partidos son "examen" para el modelo.</p>
     </div>
-    <div class="grid g3" id="bt-tiles" data-skel="kpi:3"></div>
+    <section id="home-history"><div class="stack">
+        <div class="card">
+          <h2>Precisión en vivo</h2>
+          <p class="sub" id="acc-sub">Pronósticos fiables: probabilidad que dio la máquina vs. acierto real.</p>
+          <div class="chart" style="height:220px"><canvas id="ch-reliable"></canvas></div>
+          <div id="acc-empty"></div>
+        </div>
+        <div class="card">
+          <h2>Ajuste automático</h2>
+          <p class="sub">Con cada resultado la máquina corrige si fue demasiado segura (T &gt; 1 suaviza) o demasiado tímida (T &lt; 1).</p>
+          <div id="calib-box" data-skel="lines:3"></div>
+        </div>
+      </div><h2 class="sec">Respaldo histórico (2012-2026)</h2>
+    <div class="grid g2">
+      <div class="card">
+        <h2>Bankroll de la regla en el histórico</h2>
+        <p class="sub" id="pro-bt-sub">Misma regla sobre las cuotas tempranas de 22 ligas europeas.</p>
+        <div class="chart tall"><canvas id="ch-pro-bank"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Selección vs prueba</h2>
+        <p class="sub">La regla se eligió con 2013-2021; 2022 en adelante es la prueba.</p>
+        <div class="table-wrap" id="pro-bt-table"></div>
+        <div id="pro-bt-reading" class="stack" style="font-size:var(--fs-base);color:var(--text-2);margin-top:14px"></div>
+      </div>
+    </div>
+    <div class="hero" style="margin-top:14px">
+      <div class="card">
+        <h3>Acierto del resultado más probable</h3>
+        <div class="hero-num num" id="hero-acc">–</div>
+        <p class="sub" id="hero-sub">Partidos de 2026 que el sistema no había visto al ajustarse.</p>
+        <div class="grid g3" id="hero-stats"></div>
+        <div class="callout" id="hero-note" style="margin-top:18px"></div>
+      </div>
+      <div class="card">
+        <h3>Cuando el sistema está más seguro, acierta más</h3>
+        <p class="sub">Probabilidad que dio el sistema vs. porcentaje de veces que realmente ocurrió.</p>
+        <div class="chart"><canvas id="ch-confidence"></canvas></div>
+      </div>
+    </div>
+    <div class="callout warn" style="margin-top:16px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <div><b>Sin ventaja demostrada en dinero.</b> Las probabilidades son fiables y la regla de valor mostró CLV positivo en el
+        histórico, pero la ganancia aún no es concluyente. Todo se registra en papel antes de cada partido para medirlo.</div>
+    </div>
+  </section>
+<div class="grid g3" id="bt-tiles" data-skel="kpi:3"></div>
     <div class="grid g2" style="margin-top:16px">
       <div class="card">
         <h2>Calibración</h2>

@@ -1,11 +1,12 @@
 # Paso 1 — Wireframes para revisión
 
 2026-11-09. Propuesta de estructura basada en la versión unificada de `docs/plan_frontend.md`.
-**Pasos 2–5 y wireframes aprobados. Paso 6 implementado en la rama.**
+**Pasos 2–6 y wireframes aprobados. Paso 7 implementado en la rama.**
 
 Evidencia de implementación: [confianza y cobertura](../../validacion_frontend_paso4.md) y
 [tokens, tipografía y montos](../../validacion_frontend_paso5.md), y [navegación y marca](../../validacion_frontend_paso6.md).
-Para el paso 7: mostrar la cobertura de Pinnacle una sola vez en Hoy, manteniendo la cobertura en la ficha de hechos.
+El [paso 7](../../validacion_frontend_paso7.md) concentra la cobertura en el resumen de Hoy y traslada los históricos.
+Para el paso 8: subsecciones bajo el grupo activo en escritorio: Explorar → Simulador/Combinadas; Más → Fiabilidad/Cómo funciona.
 
 Abrir [la galería local](index.html) en un navegador. No necesita servidor, red, fuentes externas ni instalación.
 El selector permite alternar las variantes clara y oscura. Cada lámina se puede abrir a tamaño completo.

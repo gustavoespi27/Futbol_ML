@@ -223,6 +223,38 @@ footer { color: var(--muted); font-size: var(--fs-xs); padding: 18px 28px 28px; 
 .explore-note { margin: 0 0 var(--s-4); color: var(--text-2); }
 .more-action-error { color: var(--bad); margin-top: var(--s-4); }
 
+/* Hoy: cinco bloques, sin gráficos ni listas históricas. */
+.home-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); }
+.home-head .chip, .home-favorites .chip { min-height: 44px; }
+.home-favorites { margin-bottom: var(--s-4); }
+#home-favorites-body { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-3); }
+#home-favorites-body p { color: var(--text-2); margin: var(--s-2) 0 0; min-width: 0; overflow-wrap: anywhere; }
+#v-inicio #home-tiles { margin-bottom: var(--s-4); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#home-tiles .kpi-ico { display: none; }
+#home-tiles .label { text-transform: none; letter-spacing: normal; font-size: var(--fs-sm); }
+#v-inicio .brief-card { margin-bottom: var(--s-5); }
+.home-review-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-3); }
+.review-card { display: grid; gap: var(--s-3); min-width: 0; padding: var(--s-4); border-radius: var(--radius); border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.review-card:hover { background: var(--surface-2); border-color: var(--accent); }
+.review-meta { font-size: var(--fs-sm); color: var(--text-2); }
+.review-teams, .review-teams .team { min-width: 0; display: flex; flex-wrap: wrap; overflow-wrap: anywhere; }
+.review-teams { gap: var(--s-2); font-weight: 600; }
+.review-card .pill { white-space: normal; justify-self: start; }
+.review-card .pill i { width: 8px; height: 8px; background: currentColor; border-radius: 50%; flex: none; }
+.review-action { font-size: var(--fs-sm); color: var(--accent-text); }
+.match-analysis { margin-top: var(--s-5); }
+.match-analysis > summary { min-height: 44px; cursor: pointer; padding: var(--s-3); color: var(--accent-text); }
+#home-history > .stack { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-4); margin-bottom: var(--s-5); }
+#paper-ledger { margin-bottom: var(--s-5); }
+#paper-summary { margin-bottom: var(--s-3); color: var(--text-2); }
+@media (max-width: 860px) {
+  .home-review-grid, #home-history > .stack { grid-template-columns: minmax(0, 1fr); }
+  .home-head { align-items: flex-start; }
+  .home-head > div { min-width: 0; }
+  .home-head .chip { flex: none; }
+}
+
 /* ================= bloques ================= */
 .card {
   background: var(--surface); border: 1px solid var(--border);
