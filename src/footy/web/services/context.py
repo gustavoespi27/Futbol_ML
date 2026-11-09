@@ -422,30 +422,30 @@ def context(ref: str) -> dict:
 # --- próximos partidos -----------------------------------------------------
 
 def upcoming(days: int = HORIZON_DAYS, refresh: bool = False) -> list[dict]:
-    """Partidos próximos con sus probabilidades. Se calcula una sola vez cada 5 minutos: las consultas simultáneas
-    esperan el mismo resultado en vez de recalcularlo en paralelo (en frío tarda ~1 minuto)."""
+    """Reutiliza memoria o precálculo vigente; filtra iniciados sin recalcular ni vaciar predictores/contextos.
+
+    La memoria se comprueba cada 5 minutos; el disco persiste hasta cambio de revisión, modelos, vigencia o día.
+    Las consultas simultáneas esperan un único cálculo de respaldo cuando no hay artefacto válido.
+    """
     with _upcoming_lock:
         hit = _upcoming_cache.get(days)
         current_signature = snapshots.signature()
         if (not refresh and hit and time.time() - hit[0] < 300
-                and _upcoming_signatures.get(days) == current_signature
-                and all(repo.from_iso(m["kickoff"]).timestamp() > time.time() for m in hit[1])):
-            return hit[1]
+                and datetime.fromtimestamp(hit[0], LOCAL_TZ).date() == datetime.now(LOCAL_TZ).date()
+                and _upcoming_signatures.get(days) == current_signature):
+            return snapshots.future_matches(hit[1])
         if not refresh:
             saved = snapshots.read(days)
             if saved is not None:
                 _upcoming_cache[days] = (time.time(), saved)
                 _upcoming_signatures[days] = current_signature
                 return saved
-        # Las cachés de contextos/predictores deben corresponder a los datos de esta generación.
-        _contexts.clear()
-        _predictors.clear()
         before = snapshots.signature()
         out = _upcoming(days)
         snapshots.write(days, out, before)
         _upcoming_cache[days] = (time.time(), out)
         _upcoming_signatures[days] = before
-        return out
+        return snapshots.future_matches(out)
 
 
 def within_days(matches: list[dict], days: int) -> list[dict]:

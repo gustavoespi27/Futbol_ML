@@ -6,12 +6,15 @@ El arranque mide disponibilidad HTTP, no la finalización del precalentamiento.
 
 import argparse
 import ctypes
+import gc
 import json
 import os
 import socket
 import subprocess
 import sys
+import tempfile
 import time
+from contextlib import closing
 from pathlib import Path
 
 import requests
@@ -39,7 +42,30 @@ def ram_mb() -> float | None:
     return round(counters.working / 1024**2, 2)
 
 
-def worker() -> None:
+def worker(live_check: bool = False) -> None:
+    if live_check:
+        from footy import config
+        from footy.db.connection import connect
+        from footy.web.services import snapshots
+
+        # La jornada es real; las escrituras de regresión se hacen sobre una copia, nunca sobre marcadores reales.
+        with tempfile.TemporaryDirectory(prefix="footy-footprint-") as directory:
+            original_path = config.path
+            target = Path(directory) / "football.sqlite"
+            with closing(connect()) as source, closing(connect(target)) as destination:
+                source.backup(destination)
+            config.path = lambda key: target if key == "database" else original_path(key)
+            snapshots.DIRECTORY = Path(directory) / "upcoming"
+            try:
+                _worker(True)
+            finally:
+                config.path = original_path
+                gc.collect()
+        return
+    _worker(False)
+
+
+def _worker(live_check: bool) -> None:
     started = time.perf_counter()
     from footy.web import service
 
@@ -50,7 +76,40 @@ def worker() -> None:
         matches = service.upcoming()
         rows.append({"muestra": name, "segundos": round(time.perf_counter() - start, 4),
                      "ram_mb": ram_mb(), "partidos": len(matches)})
-    print(json.dumps({"importacion_s": imported, "upcoming": rows}))
+    result = {"importacion_s": imported, "upcoming": rows}
+    if live_check:
+        from footy.db.connection import connect
+        from footy.web.services import context, snapshots
+
+        calls = []
+        original = context._upcoming
+
+        def count(days):
+            calls.append(days)
+            return original(days)
+
+        context._upcoming = count
+        baseline = snapshots.signature()
+        samples = []
+        if matches:
+            mid = int(matches[0]["ref"][2:])
+            conn = connect()
+            for i in range(3):
+                conn.execute("INSERT OR REPLACE INTO live_scores VALUES (?, ?, 0, '45', ?)",
+                             (mid, i, str(i)))
+                conn.commit()
+                if i == 2:
+                    context._upcoming_cache.clear()  # forzar lectura desde disco en la última muestra
+                start = time.perf_counter()
+                found = service.upcoming()
+                samples.append({"lectura": "disco" if i == 2 else "memoria",
+                                "segundos": round(time.perf_counter() - start, 4), "partidos": len(found),
+                                "firma_estable": snapshots.signature() == baseline})
+            conn.close()
+        result["live_scores"] = {"base": "copia aislada de datos reales", "muestras": samples,
+                                 "recalculos_tras_escrituras": len(calls),
+                                 "nota": "Sin jornada medible" if not matches else "Marcadores de prueba solo en copia"}
+    print(json.dumps(result))
 
 
 def endpoint(base: str, path: str, body: dict | None = None) -> dict:
@@ -83,12 +142,14 @@ def main() -> None:
     parser.add_argument("--worker", action="store_true")
     parser.add_argument("--label", default="linea_base")
     parser.add_argument("--llm", action="store_true", help="Consultar chat y resumen: consume inferencia real")
+    parser.add_argument("--live-check", action="store_true", help="Medir escrituras live_scores en copia aislada")
     parser.add_argument("--output", type=Path, default=ROOT / "docs/analisis/09_consumo.md")
     args = parser.parse_args()
     if args.worker:
-        worker()
+        worker(args.live_check)
         return
-    result = json.loads(subprocess.check_output([sys.executable, __file__, "--worker"], cwd=ROOT, text=True))
+    command = [sys.executable, __file__, "--worker", *(["--live-check"] if args.live_check else [])]
+    result = json.loads(subprocess.check_output(command, cwd=ROOT, text=True))
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]

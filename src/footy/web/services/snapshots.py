@@ -7,24 +7,32 @@ import os
 import tempfile
 import time
 from pathlib import Path
+from uuid import uuid4
 
 from footy import config
+from footy.db.repository import utc_now
 from footy.web.services.common import to_json
 
 DIRECTORY = config.PROJECT_ROOT / "data/cache/upcoming"
 MAX_AGE = 26 * 3600
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2
 log = logging.getLogger(__name__)
 
 
 def signature() -> str:
-    db = config.path("database")
-    paths = [db, Path(str(db) + "-wal"), config.SETTINGS_PATH,
+    revision = DIRECTORY / "revision.json"
+    try:
+        version = revision.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        version = "sin_revision"
+    paths = [config.SETTINGS_PATH,
              config.PROJECT_ROOT / "config/league_models.json",
              config.path("processed") / "calibration.json",
              config.path("processed") / "ml/upcoming.pkl",
-             config.PROJECT_ROOT / "data/cache/cross_league.pkl"]
-    stamps = []
+             config.PROJECT_ROOT / "data/cache/cross_league.pkl",
+             config.PROJECT_ROOT / "artifacts/ml/model.joblib",
+             config.PROJECT_ROOT / "artifacts/ml/meta.json"]
+    stamps = [(str(config.path("database").resolve()), version)]
     for path in paths:
         try:
             stat = path.stat()
@@ -32,6 +40,31 @@ def signature() -> str:
         except FileNotFoundError:
             stamps.append((str(path), None, None))
     return hashlib.sha256(json.dumps(stamps).encode()).hexdigest()
+
+
+def advance_revision() -> None:
+    """Solo las tareas de ingestión publican revisiones; live_scores no participa.
+
+    Cada ciclo marca inicio y fin: una lectura durante la ingestión tampoco permanece válida al terminarla.
+    UUID evita perder invalidaciones por dos escritores simultáneos o marcas de tiempo de baja resolución.
+    """
+    DIRECTORY.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=DIRECTORY, delete=False) as handle:
+            temporary = Path(handle.name)
+            json.dump({"revision": uuid4().hex, "updated_at": utc_now()}, handle)
+        os.replace(temporary, DIRECTORY / "revision.json")
+    finally:
+        if temporary:
+            temporary.unlink(missing_ok=True)
+
+
+def future_matches(matches: list[dict]) -> list[dict]:
+    from datetime import datetime
+
+    now = time.time()
+    return [m for m in matches if datetime.fromisoformat(m["kickoff"].replace("Z", "+00:00")).timestamp() > now]
 
 
 def read(days: int) -> list[dict] | None:
@@ -42,7 +75,7 @@ def read(days: int) -> list[dict] | None:
             return None
         if saved["expires"] <= time.time():
             return None
-        return saved["matches"]
+        return future_matches(saved["matches"])
     except (OSError, ValueError, KeyError, TypeError):
         # Un artefacto ausente, corrupto o de otra versión activa el cálculo de respaldo.
         return None
@@ -57,8 +90,7 @@ def write(days: int, matches: list[dict], expected_signature: str) -> None:
     now = time.time()
     local = datetime.now(ZoneInfo("America/Santiago"))
     midnight = (local + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
-    starts = [datetime.fromisoformat(m["kickoff"].replace("Z", "+00:00")).timestamp() for m in matches]
-    saved = {"version": FORMAT_VERSION, "created": now, "expires": min([now + MAX_AGE, midnight, *starts]),
+    saved = {"version": FORMAT_VERSION, "created": now, "expires": min(now + MAX_AGE, midnight),
              "signature": expected_signature, "matches": to_json(matches)}
     temporary = None
     try:

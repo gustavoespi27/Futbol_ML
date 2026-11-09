@@ -24,6 +24,7 @@ from footy.ingest.collect import run_daily, run_espn
 from footy.models import cross_league
 from footy.prediction import ml_predict, recalibration, tracking
 from footy.web import service
+from footy.web.services import snapshots
 
 log = logging.getLogger("daily")
 
@@ -58,6 +59,7 @@ def main() -> int:
     conn = connect()
     repo.sync_competitions(conn)
     conn.commit()
+    snapshots.advance_revision()
     steps = [
         ("espn", lambda: log.info("ESPN: %s", run_espn(conn))),
         ("api_football", lambda: log.info("Resumen API: %s", run_daily(conn, ApiFootball(conn)))),
@@ -71,7 +73,7 @@ def main() -> int:
         ("tracking_cups", lambda: log.info("Seguimiento copas: %s", tracking.register_cross(conn))),
         ("suggestions", lambda: log.info("Sugerencias: %s", service.register_suggestions(conn))),
         ("reliable", lambda: log.info("Pronósticos fiables: %s", service.register_reliable(conn))),
-        ("web_snapshot", lambda: log.info("Precalculado web: %s partidos", len(service.upcoming(refresh=True)))),
+        ("web_snapshot", publish_snapshot),
         ("report", lambda: (config.PROJECT_ROOT / "docs" / "seguimiento.md").write_text(
             tracking.report(conn), encoding="utf-8", newline="\n")),
     ]
@@ -89,6 +91,11 @@ def main() -> int:
         pass                                      # dashboard cerrado: no hay nada que refrescar
     log.info("Fin. Pasos con error: %s", failed or "ninguno")
     return 1 if failed else 0
+
+
+def publish_snapshot() -> None:
+    snapshots.advance_revision()
+    log.info("Precalculado web: %s partidos", len(service.upcoming(refresh=True)))
 
 
 if __name__ == "__main__":
