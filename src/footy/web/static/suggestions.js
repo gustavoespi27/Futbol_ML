@@ -32,6 +32,14 @@ function drawCurrent(d) {
   if (systemState.kind !== "fresh") { gateView($("#v-inicio"), systemState.kind); return; }
   const bank = getBank();
   const r = d.rules;
+  const matches = cache["/api/upcoming"] || [];
+  const coverage = FootyTrust.coverage(matches);
+  let coverageBox = $("#sg-coverage");
+  if (!coverageBox) {
+    coverageBox = document.createElement("p"); coverageBox.id = "sg-coverage";
+    $("#sg-singles").before(coverageBox);
+  }
+  coverageBox.textContent = `Calendario: ${coverage.label}. ${FootyTrust.partidos(coverage.missing)} sin cuotas de referencia.`;
   setTabCount("value", d.singles.length);
   setTabCount("near", d.closest.length);
   // Tarjeta de oportunidad: partido con escudos, selección y ventaja, y los cuatro números que deciden la apuesta.
@@ -80,9 +88,8 @@ function drawCurrent(d) {
 
   syncAddButtons();
   if (!d.singles.length) {
-    const matches = cache["/api/upcoming"] || [];
     const kind = FootyTrust.emptyKind(systemState.kind, matches.length, d.singles.length, d.n_matches_sharp);
-    trustEmpty($("#sg-singles"), kind, { count: d.n_matches_sharp, action: () => {
+    trustEmpty($("#sg-singles"), kind, { count: d.n_matches_sharp, total: matches.length, action: () => {
       if (kind === "no_value") $("#semaforo").scrollIntoView({ behavior: "auto", block: "start" });
       else location.hash = "#partidos";
     } });

@@ -37,4 +37,12 @@ Los escenarios usan respuestas interceptadas en el navegador; no modifican la ba
 
 ## Alcance posterior
 
+### Corrección de cobertura parcial
+
+El feed conserva internamente si cada partido tiene evaluaciones `pro` con referencia Pinnacle, sin añadir campos al JSON público. La ficha de hechos lleva la cobertura del calendario y la de las próximas 24 horas, calculadas antes de filtrar favoritos o limitar las filas narradas. Ambas llegan también al LLM, con la instrucción de limitar sus conclusiones a los partidos evaluables. El contenido de cobertura forma parte de la firma del resumen persistido.
+
+Verificación con datos reales del 9 de noviembre de 2026: calendario de 40 partidos, 1 con Pinnacle; próximas 24 horas con 6 partidos, 1 evaluable. La plantilla resultante dice: «Calendario: 1 de 40 con Pinnacle. Próximas 24 horas: sin ventaja en 1 partido con precio de Pinnacle. 39 partidos aún sin cuotas de referencia en el calendario.» No concluye que hoy no conviene apostar con cobertura parcial. Esa frase requiere cobertura completa y al menos un partido evaluable en las próximas 24 horas.
+
+El indicador y la tarjeta comparten la cobertura del calendario. Cada runtime tiene un único helper de plural para estos textos. La franja muestra «hoy a las HH:MM» o «ayer a las HH:MM» según el día local de Chile, y fecha completa para datos anteriores. Se añadieron casos de cobertura nula/parcial/completa, ficha del LLM, exclusión del horizonte de 24 horas, invalidación del caché por cobertura y cruce de medianoche UTC.
+
 Este paso no completa los cambios de tipografía, navegación, estructura de Hoy y ficha, ni el panel del asistente previstos en los pasos 5–9. Para el paso 11 queda registrada la corrección de la tabla profesional del README: `76 %` con espacio uniforme, `77 %` de prueba en negrita y banca sin `,0`.

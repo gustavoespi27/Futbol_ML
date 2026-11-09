@@ -5,6 +5,8 @@ import json
 import sqlite3
 from datetime import datetime, timezone
 
+import pytest
+
 from footy_agents import briefing
 from footy_agents.llm import LLMUnavailable, TextDelta
 from footy_agents.schemas import FeedItem, PersonalizedFeedResponse, UserPreferences
@@ -73,7 +75,7 @@ def test_template_when_llm_down():
 
 def test_template_without_value_bets():
     text = briefing.template_briefing(briefing.facts(feed(), NOW))
-    assert "no conviene apostar" in text
+    assert "No hay partidos próximos" in text and "no conviene apostar" not in text
 
 
 def test_briefing_endpoint(monkeypatch):
@@ -97,7 +99,8 @@ def test_llm_facts_omit_empty_sections():
     only_fav = feed(item(1, "2026-10-23T23:00:00Z", fav_team=True, home="Colo Colo", away="Everton"))
     list(briefing.run_briefing(client, UserPreferences(), only_fav, NOW))
     sent = json.loads(client.messages[1]["content"])
-    assert set(sent) == {"partidos_equipos_favoritos", "apuestas_con_valor"} and sent["apuestas_con_valor"] == []
+    assert set(sent) == {"partidos_equipos_favoritos", "apuestas_con_valor", "cobertura_pinnacle", "cobertura_24h"}
+    assert sent["apuestas_con_valor"] == []
 
 
 def test_empty_facts_skip_llm():
@@ -105,5 +108,34 @@ def test_empty_facts_skip_llm():
     client = FakeLLM([TextDelta("Hoy juegan Arsenal y Manchester City.")])
     out = list(briefing.run_briefing(client, UserPreferences(), feed(item(1, "2026-10-23T18:00:00Z")), NOW))
     assert client.messages is None
-    assert "no conviene apostar" in out[0].data["delta"]
+    assert "no conviene apostar" not in out[0].data["delta"]
+    assert "1 partido aún sin cuotas" in out[0].data["delta"]
     assert out[-1].data == {"iterations": 0, "success": True}
+
+
+@pytest.mark.parametrize("references,total", [(0, 40), (1, 40), (40, 40), (1, 1)])
+def test_coverage_limits_template_and_llm_facts(references, total):
+    items = [item(i, "2026-10-23T18:00:00Z", fav_team=True) for i in range(total)]
+    for i in items[:references]:
+        i._has_pinnacle = True
+    f = briefing.facts(feed(*items), NOW)
+    assert f["cobertura_pinnacle"] == {"con_referencia": references, "total": total,
+                                        "sin_referencia": total - references}
+    text = briefing.template_briefing(f)
+    assert f"{references} de {total} con Pinnacle" in text
+    assert ("no conviene apostar" in text) == (references == total)
+    if references == 1 and total == 40:
+        assert "sin ventaja en 1 partido con precio de Pinnacle." in text
+        assert "39 partidos aún sin cuotas" in text
+    client = FakeLLM([TextDelta("Resumen limitado a los partidos evaluables.")])
+    list(briefing.run_briefing(client, UserPreferences(), feed(*items), NOW))
+    assert json.loads(client.messages[1]["content"])["cobertura_pinnacle"] == f["cobertura_pinnacle"]
+    assert "Solo puedes decir «no conviene apostar» si la cobertura es completa" in client.messages[0]["content"]
+
+
+def test_coverage_excludes_started_and_outside_horizon():
+    future = item(1, "2026-10-26T18:00:00Z")
+    future._has_pinnacle = True
+    past = item(2, "2026-10-23T10:00:00Z")
+    past._has_pinnacle = True
+    assert briefing.facts(feed(future, past), NOW)["cobertura_24h"]["total"] == 0

@@ -62,7 +62,8 @@ async function loadBriefing() {
     const suggestions = await api("/api/suggestions");
     if (systemState.kind !== "fresh" || controller !== briefCtl) return;
     if (!suggestions.n_matches_sharp) {
-      body.textContent = "Hay partidos próximos, pero todavía no hay referencia de Pinnacle suficiente para evaluar oportunidades. Consulta el calendario y sus estadísticas.";
+      const coverage = FootyTrust.coverage(list);
+      body.textContent = `Calendario: ${coverage.label}. ${FootyTrust.partidos(coverage.missing)} aún sin cuotas de referencia para evaluar su ventaja.`;
       foot.textContent = "Resumen automático (sin IA)";
       return;
     }

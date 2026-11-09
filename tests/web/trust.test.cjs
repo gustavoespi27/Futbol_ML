@@ -24,3 +24,19 @@ test('una plantilla con partidos no se etiqueta como nada destacado', () => {
   assert.match(trust.briefingLabel({iterations:1,success:true}),/Redactado por el asistente/);
   assert.match(trust.briefingLabel({iterations:1,success:false}),/No se completó/);
 });
+
+test('cobertura del calendario: nula, parcial y completa', () => {
+  for (const n of [0, 1, 40]) {
+    const matches = Array.from({length:40}, (_,i)=>({kickoff:new Date(now+3600000).toISOString(),pro:i<n?[{}]:[]}));
+    assert.deepEqual(trust.coverage(matches),{reference:n,total:40,missing:40-n,label:`${n} de 40 con Pinnacle`});
+  }
+  assert.equal(trust.partidos(1),'1 partido');
+  assert.equal(trust.partidos(40),'40 partidos');
+});
+
+test('fecha relativa según el día de Chile, incluso al cruzar medianoche UTC', () => {
+  const clock = Date.parse('2026-11-10T02:30:00Z'); // 9 de noviembre, 23:30 en Chile
+  assert.equal(trust.updatedTime('2026-11-10T01:00:00Z',clock),'hoy a las 22:00');
+  assert.equal(trust.updatedTime('2026-11-09T02:00:00Z',clock),'ayer a las 23:00');
+  assert.match(trust.updatedTime('2026-11-07T15:00:00Z',clock),/^el 7 de noviembre de 2026$/);
+});

@@ -6,7 +6,7 @@ Todos los esquemas usan extra="forbid" para mantener la consistencia estricta de
 import json
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
 from footy.db.repository import utc_now
 
@@ -49,6 +49,8 @@ class UserPreferences(AgentSchema):
 
 
 class FeedItem(AgentSchema):
+    # Metadato interno para el resumen; no cambia el JSON ni el esquema público del feed.
+    _has_pinnacle: bool = PrivateAttr(default=False)
     match_id: int
     home_team: str
     away_team: str

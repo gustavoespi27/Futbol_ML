@@ -53,6 +53,22 @@ def test_template_never_contacts_llm(tmp_path, monkeypatch):
     assert out[-1].data == {"iterations": 0, "success": True}
 
 
+def test_template_cache_invalidates_when_reference_coverage_changes(tmp_path, monkeypatch):
+    monkeypatch.setattr(briefing_cache, "connect", lambda: connect(tmp_path / "cache.sqlite"))
+    monkeypatch.setattr(briefing_cache.config, "settings", lambda: {})
+    kickoff = datetime.now(timezone.utc).isoformat()
+    item = FeedItem(match_id=1, home_team="A", away_team="B", league="PL", kickoff=kickoff,
+                    is_favorite_team=False, is_favorite_league=False, value_bets_count=0, relevance_score=1)
+    feed = PersonalizedFeedResponse(items=[item], generated_at="x", risk_profile="moderate",
+                                    total_matches=1, favorite_matches_count=0)
+    first = list(briefing_cache.cached_briefing(object(), UserPreferences(), feed))
+    assert "0 de 1 con Pinnacle" in first[0].data["delta"]
+    item._has_pinnacle = True
+    second = list(briefing_cache.cached_briefing(object(), UserPreferences(), feed))
+    assert "1 de 1 con Pinnacle" in second[0].data["delta"]
+    assert first != second
+
+
 def test_shared_semaphore_busy_and_released(monkeypatch):
     client = llm.OpenAICompatibleClient("http://unused", "model", queue_timeout=0)
     monkeypatch.setattr(client, "_stream_chat", lambda *_: iter([TextDelta("Hola")]))

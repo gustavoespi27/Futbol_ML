@@ -76,7 +76,6 @@ async function api(path, opts) {
 /* ---------- estado compartido: fallar cerrado para recomendaciones ---------- */
 const systemState = { overview: null, health: null, kind: "loading", checked: 0, pending: null };
 const prospectiveViews = new Set(["inicio", "partidos", "combinadas", "simulador"]);
-const localFormat = (iso, options) => new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", ...options }).format(new Date(iso));
 
 async function loadSystemStatus(force = false) {
   if (systemState.pending) return systemState.pending;
@@ -113,12 +112,11 @@ function paintSystemStatus() {
   const box = $("#system-status"), o = systemState.overview || {}, h = systemState.health;
   const state = systemState.kind;
   const valid = ["fresh", "stale"].includes(state);
-  const date = valid ? localFormat(o.last_daily_run, { day: "numeric", month: "long", year: "numeric" }) : "";
-  const time = valid ? localFormat(o.last_daily_run, { hour: "2-digit", minute: "2-digit", hour12: false }) : "";
-  const full = state === "fresh" ? `Datos al día · actualizados el ${date} a las ${time}`
-    : state === "stale" ? `Datos sin actualizar desde el ${date}`
+  const when = valid ? FootyTrust.updatedTime(o.last_daily_run) : "";
+  const full = state === "fresh" ? `Datos al día · actualizados ${when}`
+    : state === "stale" ? `Datos sin actualizar desde ${when}`
     : state === "error" ? "No se pudo comprobar la actualización de los datos" : "Sin fecha de actualización verificable";
-  const short = state === "fresh" ? `Datos · ${localFormat(o.last_daily_run, { day: "2-digit", month: "2-digit" })} ${time}` : full;
+  const short = state === "fresh" ? `Datos · ${when}` : full;
   const assistant = !h ? "No se pudo comprobar el estado del asistente" : h.llm_available
     ? "Asistente disponible" : "Asistente no disponible (el resto funciona)";
   const mode = h && h.briefing_mode === "template" ? "Resumen por plantilla" : "";
@@ -139,14 +137,14 @@ function paintSystemStatus() {
   $(".status-refresh", box).onclick = retryCurrentView;
 }
 
-function trustEmpty(box, kind, { count = 0, action = null } = {}) {
+function trustEmpty(box, kind, { count = 0, total = count, action = null } = {}) {
   const messages = {
     stale: ["Recomendaciones en pausa", "Sin datos recientes para evaluar.", "Ver últimos resultados"],
     unknown: ["Recomendaciones en pausa", "Falta verificar la actualización.", "Ver últimos resultados"],
     error: ["No se pudo cargar", "Reintenta la consulta.", "Reintentar"],
     no_matches: ["Sin partidos próximos", "No hay partidos para esta selección.", "Ver todos los partidos"],
-    no_value: ["Sin oportunidades con valor", `${count} partidos con Pinnacle; sin ventaja.`, "Ver el semáforo"],
-    no_reference: ["Sin referencia de precio", "Faltan cuotas de Pinnacle.", "Ver los partidos"],
+    no_value: ["Sin ventaja detectada", `${count} de ${total} con Pinnacle; ${FootyTrust.partidos(total - count)} sin referencia.`, "Ver el semáforo"],
+    no_reference: ["Sin referencia de precio", `0 de ${total} con Pinnacle.`, "Ver los partidos"],
   };
   const [title, text, label] = messages[kind] || messages.error;
   box.innerHTML = emptyState({ title, text, action: label });
@@ -515,7 +513,7 @@ async function renderHome() {
   const L = sug.ledger || {}, R = rel.record || {};
   // Cada indicador lleva un ícono de su tema; el acento esmeralda solo aparece cuando hay apuestas con valor.
   $("#home-tiles").innerHTML = [
-    kpi("value", "Apuestas con valor hoy", sug.singles.length, `en ${sug.n_matches_sharp} partidos con precio de Pinnacle`,
+    kpi("value", "Apuestas con valor hoy", sug.singles.length, FootyTrust.coverage(list).label,
       sug.singles.length > 0),
     kpi("reliable", "Pronósticos fiables hoy", rel.today.length, `selecciones con ${pct(rel.min_p)} o más`),
     kpi("accuracy", "Precisión en vivo", R.n ? pct(R.hit, 1) : "–",

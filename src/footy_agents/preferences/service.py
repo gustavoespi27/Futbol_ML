@@ -75,6 +75,7 @@ def get_personalized_feed(conn: sqlite3.Connection, user_id: str = "default") ->
             best_edge=best_edge,
             relevance_score=round(score, 2),
         ))
+        feed_items[-1]._has_pinnacle = bool(m.get("pro"))
 
     # Ordenar por puntaje descendente; en empate, por fecha de kickoff ascendente
     feed_items.sort(key=lambda item: (-item.relevance_score, item.kickoff))
