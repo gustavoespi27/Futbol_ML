@@ -15,7 +15,8 @@ $triggers = @(
     New-ScheduledTaskTrigger -Daily -At "17:30"   # cuotas más cercanas al cierre de los partidos nocturnos
     New-ScheduledTaskTrigger -Daily -At "21:15"   # recién renovada la cuota de API-Football (00:00 UTC): cuotas tempranas
 )
-$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 1) `
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 4) `
+    -Priority 7 -MultipleInstances IgnoreNew `
     -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $triggers -Settings $settings `
@@ -29,6 +30,7 @@ $preAction = New-ScheduledTaskAction -Execute $python -Argument "`"$(Join-Path $
 $preTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).Date -RepetitionInterval (New-TimeSpan -Minutes 30) `
     -RepetitionDuration (New-TimeSpan -Days 3650)
 $preSettings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 15) -MultipleInstances IgnoreNew `
+    -Priority 7 `
     -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 Register-ScheduledTask -TaskName $preName -Action $preAction -Trigger $preTrigger -Settings $preSettings `
     -Description "Cuotas cercanas al inicio y pronóstico final (Futbol_ML)" -Force | Out-Null

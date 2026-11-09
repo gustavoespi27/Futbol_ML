@@ -12,10 +12,16 @@ Over/Under 2,5 (market "OU", selección OVER/UNDER) solo existe en "main".
 Las estadísticas del partido se conocen al terminar: captured_at = kickoff + 3 h.
 """
 
+import hashlib
+import json
+import logging
+import os
 import sqlite3
+import tempfile
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from io import StringIO
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -28,6 +34,74 @@ from footy.db import repository as repo
 SOURCE = "football_data"
 UK = ZoneInfo("Europe/London")
 BASE = "https://www.football-data.co.uk"
+log = logging.getLogger(__name__)
+
+
+def _database_key(path: Path) -> str:
+    try:
+        inode = path.stat().st_ino
+    except FileNotFoundError:
+        inode = 0
+    return f"{path.resolve()}:{inode}"
+
+
+def _cache_paths(url: str) -> tuple[Path, Path]:
+    cache = config.PROJECT_ROOT / "data/cache/football_data"
+    cache.mkdir(parents=True, exist_ok=True)
+    key = hashlib.sha256(url.encode()).hexdigest()
+    return cache / f"{key}.json", cache / f"{key}.csv"
+
+
+def _metadata(path: Path) -> dict:
+    try:
+        metadata = json.loads(path.read_text(encoding="utf-8"))
+        return metadata if isinstance(metadata, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _atomic(path: Path, content: str) -> None:
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(content)
+        os.replace(temporary, path)
+    finally:
+        if temporary:
+            temporary.unlink(missing_ok=True)
+
+
+def _fetch(url: str, only_changed: bool = False) -> tuple[str | None, tuple[str, str] | None]:
+    meta_path, csv_path = _cache_paths(url)
+    meta = _metadata(meta_path)
+    headers = {}
+    if csv_path.is_file():
+        if meta.get("etag"):
+            headers["If-None-Match"] = meta["etag"]
+        if meta.get("last_modified"):
+            headers["If-Modified-Since"] = meta["last_modified"]
+    response = requests.get(url, headers=headers, timeout=60)
+    if response.status_code == 404:
+        return None, None
+    if response.status_code == 304:
+        text = csv_path.read_text(encoding="utf-8")
+    else:
+        response.raise_for_status()
+        try:
+            text = response.content.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            text = response.content.decode("latin-1")
+        _atomic(csv_path, text)
+        meta.update(etag=response.headers.get("ETag"), last_modified=response.headers.get("Last-Modified"))
+    digest = hashlib.sha256(text.encode()).hexdigest()
+    meta["content_hash"] = digest
+    _atomic(meta_path, json.dumps(meta))
+    identity = _database_key(config.path("database"))
+    if only_changed and meta.get("applied", {}).get(identity) == digest:
+        log.info("CSV sin cambios, sin parseo: %s", url)
+        return None, None
+    return text, (str(meta_path), digest)
 
 CLOSING_BOOKMAKERS = {
     "PSC": "Pinnacle",
@@ -60,15 +134,7 @@ def league_info(code: str) -> dict:
 
 
 def _get(url: str) -> str | None:
-    r = requests.get(url, timeout=60)
-    if r.status_code == 404:
-        return None
-    r.raise_for_status()
-    raw = r.content
-    try:
-        return raw.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        return raw.decode("latin-1")
+    return _fetch(url)[0]
 
 
 def _save_raw(name: str, text: str) -> None:
@@ -78,24 +144,40 @@ def _save_raw(name: str, text: str) -> None:
     (raw_dir / f"{name}_{stamp}.csv").write_text(text, encoding="utf-8")
 
 
-def download(code: str, seasons: list[int] | None = None) -> pd.DataFrame:
+def download(code: str, seasons: list[int] | None = None, *, only_changed: bool = False) -> pd.DataFrame:
     """Descarga una liga y devuelve el formato estándar. `seasons` (años de inicio) solo aplica a "main"."""
+    markers = []
+
+    def fetch(url: str) -> str | None:
+        if not only_changed:
+            return _get(url)
+        text, marker = _fetch(url, only_changed=True)
+        if marker:
+            markers.append(marker)
+        return text
+
     if code in leagues()["extra"]:
-        text = _get(f"{BASE}/new/{code}.csv")
+        text = fetch(f"{BASE}/new/{code}.csv")
+        if not text:
+            return pd.DataFrame()
         _save_raw(code, text)
-        return parse_extra(text, code)
+        frame = parse_extra(text, code)
+        frame.attrs["http_sources"] = markers
+        return frame
     frames = []
     first = leagues()["first_season"]
     now = datetime.now(timezone.utc)
     last = now.year if now.month >= 7 else now.year - 1
     for year in seasons or range(first, last + 1):
         tag = f"{year % 100:02d}{(year + 1) % 100:02d}"
-        text = _get(f"{BASE}/mmz4281/{tag}/{code}.csv")
+        text = fetch(f"{BASE}/mmz4281/{tag}/{code}.csv")
         if not text:
             continue
         _save_raw(f"{code}_{tag}", text)
         frames.append(parse_main(text, code, f"{year}/{year + 1}"))
-    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    frame = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    frame.attrs["http_sources"] = markers
+    return frame
 
 
 def _kickoff(date: pd.Series, time: pd.Series) -> list[str]:
@@ -163,6 +245,15 @@ def store(conn: sqlite3.Connection, df: pd.DataFrame) -> dict:
         counts["odds"] += repo.insert_odds(conn, _closing_odds(match_id, row) + closing_ou_odds(match_id, row))
         counts["stats"] += _store_stats(conn, match_id, home, away, row)
     conn.commit()
+    database = Path(conn.execute("PRAGMA database_list").fetchone()[2])
+    for filename, digest in df.attrs.get("http_sources", []):
+        meta_path = Path(filename)
+        try:
+            meta = _metadata(meta_path)
+            meta.setdefault("applied", {})[_database_key(database)] = digest
+            _atomic(meta_path, json.dumps(meta))
+        except OSError:
+            log.warning("No se pudo confirmar caché HTTP: %s", meta_path)
     return counts
 
 

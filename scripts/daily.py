@@ -10,41 +10,45 @@ Cada paso es independiente: si uno falla, los demás se ejecutan igual (queda en
 """
 
 import logging
+import sqlite3
 import sys
 from datetime import datetime, timedelta, timezone
+from types import ModuleType
+from typing import TYPE_CHECKING
 
 import requests
 
 from footy import config
-from footy.db import repository as repo
-from footy.db.connection import connect
-from footy.ingest import football_data as fd
-from footy.ingest.api_football import ApiFootball
-from footy.ingest.collect import run_daily, run_espn
-from footy.models import cross_league
-from footy.prediction import ml_predict, recalibration, tracking
-from footy.web import service
-from footy.web.services import snapshots
+from footy_agents import automation
+
+if TYPE_CHECKING:
+    from footy.models.cross_league import CrossLeagueModel
 
 log = logging.getLogger("daily")
 
 
-def update_current_season(conn) -> None:
+def update_current_season(conn: sqlite3.Connection) -> None:
+    from footy.db import repository as repo
+    from footy.ingest import football_data as fd
+
     now = datetime.now(timezone.utc)
     season = now.year if now.month >= 7 else now.year - 1
     since = repo.to_iso(now - timedelta(days=45))
     cfg = fd.leagues()
     for code in cfg["main"]:
-        df = fd.download(code, seasons=[season])
+        df = fd.download(code, seasons=[season], only_changed=True)
         if not df.empty:
             log.info("%s: %s", code, fd.store(conn, df))
     for code in cfg["extra"]:
-        df = fd.download(code)
+        df = fd.download(code, only_changed=True)
+        if df.empty:
+            continue
         df = df[df.kickoff_utc >= since]     # el archivo trae todo el histórico; solo lo reciente cambia
         log.info("%s: %s", code, fd.store(conn, df))
 
 
-def _save_cross(model) -> int:
+def _save_cross(model: "CrossLeagueModel") -> int:
+    from footy.models import cross_league
     cross_league.save(model)
     return model.n_train
 
@@ -56,24 +60,32 @@ def main() -> int:
                         handlers=[logging.FileHandler(log_dir / "daily.log", encoding="utf-8"),
                                   # con pythonw (tarea programada sin ventana) no hay consola: solo el archivo
                                   *([logging.StreamHandler(sys.stdout)] if sys.stdout else [])])
+    return automation.run_task("daily", work)
+
+
+def work() -> int:
+    from footy.db import repository as repo
+    from footy.db.connection import connect
+    from footy.ingest.api_football import ApiFootball
+    from footy.ingest.collect import run_daily, run_espn
+    from footy.models import cross_league
+    from footy.prediction import ml_predict, recalibration, tracking
+    from footy.web import service
+    from footy.web.services import snapshots
+
     conn = connect()
     repo.sync_competitions(conn)
     conn.commit()
-    snapshots.advance_revision()
     steps = [
         ("espn", lambda: log.info("ESPN: %s", run_espn(conn))),
         ("api_football", lambda: log.info("Resumen API: %s", run_daily(conn, ApiFootball(conn)))),
         ("football_data", lambda: update_current_season(conn)),
-        ("recalibrate", lambda: log.info("Recalibración: %s", recalibration.update(conn))),
-        ("cross_league", lambda: log.info("Modelo entre ligas: %s cruces de copas",
-                                          _save_cross(cross_league.fit(conn)))),
-        ("ml", lambda: log.info("ML: %s partidos", len(ml_predict.upcoming(refresh=True)))),
+        ("models", lambda: update_models(conn, recalibration, cross_league, ml_predict)),
         ("tracking", lambda: log.info("Seguimiento: %s", tracking.register(conn, tracking.fetch_fixtures()))),
         ("tracking_api", lambda: log.info("Seguimiento API: %s", tracking.register_scheduled(conn))),
         ("tracking_cups", lambda: log.info("Seguimiento copas: %s", tracking.register_cross(conn))),
         ("suggestions", lambda: log.info("Sugerencias: %s", service.register_suggestions(conn))),
         ("reliable", lambda: log.info("Pronósticos fiables: %s", service.register_reliable(conn))),
-        ("web_snapshot", publish_snapshot),
         ("report", lambda: (config.PROJECT_ROOT / "docs" / "seguimiento.md").write_text(
             tracking.report(conn), encoding="utf-8", newline="\n")),
     ]
@@ -81,21 +93,66 @@ def main() -> int:
     for name, step in steps:
         try:
             step()
+            automation.record_step("daily", name, "ejecutado")
         except Exception:
             log.exception("Paso %s falló", name)
             conn.rollback()
             failed.append(name)
+            automation.record_step("daily", name, "falló")
+    final_revision = automation.data_revision(conn)
+    state = automation.read_state("data")
+    predictions_revision = list(conn.execute("SELECT COUNT(*), MAX(id) FROM predictions").fetchone())
+    changed = state.get("revision") != final_revision or state.get("predictions") != predictions_revision
+    if changed:
+        snapshots.advance_revision()
+        log.info("Datos modificados: nueva revisión publicada")
+    try:
+        publish_snapshot(refresh=changed)
+        state["revision"] = final_revision
+        state["predictions"] = predictions_revision
+        automation.write_state("data", state)
+        automation.record_step("daily", "web_snapshot", "ejecutado")
+    except Exception:
+        log.exception("No se pudo publicar el precálculo web")
+        failed.append("web_snapshot")
+        automation.record_step("daily", "web_snapshot", "falló")
     try:
         requests.post("http://127.0.0.1:8000/api/refresh", timeout=3)
     except requests.RequestException:
         pass                                      # dashboard cerrado: no hay nada que refrescar
     log.info("Fin. Pasos con error: %s", failed or "ninguno")
+    conn.close()
     return 1 if failed else 0
 
 
-def publish_snapshot() -> None:
-    snapshots.advance_revision()
-    log.info("Precalculado web: %s partidos", len(service.upcoming(refresh=True)))
+def publish_snapshot(refresh: bool = False) -> None:
+    from footy.web import service
+    log.info("Precalculado web: %s partidos", len(service.upcoming(refresh=refresh)))
+
+
+def update_models(conn: sqlite3.Connection, recalibration: ModuleType,
+                  cross_league: ModuleType, ml_predict: ModuleType) -> None:
+    from footy.web.services import snapshots
+
+    revision = automation.data_revision(conn)
+    if automation.read_state("data").get("revision") != revision:
+        snapshots.advance_revision()
+    steps = [
+        ("recalibrate", lambda: log.info("Recalibración: %s", recalibration.update(conn)), recalibration.PATH),
+        ("cross_league", lambda: log.info("Modelo entre ligas: %s cruces de copas",
+                                        _save_cross(cross_league.fit(conn))), cross_league.PATH),
+        ("ml", lambda: log.info("ML: %s partidos", len(ml_predict.upcoming(refresh=True))), ml_predict.CACHE),
+    ]
+    failed = []
+    for name, step, artifact in steps:
+        try:
+            automation.incremental(name, revision, step, required=(artifact,))
+        except Exception:
+            log.exception("Modelo %s falló", name)
+            automation.record_step("daily", name, "falló")
+            failed.append(name)
+    if failed:
+        raise RuntimeError("Fallaron modelos: " + ", ".join(failed))
 
 
 if __name__ == "__main__":

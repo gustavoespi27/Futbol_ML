@@ -7,22 +7,18 @@ consulta la API (ni siquiera /status).
 """
 
 import logging
+import sqlite3
 import sys
 from datetime import datetime, timedelta, timezone
 
 from footy import config
-from footy.db import repository as repo
 from footy.db.connection import connect
-from footy.ingest.api_football import ApiFootball, ApiUnavailable, BudgetExhausted
-from footy.ingest.collect import collect_odds
-from footy.prediction import tracking
-from footy.web import service
-from footy.web.services import snapshots
+from footy_agents import automation
 
 log = logging.getLogger("prekickoff")
 
 
-def pending(conn, hours: float) -> int:
+def pending(conn: sqlite3.Connection, hours: float) -> int:
     """Partidos que empiezan dentro de `hours` sin una cuota de API-Football de las últimas `hours`."""
     comps = config.settings()["competitions"]
     codes = [c for c, v in comps.items() if v.get("collect_odds")]
@@ -34,8 +30,16 @@ def pending(conn, hours: float) -> int:
               AND m.kickoff_utc BETWEEN ? AND ?
               AND NOT EXISTS (SELECT 1 FROM odds o WHERE o.match_id = m.id AND o.source = 'api_football'
                               AND o.captured_at > ?)""",
-        (*codes, repo.to_iso(now), repo.to_iso(now + timedelta(hours=hours)),
-         repo.to_iso(now - timedelta(hours=hours)))).fetchone()[0]
+        (*codes, now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+         (now + timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+         (now - timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ"))).fetchone()[0]
+
+
+def starts_within(conn: sqlite3.Connection, hours: float) -> bool:
+    now = datetime.now(timezone.utc)
+    return bool(conn.execute("SELECT 1 FROM matches WHERE status='scheduled' AND kickoff_utc BETWEEN ? AND ? LIMIT 1",
+                             (now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                              (now + timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ"))).fetchone())
 
 
 def main() -> int:
@@ -45,22 +49,37 @@ def main() -> int:
                         handlers=[logging.FileHandler(log_dir / "prekickoff.log", encoding="utf-8")])
     hours = config.settings()["api_football"].get("prekickoff_hours", 2)
     conn = connect()
-    n = pending(conn, hours)
-    if not n:
-        return 0
-    snapshots.advance_revision()
     try:
-        try:
-            client = ApiFootball(conn)
-            matches, rows = collect_odds(client, conn, horizon_hours=hours, refresh_hours=hours)
-        except (BudgetExhausted, ApiUnavailable) as e:
-            log.warning("Sin cuotas pre-partido: %s", e)
+        # Antes de importar pandas/modelos o muestrear CPU durante cinco segundos.
+        if not starts_within(conn, 12) or not pending(conn, hours):
+            log.info("Sin partidos pendientes en las próximas 12 h: salida ligera")
+            automation.record_step("prekickoff", "cuotas", "omitido: sin pendientes")
             return 0
-        log.info("Pendientes %s · cuotas %s partidos (%s filas) · quedan %s peticiones · pronósticos finales %s",
-                 n, matches, rows, client.remaining, tracking.register_scheduled(conn, horizon_hours=hours))
+        return automation.run_task("prekickoff", lambda: work(conn, hours), urgent=lambda: starts_within(conn, 1.5))
     finally:
+        conn.close()
+
+
+def work(conn: sqlite3.Connection, hours: float) -> int:
+    from footy.ingest.api_football import ApiFootball, ApiUnavailable, BudgetExhausted
+    from footy.ingest.collect import collect_odds
+    from footy.prediction import tracking
+    from footy.web import service
+    from footy.web.services import snapshots
+
+    try:
+        client = ApiFootball(conn)
+        matches, rows = collect_odds(client, conn, horizon_hours=hours, refresh_hours=hours)
+    except (BudgetExhausted, ApiUnavailable) as exc:
+        log.warning("Sin cuotas pre-partido: %s", exc)
+        return 0
+    predictions = tracking.register_scheduled(conn, horizon_hours=hours)
+    log.info("Cuotas %s partidos (%s filas) · quedan %s peticiones · pronósticos finales %s",
+             matches, rows, client.remaining, predictions)
+    automation.record_step("prekickoff", "cuotas y predicciones", "ejecutado")
+    if rows or predictions.get("predictions", 0):
         snapshots.advance_revision()
-    log.info("Precalculado web: %s partidos", len(service.upcoming(refresh=True)))
+        log.info("Precalculado web: %s partidos", len(service.upcoming(refresh=True)))
     return 0
 
 
