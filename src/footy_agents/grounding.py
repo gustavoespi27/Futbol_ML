@@ -6,7 +6,7 @@ from typing import Any
 from footy_agents.schemas import AgentSchema, ToolCallRecord
 
 DATE_TIME = re.compile(r"\b\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2})?Z?)?|\b\d{1,2}:\d{2}(?::\d{2})?")
-NUMBER = re.compile(r"(?<!\w)[+−-]?\d+(?:[.,]\d+)?\s*%?")
+NUMBER = re.compile(r"(?<!\w)[+−-]?\d+(?:[.,]\d+)?\s*%?(?!\w)")
 
 
 class GroundingReport(AgentSchema):
@@ -35,7 +35,9 @@ def _values(value: Any) -> list[float]:
     if isinstance(value, (int, float)):
         return [float(value)]
     if isinstance(value, str):
-        return [n for _, n, _ in _numbers(value)]
+        # Una fecha narrada («1 de enero de 2099») puede respaldarse con la fecha ISO de la herramienta.
+        dates = [float(n) for match in DATE_TIME.finditer(value) for n in re.findall(r"\d+", match.group())]
+        return [n for _, n, _ in _numbers(value)] + dates
     if isinstance(value, dict):
         return [n for child in value.values() for n in _values(child)]
     if isinstance(value, (list, tuple)):

@@ -21,6 +21,9 @@ def record(result, success=True):
     ("Cuota 2,10", {"odds": 2.1}, True),
     ("54 partidos", {"p": 0.54}, False),
     ("Hay 1 partido", {"flag": True}, False),
+    ("Probabilidades 1X2 y liga E0", {}, True),
+    ("El 1 de enero de 2099", {"kickoff": "2099-01-01T18:00:00Z"}, True),
+    ("El 1 de enero de 2029", {"kickoff": "2099-01-01T18:00:00Z"}, False),
 ])
 def test_numeric_grounding(answer, data, verified):
     assert verify_numbers(answer, [record(data)]).verified is verified
