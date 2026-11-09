@@ -10,6 +10,7 @@ from collections.abc import Iterator
 from datetime import datetime
 
 from footy.web.services.context import LOCAL_TZ
+from footy_agents.grounding import verify_numbers
 from footy_agents.llm import LLMBusy, LLMClient, LLMUnavailable, TextDelta, ToolCall
 from footy_agents.schemas import ChatEvent, ToolCallRecord, UserPreferences
 from footy_agents.tools import OPENAI_TOOLS_SPEC, execute_tool
@@ -77,6 +78,7 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
     """Un turno del usuario. Emite eventos tool_start, tool_result, token, done y error (contrato SSE)."""
     messages = [{"role": "system", "content": system_prompt(prefs)}, *(history or []),
                 {"role": "user", "content": message}]
+    records: list[ToolCallRecord] = []
 
     for iteration in range(1, MAX_ITERATIONS + 1):
         tools = OPENAI_TOOLS_SPEC if iteration < MAX_ITERATIONS else None
@@ -106,7 +108,12 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
                 yield ChatEvent(event="error", data={"error": "El modelo no devolvió respuesta."})
                 yield ChatEvent(event="done", data={"iterations": iteration, "success": False})
                 return
-            yield ChatEvent(event="done", data={"iterations": iteration, "success": True})
+            report = verify_numbers("".join(text), records)
+            if not report.verified:
+                # Se conserva el contrato actual hasta que se autorice actualizar el frontend para `grounding`.
+                yield ChatEvent(event="error", data={"error": "La respuesta contiene cifras sin respaldo: "
+                                                      + ", ".join(report.unverified)})
+            yield ChatEvent(event="done", data={"iterations": iteration, "success": report.verified})
             return
 
         messages.append({"role": "assistant", "content": "".join(text), "tool_calls": [
@@ -116,6 +123,7 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         for call in calls:
             yield ChatEvent(event="tool_start", data={"tool": call.name, "args": call.arguments})
             record = _run_call(call)
+            records.append(record)
             yield ChatEvent(event="tool_result", data={"tool": call.name, "success": record.success,
                                                        "elapsed_ms": record.execution_time_ms,
                                                        "summary": summarize(record)})
