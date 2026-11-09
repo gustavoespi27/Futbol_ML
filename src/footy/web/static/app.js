@@ -143,7 +143,7 @@ function trustEmpty(box, kind, { count = 0, total = count, action = null } = {})
     unknown: ["Recomendaciones en pausa", "Falta verificar la actualización.", "Ver últimos resultados"],
     error: ["No se pudo cargar", "Reintenta la consulta.", "Reintentar"],
     no_matches: ["Sin partidos próximos", "No hay partidos para esta selección.", "Ver todos los partidos"],
-    no_value: ["Sin ventaja detectada", `${count} de ${total} con Pinnacle; ${FootyTrust.partidos(total - count)} sin referencia.`, "Ver el semáforo"],
+    no_value: ["Sin ventaja detectada", `${count} de ${total} con Pinnacle.`, "Ver el semáforo"],
     no_reference: ["Sin referencia de precio", `0 de ${total} con Pinnacle.`, "Ver los partidos"],
   };
   const [title, text, label] = messages[kind] || messages.error;
@@ -312,11 +312,9 @@ function chart(id, build) {
 }
 function redrawCharts() { Object.keys(chartDefs).forEach((id) => chart(id, chartDefs[id])); }
 const FONT_BODY = '"Inter", system-ui, sans-serif';
-const FONT_MONO = '"JetBrains Mono", ui-monospace, Consolas, monospace';
-const FONT_DISPLAY = '"Plus Jakarta Sans", "Inter", system-ui, sans-serif';
 if (window.Chart) {                       // gráficos con la tipografía del sitio y tooltips flotantes con sombra
   Chart.defaults.font.family = FONT_BODY;
-  Chart.defaults.font.size = 11.5;
+  Chart.defaults.font.size = 12;
   Chart.register({
     id: "tooltipShadow",
     beforeTooltipDraw: (ch) => { const c = ch.ctx; c.save(); c.shadowColor = "rgba(2, 6, 23, .45)"; c.shadowBlur = 18; c.shadowOffsetY = 6; },
@@ -370,15 +368,15 @@ function baseOptions(extra = {}) {
         // las series con área degradada usan el color de su línea en la leyenda
         generateLabels: (ch) => Chart.defaults.plugins.legend.labels.generateLabels(ch)
           .map((l) => (typeof l.fillStyle === "string" ? l : { ...l, fillStyle: l.strokeStyle })) } },
-      // tooltip oscuro tipo terminal en ambos temas: cifras en monoespaciada
-      tooltip: { backgroundColor: "#111726", titleColor: "#f1f5fb", bodyColor: "#c9d3e3", footerColor: "#8b97ab",
-        borderColor: "rgba(255, 255, 255, .10)", borderWidth: 1, padding: 12, cornerRadius: 10, boxPadding: 5, caretSize: 6,
-        usePointStyle: true, titleFont: { family: FONT_DISPLAY, weight: "700", size: 12.5 },
-        bodyFont: { family: FONT_MONO, size: 12 }, footerFont: { family: FONT_MONO, size: 11, weight: "500" } },
+      // Inter y colores del tema también en los textos del gráfico.
+      tooltip: { backgroundColor: css("--surface-2"), titleColor: css("--text"), bodyColor: text, footerColor: css("--muted"),
+        borderColor: css("--border"), borderWidth: 1, padding: 12, cornerRadius: 10, boxPadding: 5, caretSize: 6,
+        usePointStyle: true, titleFont: { family: FONT_BODY, weight: "700", size: 13 },
+        bodyFont: { family: FONT_BODY, size: 13 }, footerFont: { family: FONT_BODY, size: 12, weight: "600" } },
     },
     scales: {
-      x: { grid: { color: grid, drawTicks: false }, border: { display: false }, ticks: { color: text, font: { family: FONT_MONO, size: 11 }, padding: 6 } },
-      y: { grid: { color: grid, drawTicks: false }, border: { display: false }, ticks: { color: text, font: { family: FONT_MONO, size: 11 }, padding: 6 } },
+      x: { grid: { color: grid, drawTicks: false }, border: { display: false }, ticks: { color: text, font: { family: FONT_BODY, size: 12 }, padding: 6 } },
+      y: { grid: { color: grid, drawTicks: false }, border: { display: false }, ticks: { color: text, font: { family: FONT_BODY, size: 12 }, padding: 6 } },
     },
     ...extra,
   };
@@ -423,12 +421,32 @@ function kpi(kind, label, value, hint, good = false) {
 }
 
 /* ---------- calculadora de apuesta ---------- */
-const clp = (x) => (x == null || isNaN(x) ? "–" : (x < 0 ? "−$" : "$") + Math.round(Math.abs(x)).toLocaleString("es-CL"));
+const clp = FootyFormat.money;
+const amountValue = input => FootyFormat.parseAmount(input.value);
+function formatAmountInput(input) {
+  const value = amountValue(input);
+  if (Number.isFinite(value) && value > 0) { input.value = FootyFormat.amount(value); input.setCustomValidity(""); }
+}
+function bindAmountInput(input) {
+  input.type = "text"; input.inputMode = "decimal";
+  input.onfocus = () => { const value = amountValue(input); if (Number.isFinite(value)) input.value = String(value).replace(".", ","); };
+  input.onblur = () => formatAmountInput(input);
+  if (!input.dataset.amountBound) {
+    input.addEventListener("input", () => input.setCustomValidity(amountValue(input) > 0 ? "" : "Ingresa un monto mayor que cero."));
+    input.dataset.amountBound = "true";
+  }
+  formatAmountInput(input);
+}
 function getStake() {
-  try { return Number(localStorage.getItem("stake")) || 5000; } catch (e) { return 5000; }
+  try {
+    const value = Number(localStorage.getItem("stake"));
+    return Number.isFinite(value) && value > 0 ? value : 5000;
+  } catch (e) { return 5000; }
 }
 function setStake(v) {
-  try { localStorage.setItem("stake", String(v)); } catch (e) { /* sin storage */ }
+  const amount = FootyFormat.parseAmount(v);
+  if (!(amount > 0)) return;
+  try { localStorage.setItem("stake", String(amount)); } catch (e) { /* sin storage */ }
 }
 // Resultado de apostar `stake` a `odds` con probabilidad `p` de acertar (según el sistema).
 function payout(stake, odds, p) {
@@ -480,10 +498,10 @@ function semRow(m) {
   const ops = Object.fromEntries((m.options || []).map((o) => [o.key, o]));
   const best = bestOption(m);
   return `<tr><td class="m" onclick="goToCombos('${esc(m.ref)}')"><div class="mt">${matchTag(m, 22)}</div>
-    <div style="color:var(--muted);font-size:12px">${leagueLogo(m.league, 13)} ${esc(m.league_name)} · ${fmtDate(m.kickoff)}${m.stale ? " · ⚠ datos atrasados" : ""}</div></td>
+    <div style="color:var(--muted);font-size:var(--fs-xs)">${leagueLogo(m.league, 13)} ${esc(m.league_name)} · ${fmtDate(m.kickoff)}${m.stale ? " · ⚠ datos atrasados" : ""}</div></td>
     ${SEM_COLS.map(([k]) => `<td>${vcell(ops[k])}</td>`).join("")}
-    <td>${best ? `${vchip(best.verdict)}<div style="font-size:12.5px;margin-top:4px">${esc(best.label)} a ${num(best.odds)}</div>`
-      : '<span style="color:var(--muted);font-size:12.5px">sin cuotas aún</span>'}</td></tr>`;
+    <td>${best ? `${vchip(best.verdict)}<div style="font-size:var(--fs-sm);margin-top:4px">${esc(best.label)} a ${num(best.odds)}</div>`
+      : '<span style="color:var(--muted);font-size:var(--fs-sm)">sin cuotas aún</span>'}</td></tr>`;
 }
 
 /* ---------- INICIO ---------- */
@@ -503,7 +521,7 @@ async function renderHome() {
     ["Siempre al local", pct(b.acc_naive_home, 1), "estrategia ingenua"],
     ["Modelo solo", pct(b.acc_model, 1), "Elo + Dixon-Coles"],
     ["Casas de apuestas", pct(b.acc_market, 1), "cuotas de cierre"],
-  ].map(([l, v, h]) => `<div class="stat"><div class="label">${l}</div><div class="value num" style="font-size:22px">${v}</div><div class="hint">${h}</div></div>`).join("");
+  ].map(([l, v, h]) => `<div class="stat"><div class="label">${l}</div><div class="value num" style="font-size:var(--fs-lg)">${v}</div><div class="hint">${h}</div></div>`).join("");
 
   // Cada sección se dibuja por su cuenta en cuanto llega su dato; los indicadores esperan a ambos.
   renderSemaphore().catch((e) => showError("v-inicio", e));
@@ -1020,7 +1038,7 @@ async function renderTracking() {
     <thead><tr><th>Fecha</th><th>Liga</th><th>Partido</th><th>Probabilidades</th><th>Pronóstico</th><th class="r">Resultado</th><th></th><th>Versión</th></tr></thead>
     <tbody>${d.matches.map((m) => `<tr>
       <td>${fmtDate(m.kickoff)}</td><td title="${esc(m.league_name || m.league)}">${leagueLogo(m.league, 18) || esc(m.league)}</td><td>${matchTag(m, 18)}</td>
-      <td>${miniBar(m.p_official)} <span class="num" style="color:var(--muted);font-size:12px">${m.p_official.map((x) => pct(x)).join(" · ")}</span></td>
+      <td>${miniBar(m.p_official)} <span class="num" style="color:var(--muted);font-size:var(--fs-xs)">${m.p_official.map((x) => pct(x)).join(" · ")}</span></td>
       <td>${SEL[m.pick]} <span class="num" style="color:var(--muted)">(${pct(m.p_official[m.pick])})</span></td>
       <td class="r"><b>${esc(m.score)}</b></td>
       <td>${m.hit ? '<span class="pill good">✓ acierto</span>' : '<span class="pill bad">✗ fallo</span>'}</td>
@@ -1145,7 +1163,7 @@ async function renderML() {
       ${tbl(`Más/menos de 2,5 (${r.over25.n.toLocaleString("es-CL")})`, r.over25, [["dixon_coles", "Dixon-Coles"], ["ml", "ML historial"], ["mercado", "Mercado"], ["ml_mercado", "ML + mercado"]])}
       ${tbl("Ambos marcan", r.btts, [["frecuencia_historica", "Frecuencia histórica"], ["ml", "ML historial"]])}
     </div>
-    <div class="stack" style="font-size:14px;color:var(--text-2);margin-top:16px">
+    <div class="stack" style="font-size:var(--fs-base);color:var(--text-2);margin-top:16px">
       <p><b style="color:var(--text)">El ML mejora a los modelos anteriores, pero poco:</b> aprende de ${r.n_features} variables del historial de los equipos
         (forma, tiros, localía, temporada, rachas, descanso, enfrentamientos directos) con ${r.n_train.toLocaleString("es-CL")} partidos.</p>
       <p><b style="color:var(--text)">No alcanza al mercado:</b> al combinarlos, el ML recibe peso ${num(r.blend["1x2"][0], 2)} frente a
@@ -1231,6 +1249,7 @@ function mountIconSelect(select, { items, placeholder = "Buscar…", disabled = 
 let simMode = "same";
 async function renderSimulator() {
   $("#sim-stake").value = getStake();
+  bindAmountInput($("#sim-stake"));
   // El envío se registra primero (si no, un clic temprano recargaría la página) y el botón espera a los equipos.
   const submitBtn = $("#sim-form button[type=submit]");
   submitBtn.disabled = true;
@@ -1240,7 +1259,7 @@ async function renderSimulator() {
     e.preventDefault();
     const btn = e.target.querySelector("button[type=submit]"); btn.disabled = true;
     const odds = ["#sim-o1", "#sim-o2", "#sim-o3"].map((s) => parseFloat($(s).value));
-    const st = parseFloat($("#sim-stake").value);
+    const st = amountValue($("#sim-stake"));
     if (st > 0) setStake(st);
     const hl = sel.value, al = simMode === "cross" ? $("#sim-away-league").value : hl;
     const idOf = (lg, name) => ((teamsOf[lg] || []).find((t) => t.name === name) || {}).id;
@@ -1365,7 +1384,7 @@ function renderSimResult(r) {
   </div>`;
   syncAddButtons();
   const drawSim = () => {
-    const st = parseFloat($("#sim-stake2").value) || 0;
+    const st = Math.max(0, amountValue($("#sim-stake2")) || 0);
     $("#sim-payouts").innerHTML = `<table><thead><tr><th>Apuesta</th><th class="r">Cuota</th><th class="r">Probabilidad</th>
       <th class="r">Si aciertas, recibes</th><th class="r">Ganancia neta</th><th class="r">Si fallas</th><th class="r">Ganancia esperada</th></tr></thead>
       <tbody>${SEL.map((n, i) => {
@@ -1375,6 +1394,7 @@ function renderSimResult(r) {
           <td class="r" style="color:${x.expected >= 0 ? "var(--good)" : "var(--bad)"}"><b>${x.expected >= 0 ? "+" : ""}${clp(x.expected)}</b></td></tr>`;
       }).join("")}</tbody></table>`;
   };
+  bindAmountInput($("#sim-stake2"));
   $("#sim-stake2").oninput = (e) => { setStake(e.target.value); drawSim(); };
   drawSim();
 }

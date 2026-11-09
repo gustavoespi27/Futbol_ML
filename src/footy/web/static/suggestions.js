@@ -3,18 +3,24 @@
    Usa los helpers de app.js y los botones "+" de combos.js. */
 
 const RISK_PILL = { bajo: "good", medio: "warn", alto: "bad" };
-const money = (x) => (x == null ? "–" : "$" + Math.round(x).toLocaleString("es-CL"));
+const money = FootyFormat.money;
 
 function getBank() {
-  try { return Number(localStorage.getItem("bankroll")) || 100000; } catch (e) { return 100000; }
+  try {
+    const value = Number(localStorage.getItem("bankroll"));
+    return Number.isFinite(value) && value > 0 ? value : 100000;
+  } catch (e) { return 100000; }
 }
 
 async function renderSuggestions() {
   const d = await api("/api/suggestions");
   const inp = $("#sg-bank");
   inp.value = getBank();
+  bindAmountInput(inp);
   inp.onchange = () => {
-    try { localStorage.setItem("bankroll", inp.value); } catch (e) { /* sin storage */ }
+    const amount = amountValue(inp);
+    if (!(amount > 0)) return;
+    try { localStorage.setItem("bankroll", String(amount)); } catch (e) { /* sin storage */ }
     drawCurrent(d);
   };
   drawCurrent(d);
@@ -59,7 +65,7 @@ function drawCurrent(d) {
       <div class="sg-foot"><span class="pill ${RISK_PILL[s.risk]}">riesgo ${s.risk}</span>
         <span>Si acierta ganas <b>${money(s.stake * bank * (s.odds - 1))}</b></span></div>
       ${s.reason ? `<p class="why"><b>Por qué:</b> ${esc(s.reason)}</p>` : ""}
-      <div class="callout" style="padding:10px 12px;font-size:13px"><div>Antes de apostar revisa la cuota en ${esc(s.book)}: tómala solo si
+      <div class="callout" style="padding:10px 12px;font-size:var(--fs-sm)"><div>Antes de apostar revisa la cuota en ${esc(s.book)}: tómala solo si
         sigue en <b>${num((1 + r.min_edge / 2) / s.p)}</b> o más. Si bajó, la ventaja desapareció.</div></div>
       <button class="chip" style="justify-self:start" onclick="toggleLeg('${esc(s.ref)}','${s.key}'); this.textContent='En tu combinada ✓'">Agregar a combinada</button>
     </article>`).join("")
@@ -80,7 +86,7 @@ function drawCurrent(d) {
     d.signal === "a_favor" ? "▼ mercado a favor" : "▲ mercado en contra"} ${signed(d.pct)}</span>` : "");
   $("#sg-closest").innerHTML = d.closest.length ? `<table><thead><tr><th>Partido</th><th>Selección</th><th class="r">Prob.</th>
     <th class="r">Cuota</th><th class="r">Valor</th><th class="r">Cuota mínima</th><th></th></tr></thead><tbody>${d.closest.map((c) => `<tr>
-    <td><div class="mt">${matchTag(c, 18)}</div><div style="color:var(--muted);font-size:12px">${leagueLogo(c.league, 12)} ${fmtDate(c.kickoff)}</div></td>
+    <td><div class="mt">${matchTag(c, 18)}</div><div style="color:var(--muted);font-size:var(--fs-xs)">${leagueLogo(c.league, 12)} ${fmtDate(c.kickoff)}</div></td>
     <td>${esc(c.label)}${steamTag(c.drift)}</td><td class="r">${pct(c.p)}</td><td class="r">${num(c.odds)}</td>
     <td class="r">${vchip(c.verdict, signed(c.ev))}</td><td class="r"><b>${num(minOdds(c))}</b></td>
     <td class="r"><button class="add" data-ref="${esc(c.ref)}" data-keys="${c.key}">+</button></td></tr>`).join("")}</tbody></table>`
@@ -147,7 +153,7 @@ function drawLedger(L) {
   const SELN = { H: "Local", D: "Empate", A: "Visita" };
   $("#sg-record").innerHTML = L.items && L.items.length ? `<table><thead><tr><th>Partido</th><th>Apuesta</th><th class="r">Cuota</th>
     <th class="r">Ventaja</th><th class="r">Monto</th><th class="r">CLV</th><th>Estado</th></tr></thead><tbody>${L.items.map((it) => `<tr>
-    <td><div class="mt">${matchTag(it, 18)}${it.score ? ` <b>${esc(it.score)}</b>` : ""}</div><div style="color:var(--muted);font-size:12px">${leagueLogo(it.league, 12)} ${fmtDate(it.kickoff)}</div></td>
+    <td><div class="mt">${matchTag(it, 18)}${it.score ? ` <b>${esc(it.score)}</b>` : ""}</div><div style="color:var(--muted);font-size:var(--fs-xs)">${leagueLogo(it.league, 12)} ${fmtDate(it.kickoff)}</div></td>
     <td>${SELN[it.sel]} <span style="color:var(--muted)">(${esc(it.book)})</span></td><td class="r">${num(it.odds)}</td>
     <td class="r">${signed(it.edge)}</td><td class="r">${pct(it.stake, 1)}</td>
     <td class="r">${it.clv == null ? "–" : `<span style="color:${it.clv > 0 ? "var(--good)" : "var(--bad)"}">${signed(it.clv)}</span>`}</td>
@@ -209,8 +215,8 @@ async function renderReliable() {
   setTabCount("picks", (R.items || []).length);
   $("#rel-today").innerHTML = d.today.length ? `<table><thead><tr><th>Partido</th><th>Pronóstico</th><th class="r">Prob.</th>
     <th class="r">Cuota</th><th>Por qué</th><th></th></tr></thead><tbody>${d.today.map((c) => `<tr>
-    <td><div class="mt">${matchTag(c, 18)}</div><div style="color:var(--muted);font-size:12px">${leagueLogo(c.league, 12)} ${fmtDate(c.kickoff)}</div></td>
-    <td><b>${esc(c.label)}</b><div style="color:var(--muted);font-size:11.5px">${esc(c.market)}</div></td>
+    <td><div class="mt">${matchTag(c, 18)}</div><div style="color:var(--muted);font-size:var(--fs-xs)">${leagueLogo(c.league, 12)} ${fmtDate(c.kickoff)}</div></td>
+    <td><b>${esc(c.label)}</b><div style="color:var(--muted);font-size:var(--fs-xs)">${esc(c.market)}</div></td>
     <td class="r"><span class="pbar" style="--w:${(c.p * 100).toFixed(0)}%"><b>${pct(c.p)}</b></span></td>
     <td class="r">${c.odds ? num(c.odds) : "–"}</td>
     <td class="why-cell">${esc(c.reason)}</td>
@@ -220,7 +226,7 @@ async function renderReliable() {
   const st = { acierto: "good", fallo: "bad", pendiente: "" };
   $("#rel-record").innerHTML = R.items && R.items.length ? `<table><thead><tr><th>Partido</th><th>Pronóstico</th><th class="r">Prob.</th>
     <th class="r">Resultado</th><th>Estado</th></tr></thead><tbody>${R.items.map((it) => `<tr>
-    <td><div class="mt">${matchTag(it, 18)}</div><div style="color:var(--muted);font-size:12px">${leagueLogo(it.league, 12)} ${fmtDate(it.kickoff)}</div></td>
+    <td><div class="mt">${matchTag(it, 18)}</div><div style="color:var(--muted);font-size:var(--fs-xs)">${leagueLogo(it.league, 12)} ${fmtDate(it.kickoff)}</div></td>
     <td><b>${esc(it.label)}</b></td><td class="r">${pct(it.p)}</td><td class="r"><b>${it.score ? esc(it.score) : "–"}</b></td>
     <td><span class="pill ${st[it.status]}">${it.status}</span></td></tr>
     <tr class="why-row"><td colspan="5">${esc(it.reason || "")}</td></tr>`).join("")}</tbody></table>`
@@ -256,8 +262,8 @@ async function renderReliable() {
   $("#calib-box").innerHTML = `<div class="kv">
       <div><span>Temperatura actual</span><b class="num">${num(T, 3)}</b></div>
       <div><span>Partidos usados</span><b class="num">${(c.n || 0).toLocaleString("es-CL")}</b></div>
-      <div><span>Efecto</span><b style="font-size:13px">${verb}</b></div>
-      <div><span>Log loss antes → después</span><b class="num" style="font-size:13px">${c.ll_before != null ? `${num(c.ll_before, 3)} → ${num(c.ll_after, 3)}` : "–"}</b></div>
+      <div><span>Efecto</span><b style="font-size:var(--fs-sm)">${verb}</b></div>
+      <div><span>Log loss antes → después</span><b class="num" style="font-size:var(--fs-sm)">${c.ll_before != null ? `${num(c.ll_before, 3)} → ${num(c.ll_after, 3)}` : "–"}</b></div>
     </div>
     <p class="sub" style="margin:10px 0 0">El ajuste se acerca al valor medido a medida que hay más resultados (a los ${300} partidos pesa la mitad).
       ${hist.length > 1 ? `Últimos ${hist.length} días: ${hist.map((h) => num(h.T, 2)).join(" · ")}` : ""}</p>`;
