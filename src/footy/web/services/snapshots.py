@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import logging
 import os
 import tempfile
 import time
@@ -13,6 +14,7 @@ from footy.web.services.common import to_json
 DIRECTORY = config.PROJECT_ROOT / "data/cache/upcoming"
 MAX_AGE = 26 * 3600
 FORMAT_VERSION = 1
+log = logging.getLogger(__name__)
 
 
 def signature() -> str:
@@ -65,6 +67,9 @@ def write(days: int, matches: list[dict], expected_signature: str) -> None:
             temporary = Path(handle.name)
             json.dump(saved, handle, ensure_ascii=False, allow_nan=False)
         os.replace(temporary, DIRECTORY / f"{days}.json")
+    except OSError as exc:
+        # La web puede servir el cálculo de respaldo aunque el almacenamiento de caché no sea escribible.
+        log.warning("No se pudo publicar el precalculado web: %s", exc)
     finally:
         if temporary:
             temporary.unlink(missing_ok=True)

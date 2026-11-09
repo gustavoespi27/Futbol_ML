@@ -71,3 +71,13 @@ def test_changed_inputs_invalidate_memory_and_do_not_publish_mixed_snapshot(cach
     assert calls == [5]
     snapshots.write(7, [], "v1")
     assert not (cache / "7.json").exists()
+
+
+def test_storage_failure_does_not_break_inline_response(cache, monkeypatch):
+    monkeypatch.setattr(context, "_upcoming", lambda days: [])
+
+    def denied(*args):
+        raise PermissionError("almacenamiento no escribible")
+    monkeypatch.setattr(snapshots.os, "replace", denied)
+    assert context.upcoming() == []
+    assert list(cache.iterdir()) == []
