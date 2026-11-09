@@ -39,7 +39,11 @@ const TOOL_LABELS = {
   get_stake_limits: "Límites de exposición",
   get_upcoming_matches: "Próximos partidos", get_value_bets: "Apuestas con valor", simulate_match: "Simulación",
   get_league_standings: "Tabla de posiciones", get_system_performance: "Rendimiento del sistema",
+  find_team: "Búsqueda del equipo", analyze_match: "Análisis del partido", get_coverage: "Cobertura de datos",
+  get_team_form: "Forma del equipo",
 };
+/* Pasos de decisión del agente (evento SSE `step`): qué observó y por qué cambió de camino. */
+const STEP_ICONS = { observation: "◉", deviation: "↪", recovery: "↻", repair: "✎", policy: "⛔" };
 
 /* ---------- resumen del día ---------- */
 let briefCtl = null;
@@ -137,6 +141,11 @@ async function sendChat(message) {
         b.className = `tool-badge ${d.success ? "ok" : "fail"}`;
         b.title = `${d.summary} · ${Math.round(d.elapsed_ms)} ms`;
         b.querySelector(".spin").outerHTML = d.success ? "✓ " : "✕ ";
+      },
+      step: (d) => {
+        tools.insertAdjacentHTML("beforeend", `<span class="agent-step ${esc(d.kind)}"><i aria-hidden="true">${
+          STEP_ICONS[d.kind] || "•"}</i>${esc(d.text)}</span>`);
+        scroll();
       },
       token: (d) => { text += d.delta; out.innerHTML = agentText(text); scroll(); },
       error: (d) => {

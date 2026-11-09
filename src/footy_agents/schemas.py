@@ -86,6 +86,17 @@ class ToolCallRecord(AgentSchema):
 
 
 
+class AgentRun(AgentSchema):
+    """Un turno del chat en la bitácora: pasos en orden (herramientas, observaciones, desvíos, reparaciones)."""
+    id: int
+    started_at: str
+    message: str
+    steps: list[dict[str, Any]]
+    iterations: int
+    success: bool
+    elapsed_ms: float
+
+
 class ChatRequest(AgentSchema):
     message: str = Field(min_length=1, max_length=2000)
     user_id: str = "default"
@@ -93,7 +104,7 @@ class ChatRequest(AgentSchema):
 
 class ChatEvent(AgentSchema):
     """Un evento del stream SSE de /api/agent/chat (contrato con el frontend, CLAUDE.md sección 6)."""
-    event: Literal["tool_start", "tool_result", "token", "done", "error"]
+    event: Literal["step", "tool_start", "tool_result", "token", "done", "error"]
     data: dict[str, Any]
 
     def to_sse(self) -> str:

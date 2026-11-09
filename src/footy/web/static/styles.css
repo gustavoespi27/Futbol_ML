@@ -1430,6 +1430,11 @@ section.view > .trust-hidden { display: none; }
 .tool-badge .spin { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--accent);
   animation: ico-spin .8s linear infinite; }
 .msg-err { margin: 6px 0 0; font-size: var(--fs-xs); color: var(--bad); }
+.agent-step { flex-basis: 100%; display: flex; gap: 6px; align-items: baseline; font-size: var(--fs-xs); line-height: 1.4;
+  color: var(--text-2); padding-left: 2px; }
+.agent-step i { font-style: normal; color: var(--accent); flex: none; }
+.agent-step.deviation, .agent-step.recovery { color: var(--text); font-weight: 600; }
+.agent-step.repair i { color: var(--warn, var(--accent)); }
 .chat-suggest { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px; }
 .chat-suggest[hidden] { display: none; }
 .chat-suggest .chip { font-size: var(--fs-xs); padding: 4px 10px; white-space: normal; text-align: left; }

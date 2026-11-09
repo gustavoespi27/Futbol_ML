@@ -46,6 +46,22 @@ class PerformanceArgs(AgentSchema):
     pass
 
 
+class FindTeamArgs(AgentSchema):
+    name: str = Field(min_length=2, max_length=100)
+
+
+class AnalyzeArgs(AgentSchema):
+    match_id: int = Field(ge=1)
+
+
+class CoverageArgs(AgentSchema):
+    pass
+
+
+class TeamFormArgs(AgentSchema):
+    team: str = Field(min_length=2, max_length=100)
+
+
 TOOL_MODELS = {
     "get_upcoming_matches": UpcomingArgs,
     "get_value_bets": ValueArgs,
@@ -53,6 +69,10 @@ TOOL_MODELS = {
     "get_league_standings": StandingsArgs,
     "get_system_performance": PerformanceArgs,
     "get_stake_limits": StakeArgs,
+    "find_team": FindTeamArgs,
+    "analyze_match": AnalyzeArgs,
+    "get_coverage": CoverageArgs,
+    "get_team_form": TeamFormArgs,
 }
 
 DESCRIPTIONS = {
@@ -62,6 +82,13 @@ DESCRIPTIONS = {
     "get_league_standings": "Tabla de posiciones y racha reciente de una liga.",
     "get_system_performance": "Rendimiento real del sistema, CLV, yield y versión del motor.",
     "get_stake_limits": "Calcula topes de exposición en pesos para una banca; no recomienda una apuesta.",
+    "find_team": "Resuelve un nombre informal o incompleto de equipo o selección y entrega su próximo partido "
+                 "(match_id).",
+    "analyze_match": "Análisis completo de un partido por match_id: probabilidades, goles esperados, marcadores y "
+                     "ventaja frente a Pinnacle si existe.",
+    "get_team_form": "Cómo llega un equipo: posición en la tabla, últimos resultados, promedios y próximo partido.",
+    "get_coverage": "Frescura de los datos y cuántos partidos tienen precio de Pinnacle: explica por qué hay o no "
+                    "recomendaciones.",
 }
 
 OPENAI_TOOLS_SPEC = [

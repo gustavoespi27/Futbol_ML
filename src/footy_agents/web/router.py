@@ -3,6 +3,9 @@
 Totalmente desacoplado de footy; solo se monta en app.py si la capa está presente.
 """
 
+import logging
+import sqlite3
+import time
 from collections.abc import Iterator
 from contextlib import closing
 
@@ -10,14 +13,24 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
 from footy.db.connection import connect
+from footy.db.repository import utc_now
+from footy_agents import memory
 from footy_agents.briefing_cache import cached_briefing
 from footy_agents.health import get_health
 from footy_agents.llm import LLMClient, OpenAICompatibleClient
 from footy_agents.orchestrator import run_chat
 from footy_agents.preferences import repo, service
-from footy_agents.schemas import AgentHealth, ChatEvent, ChatRequest, PersonalizedFeedResponse, UserPreferences
+from footy_agents.schemas import (
+    AgentHealth,
+    AgentRun,
+    ChatEvent,
+    ChatRequest,
+    PersonalizedFeedResponse,
+    UserPreferences,
+)
 
 router = APIRouter(prefix="/api/agent", tags=["Agent"])
+log = logging.getLogger(__name__)
 
 
 @router.get("/health", response_model=AgentHealth)
@@ -60,7 +73,41 @@ def chat(req: ChatRequest, client: LLMClient = Depends(get_llm_client)) -> Strea
     """Chat con el asistente en streaming SSE: eventos tool_start, tool_result, token, done y error."""
     with closing(connect()) as conn:
         prefs = repo.get_preferences(conn, user_id=req.user_id)
-    return _sse(run_chat(client, req.message, prefs))
+        past = memory.history(conn, req.user_id)
+    return _sse(_recorded(req, run_chat(client, req.message, prefs, history=past)))
+
+
+def _recorded(req: ChatRequest, events: Iterator[ChatEvent]) -> Iterator[ChatEvent]:
+    """Reenvía el stream y, al terminar, guarda el turno en la bitácora y la respuesta verificada en la memoria."""
+    started, start = utc_now(), time.perf_counter()
+    seen: list[ChatEvent] = []
+    for ev in events:
+        seen.append(ev)
+        yield ev
+    done = next((ev.data for ev in reversed(seen) if ev.event == "done"), {})
+    answer = "".join(ev.data["delta"] for ev in seen if ev.event == "token")
+    try:
+        with closing(connect()) as conn:
+            memory.log_run(conn, req.user_id, req.message, started, seen, (time.perf_counter() - start) * 1000)
+            if done.get("success") and answer.strip():
+                memory.remember(conn, req.user_id, req.message, answer)
+    except sqlite3.Error as exc:       # la bitácora nunca debe romper una respuesta ya entregada
+        log.warning("No se pudo registrar el turno del agente: %s", exc)
+
+
+@router.get("/runs", response_model=list[AgentRun])
+def runs(user_id: str = Query("default", description="Identificador del usuario"),
+         limit: int = Query(20, ge=1, le=100)) -> list[AgentRun]:
+    """Bitácora del agente: últimos turnos con sus herramientas, observaciones, desvíos y reparaciones."""
+    with closing(connect()) as conn:
+        return memory.recent_runs(conn, user_id, limit)
+
+
+@router.delete("/memory", status_code=204)
+def forget(user_id: str = Query("default", description="Identificador del usuario")) -> None:
+    """Empieza una conversación nueva: borra la memoria corta (la bitácora se conserva)."""
+    with closing(connect()) as conn:
+        memory.forget(conn, user_id)
 
 
 @router.get("/briefing")

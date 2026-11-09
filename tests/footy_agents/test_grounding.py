@@ -17,7 +17,8 @@ def record(result, success=True):
     ("Probabilidad 53,2%", {"p": "53.2%"}, True),
     ("CLV +3,0%", {"clv": -0.0303}, False),
     ("Hay 99 apuestas", {"n": 60}, False),
-    ("El 2026-11-08 a las 12:30", {}, True),
+    ("El 2026-11-08 a las 12:30", {}, False),
+    ("El 2026-11-08 a las 12:30", {"kickoff": "2026-11-08T15:30:00Z"}, True),
     ("Cuota 2,10", {"odds": 2.1}, True),
     ("Log loss 1.050", {"ll": 1.05}, True),
     ("Banca $100.000.0", {"bankroll": 100000}, False),
@@ -40,6 +41,8 @@ def test_unsupported_answer_uses_existing_error_contract():
         def stream_chat(self, *_):
             yield TextDelta("La cuota es 9,99.")
     events = list(run_chat(Invented(), "hola", UserPreferences()))
-    assert [e.event for e in events] == ["error", "token", "done"]
+    # sin datos del turno, primero consulta; si insiste en la cifra, repara una vez y luego mantiene el error
+    assert [e.event for e in events] == ["step", "step", "error", "token", "done"]
+    assert [e.data["kind"] for e in events[:2]] == ["recovery", "repair"]
     assert "9,99" not in "".join(e.data.get("delta", "") for e in events)
     assert events[-1].data["success"] is False

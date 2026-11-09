@@ -37,8 +37,9 @@ def test_verifies_entire_answer_before_first_token():
 
     output = orchestrator.run_chat(Stream(), "hola", UserPreferences())
     first = next(output)
-    assert consumed and first.event == "error"
+    assert consumed and first.event == "step" and first.data["kind"] in {"recovery", "repair"}
     remaining = list(output)
+    assert not any(e.event == "token" and "9,99" in e.data["delta"] for e in remaining)
     assert "9,99" not in text(remaining)
     assert remaining[-1].data["success"] is False
 
