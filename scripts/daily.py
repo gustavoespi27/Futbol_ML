@@ -71,6 +71,7 @@ def main() -> int:
         ("tracking_cups", lambda: log.info("Seguimiento copas: %s", tracking.register_cross(conn))),
         ("suggestions", lambda: log.info("Sugerencias: %s", service.register_suggestions(conn))),
         ("reliable", lambda: log.info("Pronósticos fiables: %s", service.register_reliable(conn))),
+        ("web_snapshot", lambda: log.info("Precalculado web: %s partidos", len(service.upcoming(refresh=True)))),
         ("report", lambda: (config.PROJECT_ROOT / "docs" / "seguimiento.md").write_text(
             tracking.report(conn), encoding="utf-8", newline="\n")),
     ]

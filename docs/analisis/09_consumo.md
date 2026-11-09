@@ -49,3 +49,29 @@ Frío: proceso nuevo, con artefactos de disco existentes. RAM: working set del p
   ]
 }
 ```
+
+## despues_L2_L3 — 2026-11-09T00:59:30Z
+
+Frío: proceso nuevo, con artefactos de disco existentes. RAM: working set del proceso de cálculo; no incluye Ollama, GPU ni el proceso web. Arranque: disponibilidad HTTP, no fin del prewarm. No equivale a un benchmark con datos actualizados.
+
+```json
+{
+  "importacion_s": 1.5519773999985773,
+  "upcoming": [
+    {
+      "muestra": "frio",
+      "segundos": 0.0817,
+      "ram_mb": 155.34,
+      "partidos": 0
+    },
+    {
+      "muestra": "caliente",
+      "segundos": 0.0007,
+      "ram_mb": 155.34,
+      "partidos": 0
+    }
+  ],
+  "arranque_http_s": 2.224,
+  "endpoints": []
+}
+```

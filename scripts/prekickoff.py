@@ -16,6 +16,7 @@ from footy.db.connection import connect
 from footy.ingest.api_football import ApiFootball, ApiUnavailable, BudgetExhausted
 from footy.ingest.collect import collect_odds
 from footy.prediction import tracking
+from footy.web import service
 
 log = logging.getLogger("prekickoff")
 
@@ -54,6 +55,9 @@ def main() -> int:
         return 0
     log.info("Pendientes %s · cuotas %s partidos (%s filas) · quedan %s peticiones · pronósticos finales %s",
              n, matches, rows, client.remaining, tracking.register_scheduled(conn, horizon_hours=hours))
+    if rows:
+        service.clear_caches()
+        log.info("Precalculado web: %s partidos", len(service.upcoming(refresh=True)))
     return 0
 
 
