@@ -1,5 +1,8 @@
 # Evaluación reproducible de la capa agéntica
 
+> Cierre vigente: [pieza 5, evaluación final y demo](#pieza-5-evaluación-final-y-cierre).
+> El resto del documento conserva las mediciones históricas; no son el resultado de cierre.
+
 Ficha sintética fija; 15 preguntas por modelo; inferencia local real. Una ejecución por pregunta. La primera consulta incluye carga del modelo. Tokens/s = tokens de salida / latencia total (incluye prompt y herramientas); no es velocidad pura de generación. Memoria según /api/ps, no RAM total del sistema. La verificación numérica no valida la semántica ni la pertinencia.
 
 ## qwen2.5:7b
@@ -390,3 +393,123 @@ y cero errores JS; botones nuevos ≥44 px. Lectura de alerta con badge y foco c
 
 Variantes restantes en `docs/img/agente/pieza4-*.png`. No cambió el motor ni el contrato SSE. La pieza 4
 se entrega en un único feat(agents) y se detiene para revisión; pieza 5 pendiente.
+
+## Pieza 5: evaluación final y cierre
+
+Agente aprobado: `6cb18aa`. Esta pieza solo añade evaluación, reset, pruebas y documentación: **sin
+cambios en src/footy_agents ni en el motor o la interfaz**. Guion de seis minutos en
+[demo_agente.md](../demo_agente.md) y [diagrama de arquitectura](../arquitectura_agente.md).
+
+### Método y evidencia
+
+Qwen 2.5 de 7B real; 15 turnos en orden: conversación de diez preguntas, crear/listar/cancelar y dos
+seguimientos adicionales. Herramientas reales, memoria de evaluación aislada y escrituras/bitácora
+reales sobre tablas propias del agente. El script envía una consulta por vez; no modifica el prompt,
+la selección de herramientas ni las respuestas. Comando:
+
+```powershell
+.venv\Scripts\python scripts/eval_agent_routing.py --mode cierre --output reports/agente/pieza5-final.json
+```
+
+Las salidas completas y los argumentos, ids y revisiones manuales se publican en
+[evaluacion_agente_final.json](evaluacion_agente_final.json). El archivo local conserva además todos
+los eventos SSE. La evidencia se vinculó por pregunta y orden con las ejecuciones reales de /runs.
+Se detectó una consulta de UI ajena al set intercalada en ese intervalo (run 128): no se contó entre
+los quince ni se borró. El historial del evaluador permaneció aislado, pero **no se afirma exclusividad
+de carga**: las latencias pueden incluir contención con esa otra consulta.
+
+«Herramienta correcta» mide selección; «camino correcto» exige éxito, orden y argumentos del objetivo,
+sin herramientas de otro tema. Crear exige identificación previa y ambas condiciones para match 181043;
+cancelar exige el id real confirmado; los seguimientos deben reconsultar el mismo match_id sin resolver
+otra vez el nombre. Los prerrequisitos y desvíos permitidos están definidos en path_correct del script.
+La interpretación de la tabla fue **revisada a mano**; no se deriva de done.success.
+
+### Tabla final
+
+| # | Pregunta | Herramienta correcta | Camino correcto | Interpretación manual | Respaldo | Reparaciones | Recuperaciones | Latencia (s) |
+|---|---|---|---|---|---|---:|---:|---:|
+| 1 | Analiza el partido de la roja | Sí | Sí | Correcta: favorito Colombia, cifras y falta de Pinnacle | Sí | 1 | 1 | 27,980 |
+| 2 | ¿Y quién es favorito? | No | No | Sin respuesta: SAFE_TEXT, no consultó | No | 1 | 1 | 13,269 |
+| 3 | ¿Cómo llega el Colo Colo? | Sí | Sí | Correcta: 2G, 2E, 1P; distingue promedios de temporada | No | 0 | 0 | 9,188 |
+| 4 | Simula Colo Colo contra la U | Sí | Sí | Correcta: xG, probabilidades y favorito etiquetados | No | 0 | 0 | 10,897 |
+| 5 | que partidos vienen ahora? | Sí | Sí | Parcial: lista correcta; generaliza ausencia de ventaja sin Pinnacle | No | 0 | 0 | 13,445 |
+| 6 | ¿Qué apuestas con valor hay hoy? | Sí | Sí | Parcial: cero selecciones elegibles, sin aclarar cobertura y demás filtros | No | 0 | 0 | 8,651 |
+| 7 | ¿Por qué no hay apuestas recomendadas? | Sí | Sí | Parcial: dos con Pinnacle; confunde elegibilidad con ventaja significativa | No | 0 | 0 | 12,762 |
+| 8 | ¿Qué tan fiable es el sistema? | Sí | Sí | Correcta: yield/CLV desfavorables; mercado con menor log loss | No | 0 | 0 | 14,843 |
+| 9 | Banca de 100.000 pesos | Sí | Sí | Correcta: $2.000 por apuesta y $10.000 diarios | No | 1 | 0 | 14,743 |
+| 10 | Dame una combinada segura para hoy | Sí, política | Sí, sin LLM | Correcta: rechaza garantía, remite a uso educativo | No | 0 | 0 | 0,008 |
+| 11 | Avisar inicio cercano y Pinnacle de Colombia–Chile | Sí, crear ×2 | Sí | Correcta: analyze_match(181043), ids reales 1 y 2 | No | 0 | 0 | 9,210 |
+| 12 | ¿Qué vigilas? | Sí | Sí | Correcta: ids y condiciones activos | No | 0 | 0 | 3,636 |
+| 13 | Deja de vigilar la vigilancia 2 | Sí | Sí | Correcta: cancelación del id real | No | 0 | 0 | 3,770 |
+| 14 | ¿Y quién es favorito? (después de cancelar) | Sí | Sí | Correcta: reconsulta 181043, favorito Colombia | No | 0 | 0 | 9,730 |
+| 15 | ¿Y ese partido tiene precio de Pinnacle? | Sí | Sí | Correcta: reconsulta el mismo partido y confirma que falta Pinnacle | No | 0 | 1 | 13,785 |
+
+Resultado: **14/15 herramientas y caminos correctos; 14/15 turnos con done.success=true; acciones 3/3;
+cero copias literales del turno previo**. Hubo 17 llamadas de herramientas con argumentos admitidos
+por sus modelos; los dos turnos sin herramientas no demuestran nada sobre ejecución de argumentos.
+La revisión estricta distingue **11 interpretaciones correctas, tres parciales y un turno sin respuesta**.
+Por eso no se presenta el 14/15 como exactitud semántica general.
+
+Un respaldo resolvió el turno 1. De tres intentos de reparación, uno terminó con redacción válida del
+LLM (banca), otro con respaldo verificado y otro con SAFE_TEXT. Dos de las tres recuperaciones acabaron
+en el camino correcto; la del turno 2 no logró una consulta. Reparaciones excluye el step que entrega
+el respaldo, contabilizado aparte para evitar contar dos veces el mismo intento.
+
+Latencia **p50 10,897 s; p95 18,784 s; máximo 27,980 s**. Percentiles por interpolación lineal inclusiva,
+posición (n−1)×p, sobre los quince turnos, incluida la política sin inferencia. Una sola corrida y una
+consulta de UI intercalada no permiten establecer un SLA ni atribuir diferencias a una optimización.
+Los ficheros .metrics.json reproducidos dejan manual_review pendiente: nunca califican automáticamente
+la interpretación. El JSON publicado incorpora la revisión humana explícita de esta corrida.
+
+### Reset y ensayo completo de la demo
+
+`scripts/reset_agent_demo.py` sin --yes mostró conteos sin borrar filas. Con --yes se vaciaron únicamente
+agent_watches, agent_alerts, agent_watch_state, agent_watch_log, agent_runs y agent_chat_memory. No hay
+comodines, DROP, VACUUM ni modificación de sqlite_sequence. Los ids que SQLite devuelva después no deben
+suponerse: algunas tablas pueden reutilizarlos y otras conservan su secuencia.
+
+Pruebas con base temporal: simulación intacta, borrado idempotente, preservación de preferencias/tablas
+del motor/otras agent_*, base inexistente no creada y rollback completo si un trigger intenta borrar
+preferencias. Un autorizador SQLite limita los DELETE a las seis tablas y rechaza INSERT/UPDATE/DROP.
+La ejecución real comprobó preferencias y conteos del motor preservados: `reports/pieza5/reset.json`.
+No se crean tablas del agente cuando faltan; solo se limpian las presentes en la lista cerrada.
+El reset abre el archivo existente directamente con SQLite (ro para simulación, rw con --yes),
+sin el inicializador de schema del motor: tampoco añade tablas del motor en una base parcial.
+
+Después de la batería se capturó el flujo desde el panel real, sin simular respuestas ni cambiar el
+agente: apodo → seguimiento → cobertura → política → vigilancia de un partido real dentro de 24 h.
+Se eligió **Qatar U23–Singapore U23, match 181054, inicio 2026-11-10T08:00:00Z**. El chat pasó por análisis
+y create_watch, confirmó la vigilancia **3** para kickoff_soon y el vigía produjo la alerta **1** con
+**5,43 horas restantes**, dato calculado en facts. Una segunda ejecución produjo cero alertas nuevas.
+El seguimiento de este ensayo sí consultó analyze_match: es evidencia adicional de variabilidad, no
+reemplaza ni mejora retrospectivamente el fallo del turno 2 en la batería final.
+
+Los datos de este ensayo son del momento de preparación: en la presentación debe elegirse otro partido
+si ya pasó su inicio. No se alteraron horarios ni cuotas para conseguir la alerta. Las instrucciones
+de elección y el plan B están en [el guion](../demo_agente.md). Registros completos en
+`reports/pieza5/flujo.json` y `flow-vigia-{1,2}.json`.
+
+Capturas finales reales a 390×844 y 1440×900: chat, alerta y bitácora en claro/oscuro, más apodo con pasos.
+Son 14 imágenes en `docs/img/agente/final-*.png`. Auditoría de las 14 variantes: cero desbordamientos,
+cero fallos de contraste y cero errores JavaScript. Selección para la exposición:
+
+- [Apodo y pasos, móvil](../img/agente/final-apodo-390-dark.png) · [escritorio](../img/agente/final-apodo-1440-dark.png).
+- [Creación desde el chat, móvil](../img/agente/final-chat-390-dark.png) · [escritorio](../img/agente/final-chat-1440-light.png).
+- [Alerta real, móvil](../img/agente/final-alerta-390-light.png) · [escritorio](../img/agente/final-alerta-1440-dark.png).
+- [Bitácora y descartes, móvil](../img/agente/final-bitacora-390-light.png) · [escritorio](../img/agente/final-bitacora-1440-dark.png).
+
+### Límites conocidos
+
+- Qwen puede omitir una consulta aun con entidades disponibles. Sin datos útiles del turno, el respaldo
+  no puede fabricar una respuesta; el guion contempla pregunta explícita, capturas y vigía sin LLM.
+- La verificación es acotada: no demuestra pertinencia, cobertura completa ni semántica general. Las
+  tres respuestas parciales de valor/cobertura siguen pendientes; esta pieza no cambia ese comportamiento.
+- El vigía depende del snapshot y de sus disparos (daily, prekickoff o CLI), no de un proceso continuo.
+  Un objetivo solo alerta cuando la condición se observa; la falta de datos o un partido fuera de 24 h
+  debe generar un descarte, no una alerta ficticia. No inicia Ollama ni realiza apuestas.
+- Las métricas son una muestra pequeña con actividad de UI adicional observada. Fechas, cobertura y
+  latencias deben comprobarse de nuevo antes de presentar, sin atribuirles garantías de rentabilidad.
+
+Validación: **488 pytest**, Ruff, sintaxis de agent.js y ocho pruebas Node en verde; cobertura agéntica
+**95,97 %** (1937 sentencias, 78 sin cubrir). CLAUDE.md §3 actualizado/comprobado solo en disco.
+Se entrega un único test(agents) y se detiene para revisión. Sin cambios de comportamiento del agente.

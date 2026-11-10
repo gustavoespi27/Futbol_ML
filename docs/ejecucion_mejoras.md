@@ -89,3 +89,25 @@ turno 2 y límites de redacción registrados sin ocultarlos en `analisis/08_capa
 478 pytest, cobertura agéntica 95,97 %, Ruff y ocho pruebas web correctos. Capturas en docs/img/agente.
 CLAUDE.md §3 actualizado solo localmente. Motor y SSE intactos, sin dependencias nuevas.
 Se detiene tras el único commit feat(agents) de esta pieza para revisión. Pieza 5 pendiente.
+
+## Pieza 5: evaluación, demo y cierre
+
+`6cb18aa` aprobado en vivo. Sin cambios en src/footy_agents, motor ni interfaz. Se añadieron el reset
+de seis tablas con simulación y --yes, y pruebas de preservación/rollback; preferencias intactas.
+Evaluador en modo cierre: diez preguntas, crear/listar/cancelar y dos seguimientos, con métricas de
+herramienta, camino, argumentos, respaldo, reparaciones, recuperaciones y percentiles. Evidencia
+versionada y revisión manual en docs/analisis/evaluacion_agente_final.json y 08_capa_agentica.md.
+
+Qwen real: 14/15 herramientas/caminos y turnos completados, acciones 3/3, un respaldo, tres reparaciones,
+tres recuperaciones, p50 10,897 s / p95 18,784 s. Revisión manual: 11 correctas, 3 parciales y 1 sin
+respuesta; cero copias literales. Una consulta de UI se intercaló fuera del set y quedó documentada,
+sin mezclar su registro ni afirmar exclusividad de carga. No se corrigieron los límites ya conocidos.
+
+Guion de seis minutos, checklist, selección de partido real dentro de 24 h y plan B en docs/demo_agente.md;
+diagramas Mermaid en docs/arquitectura_agente.md. Mapa CLAUDE.md §3 comprobado y actualizado sin versionarlo.
+Flujo real capturado: Qatar U23–Singapore U23, vigilancia 3 de inicio cercano, alerta 1, una acción y
+después cero. 14 capturas finales de chat/alerta/bitácora a 390/1440, ambos temas, sin fallos de contraste,
+desbordamientos ni errores JS. Evidencia local en reports/pieza5/flujo.json.
+
+488 pytest, cobertura agéntica 95,97 %, Ruff y ocho pruebas web verdes. Se detiene tras un único
+test(agents) para revisión. No se integra a main ni se inicia trabajo adicional.

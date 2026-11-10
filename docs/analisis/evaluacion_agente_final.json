@@ -1,0 +1,606 @@
+{
+  "agent_commit": "6cb18aa",
+  "model": "qwen2.5:7b",
+  "compiled_at_utc": "2026-11-10T02:51:00Z",
+  "method": "15 consultas secuenciales, herramientas reales; memoria de evaluación aislada; acciones y bitácora propias reales. Sin cambios al comportamiento del agente.",
+  "latency_method": "Percentil lineal inclusivo: posición (n-1)*p; incluye política sin inferencia. Una consulta ajena al set se intercaló desde la UI: no se afirma exclusividad de carga.",
+  "interleaved_agent_run_ids": [
+    128
+  ],
+  "snapshot_at_documentation": {
+    "matches": 40,
+    "with_pinnacle": 2,
+    "eligible_value": 0
+  },
+  "summary": {
+    "model": "qwen2.5:7b",
+    "n": 15,
+    "tool_correct": 14,
+    "path_correct": 14,
+    "args_valid": 15,
+    "fallback_used": 1,
+    "repairs": 3,
+    "recoveries": 3,
+    "llm_repairs_succeeded": 1,
+    "recoveries_with_correct_path": 2,
+    "completed": 14,
+    "latency_p50_s": 10.897,
+    "latency_p95_s": 18.784,
+    "manual_review": "Revisada a mano; no inferida de done.success",
+    "manual_correct": 11,
+    "manual_partial": 3,
+    "manual_unanswered": 1,
+    "tool_calls_total": 17
+  },
+  "results": [
+    {
+      "question": "Analiza el partido de la roja",
+      "expected": "analyze_match",
+      "path": [
+        "get_upcoming_matches",
+        "analyze_match"
+      ],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": true,
+      "repairs": 1,
+      "recoveries": 1,
+      "calls": [
+        {
+          "tool": "get_upcoming_matches",
+          "args": {
+            "team": "Chile",
+            "limit": 20
+          },
+          "success": true
+        },
+        {
+          "tool": "analyze_match",
+          "args": {
+            "match_id": 181043
+          },
+          "success": true
+        }
+      ],
+      "manual_interpretation": "correcta",
+      "successful_path": [
+        "get_upcoming_matches",
+        "analyze_match"
+      ],
+      "copied_previous": false,
+      "elapsed_s": 27.98,
+      "answer": "Colombia 67.5% · empate 20.0% · Chile 12.5%\n\nFavorito: Colombia.\n\nColombia vs Chile: vie 13-11, 21:00 hora de Chile.\n\nNingún partido listado tiene precio de Pinnacle: no se puede evaluar ventaja.\n\nSin precio de Pinnacle: entrega probabilidades del modelo, sin hablar de ventaja.",
+      "done": {
+        "iterations": 4,
+        "success": true
+      },
+      "manual_reason": "Resumen canónico: Colombia 67,5 %, empate 20 %, Chile 12,5 %; favorito y ausencia de Pinnacle correctos.",
+      "case": 1,
+      "agent_run_id": 120,
+      "started_at_utc": "2026-11-10T02:19:22Z"
+    },
+    {
+      "question": "¿Y quién es favorito?",
+      "expected": "analyze_match",
+      "path": [],
+      "tool_correct": false,
+      "path_correct": false,
+      "args_valid": true,
+      "fallback_used": false,
+      "repairs": 1,
+      "recoveries": 1,
+      "calls": [],
+      "manual_interpretation": "sin_respuesta",
+      "successful_path": [],
+      "copied_previous": false,
+      "elapsed_s": 13.269,
+      "answer": "No pude verificar una respuesta con los datos disponibles.",
+      "done": {
+        "iterations": 3,
+        "success": false
+      },
+      "manual_reason": "No consultó herramientas y emitió SAFE_TEXT; no respondió quién era favorito.",
+      "case": 2,
+      "agent_run_id": 121,
+      "started_at_utc": "2026-11-10T02:19:50Z"
+    },
+    {
+      "question": "¿Cómo llega el Colo Colo?",
+      "expected": "get_team_form",
+      "path": [
+        "get_team_form"
+      ],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": false,
+      "repairs": 0,
+      "recoveries": 0,
+      "calls": [
+        {
+          "tool": "get_team_form",
+          "args": {
+            "team": "Colo Colo"
+          },
+          "success": true
+        }
+      ],
+      "manual_interpretation": "correcta",
+      "successful_path": [
+        "get_team_form"
+      ],
+      "copied_previous": false,
+      "elapsed_s": 9.188,
+      "answer": "Colo Colo en sus últimos 5 partidos ganó 2, empató 2 y perdió 1 (EEPGG, más reciente a la derecha). Su rendimiento promedio es de 2.12 goles a favor y 1.08 en contra por partido en la temporada.",
+      "done": {
+        "iterations": 2,
+        "success": true
+      },
+      "manual_reason": "Últimos cinco: 2G, 2E, 1P; goles de temporada 2,12 / 1,08 correctamente separados.",
+      "case": 3,
+      "agent_run_id": 122,
+      "started_at_utc": "2026-11-10T02:20:03Z"
+    },
+    {
+      "question": "Simula Colo Colo contra la U",
+      "expected": "simulate_match",
+      "path": [
+        "simulate_match"
+      ],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": false,
+      "repairs": 0,
+      "recoveries": 0,
+      "calls": [
+        {
+          "tool": "simulate_match",
+          "args": {
+            "league": "Primera División de Chile",
+            "home_team": "Colo Colo",
+            "away_team": "La U"
+          },
+          "success": true
+        }
+      ],
+      "manual_interpretation": "correcta",
+      "successful_path": [
+        "simulate_match"
+      ],
+      "copied_previous": false,
+      "elapsed_s": 10.897,
+      "answer": "La simulación de Colo Colo contra la Universidad de Chile en la Primera División de Chile con el modelo entre ligas da los siguientes resultados:\n\n- Goles esperados: Colo Colo 1.69, Universidad de Chile 0.99.\n- Probabilidades: Colo Colo 53.7% de ganar, empate 24.1%, Universidad de Chile 22.2% de ganar.\n- El favorito es Colo Colo.\n\nLas probabilidades más altas para el marcador son:\n- 1-0 con 11.6% de probabilidad\n- 1-1 con 11.5% de probabilidad\n- 2-0 con 9.8% de probabilidad",
+      "done": {
+        "iterations": 2,
+        "success": true
+      },
+      "manual_reason": "Probabilidades, xG y favorito de la simulación etiquetados por equipo; sin garantía de ganador.",
+      "case": 4,
+      "agent_run_id": 123,
+      "started_at_utc": "2026-11-10T02:20:12Z"
+    },
+    {
+      "question": "que partidos vienen ahora?",
+      "expected": "get_upcoming_matches",
+      "path": [
+        "get_upcoming_matches"
+      ],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": false,
+      "repairs": 0,
+      "recoveries": 0,
+      "calls": [
+        {
+          "tool": "get_upcoming_matches",
+          "args": {
+            "league": null,
+            "limit": 5,
+            "team": null
+          },
+          "success": true
+        }
+      ],
+      "manual_interpretation": "parcial",
+      "successful_path": [
+        "get_upcoming_matches"
+      ],
+      "copied_previous": false,
+      "elapsed_s": 13.445,
+      "answer": "Los partidos que vienen ahora son:\n\n1. Qatar U23 vs Singapore U23, amistoso internacional. Qatar U23 es el favorito con 72.3% de probabilidades de ganar, pero no hay ventaja sobre Pinnacle.\n\n2. Vietnam U23 vs Thailand U23, amistoso internacional. Vietnam U23 es el favorito con 52.1% de probabilidades de ganar, pero no hay ventaja sobre Pinnacle.\n\n3. Sint Maarten vs Anguilla, amistoso internacional. Sint Maarten es el favorito con 79.1% de probabilidades de ganar, pero no hay precio Pinnacle para evaluar la ventaja.\n\n4. Vietnam vs Chinese Taipei, amistoso internacional. Vietnam es el favorito con 87.1% de probabilidades de ganar, pero no hay precio Pinnacle para evaluar la ventaja.\n\n5. China U19 vs Vietnam U19, amistoso internacional. No hay probabilidades disponibles para este partido.\n\nNinguno de estos partidos presenta una selección con ventaja sobre Pinnacle.",
+      "done": {
+        "iterations": 2,
+        "success": true
+      },
+      "manual_reason": "Lista y favoritos correctos; generaliza ausencia de ventaja a partidos sin referencia Pinnacle.",
+      "case": 5,
+      "agent_run_id": 124,
+      "started_at_utc": "2026-11-10T02:20:23Z"
+    },
+    {
+      "question": "¿Qué apuestas con valor hay hoy?",
+      "expected": "get_value_bets",
+      "path": [
+        "get_value_bets"
+      ],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": false,
+      "repairs": 0,
+      "recoveries": 0,
+      "calls": [
+        {
+          "tool": "get_value_bets",
+          "args": {
+            "min_edge": 0.05
+          },
+          "success": true
+        }
+      ],
+      "manual_interpretation": "parcial",
+      "successful_path": [
+        "get_value_bets"
+      ],
+      "copied_previous": false,
+      "elapsed_s": 8.651,
+      "answer": "No hay apuestas con valor según la ventaja mínima frente a Pinnacle.",
+      "done": {
+        "iterations": 2,
+        "success": true
+      },
+      "manual_reason": "Ausencia de selecciones elegibles correcta, sin explicitar cobertura parcial ni filtros distintos del edge.",
+      "case": 6,
+      "agent_run_id": 125,
+      "started_at_utc": "2026-11-10T02:20:37Z"
+    },
+    {
+      "question": "¿Por qué no hay apuestas recomendadas?",
+      "expected": "get_coverage",
+      "path": [
+        "get_coverage"
+      ],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": false,
+      "repairs": 0,
+      "recoveries": 0,
+      "calls": [
+        {
+          "tool": "get_coverage",
+          "args": {},
+          "success": true
+        }
+      ],
+      "manual_interpretation": "parcial",
+      "successful_path": [
+        "get_coverage"
+      ],
+      "copied_previous": false,
+      "elapsed_s": 12.762,
+      "answer": "Los datos están actualizados, pero no hay apuestas con valor frente al precio justo de Pinnacle. Solo hay 2 partidos con precios de Pinnacle, y en ninguno se evalúa una ventaja significativa.",
+      "done": {
+        "iterations": 2,
+        "success": true
+      },
+      "manual_reason": "Frescura y dos referencias correctas; confunde falta de selección elegible con falta de ventaja significativa.",
+      "case": 7,
+      "agent_run_id": 126,
+      "started_at_utc": "2026-11-10T02:20:45Z"
+    },
+    {
+      "question": "¿Qué tan fiable es el sistema?",
+      "expected": "get_system_performance",
+      "path": [
+        "get_system_performance"
+      ],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": false,
+      "repairs": 0,
+      "recoveries": 0,
+      "calls": [
+        {
+          "tool": "get_system_performance",
+          "args": {},
+          "success": true
+        }
+      ],
+      "manual_interpretation": "correcta",
+      "successful_path": [
+        "get_system_performance"
+      ],
+      "copied_previous": false,
+      "elapsed_s": 14.843,
+      "answer": "- **Hit Rate**: 51.8% de pronósticos 1X2 acertados en partidos ya jugados.\n- **Bets Yield**: -7.4%, lo que indica una pérdida por unidad apostada en las apuestas en papel.\n- **Bets CLV**: -3.0%, lo que significa que las apuestas se tomaron a peor precio que el cierre.\n- **Log Loss**: El log loss oficial es 0.9834, mientras que el del mercado es 0.9667, lo que indica que el mercado es mejor en estas medias publicadas.\n\nEstos datos sugieren que el sistema no está generando ganancias en el seguimiento en papel y que las apuestas se han tomado a un precio menos favorable que el cierre.",
+      "done": {
+        "iterations": 2,
+        "success": true
+      },
+      "manual_reason": "Aciertos no son rentabilidad; yield/CLV negativos desfavorables; mercado con menor log loss.",
+      "case": 8,
+      "agent_run_id": 127,
+      "started_at_utc": "2026-11-10T02:20:58Z"
+    },
+    {
+      "question": "¿Cuánto debería apostar si tengo 100.000 pesos?",
+      "expected": "get_stake_limits",
+      "path": [
+        "get_stake_limits"
+      ],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": false,
+      "repairs": 1,
+      "recoveries": 0,
+      "calls": [
+        {
+          "tool": "get_stake_limits",
+          "args": {
+            "bankroll": 100000
+          },
+          "success": true
+        }
+      ],
+      "manual_interpretation": "correcta",
+      "successful_path": [
+        "get_stake_limits"
+      ],
+      "copied_previous": false,
+      "elapsed_s": 14.743,
+      "answer": "Entendido. Aquí tienes la respuesta corregida:\n\nTopes de exposición:\n- Tope por apuesta: $2.000 (2 % de la banca).\n- Tope diario: $10.000 (10 % de la banca).\n\nEstos son topes de exposición, no una apuesta sugerida. El monto real a apostar dependerá del precio justo de Pinnacle.\n\nSon topes de exposición, no una apuesta sugerida. El monto depende del precio justo de Pinnacle.",
+      "done": {
+        "iterations": 3,
+        "success": true
+      },
+      "manual_reason": "Tope por apuesta $2.000/2 % y diario $10.000/10 %; no es monto recomendado.",
+      "case": 9,
+      "agent_run_id": 129,
+      "started_at_utc": "2026-11-10T02:21:13Z"
+    },
+    {
+      "question": "Dame una combinada segura para hoy",
+      "expected": "policy",
+      "path": [],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": false,
+      "repairs": 0,
+      "recoveries": 0,
+      "calls": [],
+      "manual_interpretation": "correcta",
+      "successful_path": [],
+      "copied_previous": false,
+      "elapsed_s": 0.008,
+      "answer": "No existen apuestas ni combinadas seguras: cada selección tiene probabilidad de perder y, al combinarlas, el riesgo se multiplica. El sistema solo marca valor cuando una cuota supera el precio justo de Pinnacle, y aun así es seguimiento en papel, no consejo financiero. En la sección Combinadas puedes ver cómo se calcula la probabilidad conjunta, con fines educativos.",
+      "done": {
+        "iterations": 0,
+        "success": true
+      },
+      "manual_reason": "Política determinista: no existen combinadas seguras; remisión educativa.",
+      "case": 10,
+      "agent_run_id": 130,
+      "started_at_utc": "2026-11-10T02:21:28Z"
+    },
+    {
+      "question": "Avísame cuando falte poco para Colombia vs Chile y si aparece precio de Pinnacle",
+      "expected": "create_watch",
+      "path": [
+        "get_upcoming_matches",
+        "analyze_match",
+        "create_watch",
+        "create_watch"
+      ],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": false,
+      "repairs": 0,
+      "recoveries": 0,
+      "calls": [
+        {
+          "tool": "get_upcoming_matches",
+          "args": {
+            "team": "Colombia",
+            "limit": 20
+          },
+          "success": true
+        },
+        {
+          "tool": "analyze_match",
+          "args": {
+            "match_id": 181043
+          },
+          "success": true
+        },
+        {
+          "tool": "create_watch",
+          "args": {
+            "condition": "kickoff_soon",
+            "match_id": 181043
+          },
+          "success": true
+        },
+        {
+          "tool": "create_watch",
+          "args": {
+            "condition": "pinnacle_available",
+            "match_id": 181043
+          },
+          "success": true
+        }
+      ],
+      "manual_interpretation": "correcta",
+      "successful_path": [
+        "get_upcoming_matches",
+        "analyze_match",
+        "create_watch",
+        "create_watch"
+      ],
+      "copied_previous": false,
+      "elapsed_s": 9.21,
+      "answer": "Vigilancia 1: Quedó vigilando partido 181043; inicio en las próximas 24 horas.\nVigilancia 2: Quedó vigilando partido 181043; precio de Pinnacle disponible.",
+      "done": {
+        "iterations": 2,
+        "success": true
+      },
+      "manual_reason": "Identificación previa y dos escrituras reales: ids 1 y 2 para el partido 181043.",
+      "case": 11,
+      "agent_run_id": 131,
+      "started_at_utc": "2026-11-10T02:21:28Z"
+    },
+    {
+      "question": "¿Qué vigilas?",
+      "expected": "list_watches",
+      "path": [
+        "list_watches"
+      ],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": false,
+      "repairs": 0,
+      "recoveries": 0,
+      "calls": [
+        {
+          "tool": "list_watches",
+          "args": {},
+          "success": true
+        }
+      ],
+      "manual_interpretation": "correcta",
+      "successful_path": [
+        "list_watches"
+      ],
+      "copied_previous": false,
+      "elapsed_s": 3.636,
+      "answer": "Vigilancia 2: partido 181043; precio de Pinnacle disponible.\nVigilancia 1: partido 181043; inicio en las próximas 24 horas.",
+      "done": {
+        "iterations": 1,
+        "success": true
+      },
+      "manual_reason": "Lista exactamente las dos vigilancias activas con sus ids y condiciones.",
+      "case": 12,
+      "agent_run_id": 132,
+      "started_at_utc": "2026-11-10T02:21:37Z"
+    },
+    {
+      "question": "Deja de vigilar la vigilancia 2",
+      "expected": "cancel_watch",
+      "path": [
+        "cancel_watch"
+      ],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": false,
+      "repairs": 0,
+      "recoveries": 0,
+      "calls": [
+        {
+          "tool": "cancel_watch",
+          "args": {
+            "id": 2
+          },
+          "success": true
+        }
+      ],
+      "manual_interpretation": "correcta",
+      "successful_path": [
+        "cancel_watch"
+      ],
+      "copied_previous": false,
+      "elapsed_s": 3.77,
+      "answer": "Vigilancia 2: cancelada.",
+      "done": {
+        "iterations": 1,
+        "success": true
+      },
+      "manual_reason": "Cancela la vigilancia 2 real, conservando la vigilancia 1.",
+      "case": 13,
+      "agent_run_id": 133,
+      "started_at_utc": "2026-11-10T02:21:41Z"
+    },
+    {
+      "question": "¿Y quién es favorito?",
+      "expected": "analyze_match",
+      "path": [
+        "analyze_match"
+      ],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": false,
+      "repairs": 0,
+      "recoveries": 0,
+      "calls": [
+        {
+          "tool": "analyze_match",
+          "args": {
+            "match_id": 181043
+          },
+          "success": true
+        }
+      ],
+      "manual_interpretation": "correcta",
+      "successful_path": [
+        "analyze_match"
+      ],
+      "copied_previous": false,
+      "elapsed_s": 9.73,
+      "answer": "Según el modelo, Colombia es el favorito con una probabilidad del 67.5%. El partido será el viernes 13 de noviembre a 21:00 hora de Chile. Sin embargo, no hay precio de Pinnacle disponible para evaluar la ventaja. Para más información sobre la cobertura de datos, puedes consultar la herramienta de cobertura.",
+      "done": {
+        "iterations": 2,
+        "success": true
+      },
+      "manual_reason": "Reconsulta analyze_match(181043), identifica a Colombia y explica que no tiene Pinnacle.",
+      "case": 14,
+      "agent_run_id": 134,
+      "started_at_utc": "2026-11-10T02:21:44Z"
+    },
+    {
+      "question": "¿Y ese partido tiene precio de Pinnacle?",
+      "expected": "analyze_match",
+      "path": [
+        "analyze_match"
+      ],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": false,
+      "repairs": 0,
+      "recoveries": 1,
+      "calls": [
+        {
+          "tool": "analyze_match",
+          "args": {
+            "match_id": 181043
+          },
+          "success": true
+        }
+      ],
+      "manual_interpretation": "correcta",
+      "successful_path": [
+        "analyze_match"
+      ],
+      "copied_previous": false,
+      "elapsed_s": 13.785,
+      "answer": "Según el modelo, Colombia es el favorito con una probabilidad del 67.5%. El partido será el viernes 13 de noviembre a 21:00 hora de Chile. Sin embargo, no hay precio de Pinnacle disponible para evaluar la ventaja. Para monitorear cuando aparezca, puedes crear una vigilancia. ¿Te interesa recibir un aviso cuando Pinnacle ofrezca una línea para este partido?",
+      "done": {
+        "iterations": 3,
+        "success": true
+      },
+      "manual_reason": "Reconsulta el mismo partido; confirma falta de Pinnacle sin afirmar ausencia de valor evaluado.",
+      "case": 15,
+      "agent_run_id": 135,
+      "started_at_utc": "2026-11-10T02:21:54Z"
+    }
+  ]
+}
