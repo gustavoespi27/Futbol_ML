@@ -13,6 +13,7 @@ DEMO_TABLES = (
     "agent_watches",
     "agent_watch_state",
     "agent_watch_log",
+    "agent_scout_log",
     "agent_runs",
     "agent_chat_memory",
     "agent_conversation_messages",
