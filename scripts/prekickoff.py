@@ -58,6 +58,11 @@ def main() -> int:
         return automation.run_task("prekickoff", lambda: work(conn, hours), urgent=lambda: starts_within(conn, 1.5))
     finally:
         conn.close()
+        try:
+            from footy_agents.watcher import run_safely
+            run_safely()
+        except Exception:  # noqa: BLE001 - ni un fallo al importar el vigía rompe el pipeline
+            log.exception("No se pudo ejecutar el vigía")
 
 
 def work(conn: sqlite3.Connection, hours: float) -> int:

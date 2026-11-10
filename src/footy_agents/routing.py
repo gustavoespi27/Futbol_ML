@@ -44,6 +44,17 @@ def is_follow_up(message: str, entities: dict | None) -> bool:
 def intent_route(message: str, entities: dict | None = None) -> tuple[str, dict] | None:
     """Una herramienta por intención original; los argumentos desconocidos no se inventan."""
     q = normalize_name(message)
+    for pattern, tool in ((r"deja de vigilar|cancela.*vigilan", "cancel_watch"),
+                          (r"que vigilas|mis alertas|lista.*vigilan|mis vigilan", "list_watches"),
+                          (r"agrega.*favoritos|anade.*favoritos", "add_favorite"),
+                          (r"avisame|vigila|alerta", "create_watch")):
+        if re.search(pattern, q):
+            args: dict = {}
+            if tool == "cancel_watch":
+                id_ = re.search(r"\b\d+\b", q)
+                if id_:
+                    args["id"] = int(id_[0])
+            return tool, args
     for pattern, tool in (
         (r"rendimiento|fiable|fiabilidad|clv|yield|acierto", "get_system_performance"),
         (r"banca|cuanto.*apostar|pesos", "get_stake_limits"),

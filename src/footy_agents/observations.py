@@ -45,6 +45,9 @@ def observe(record: ToolCallRecord) -> Observation:
     if not record.success:
         return _failed(record)
     name, result, args = record.tool_name, record.result, record.arguments
+    if name in {"create_watch", "list_watches", "cancel_watch", "add_favorite"} and isinstance(result, dict):
+        return Observation(status="ok", note=result.get("note", "Objetivos consultados."),
+                           options=["list_watches"] if name == "create_watch" else [])
     if isinstance(result, dict) and "error" in result:
         return Observation(status="not_found", note=str(result["error"]))
 

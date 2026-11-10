@@ -6,6 +6,7 @@ from pydantic import Field, field_validator
 
 from footy.betting import pro
 from footy_agents.schemas import AgentSchema
+from footy_agents.watch_schemas import CancelArgs, FavoriteArgs, WatchArgs
 
 
 class UpcomingArgs(AgentSchema):
@@ -73,9 +74,19 @@ TOOL_MODELS = {
     "analyze_match": AnalyzeArgs,
     "get_coverage": CoverageArgs,
     "get_team_form": TeamFormArgs,
+    "create_watch": WatchArgs,
+    "list_watches": PerformanceArgs,
+    "cancel_watch": CancelArgs,
+    "add_favorite": FavoriteArgs,
 }
 
 DESCRIPTIONS = {
+    "create_watch": ("Usa para «Avísame si aparece Pinnacle»: un match_id conocido o team y una condición. "
+                     "No inventes ids; primero find_team/analyze_match. Una llamada por condición."),
+    "list_watches": ("Usa para «¿Qué vigilas?» o «mis alertas»: lista vigilancias con ids. "
+                     "No crea ni cancela objetivos."),
+    "cancel_watch": "Usa para «Deja de vigilar el id 3»: requiere id real de list_watches. No es un match_id.",
+    "add_favorite": "Usa para «Agrega a favoritos Colo Colo»: team o league. No crea vigilancias ni apuestas.",
     'get_upcoming_matches': ('Usa para calendario: «¿Qué partidos hay hoy?». No para analizar un partido '
         'conocido: usa analyze_match.'),
     'get_value_bets': ('Usa para ventaja Pinnacle: «¿Hay apuestas con valor?». No para favoritos '

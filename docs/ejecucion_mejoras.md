@@ -65,3 +65,27 @@ respaldos efectivos; seguimiento directo a analyze_match(181043). Permanece docu
 no sustentado sobre valor en un calendario. Evidencia en `analisis/08_capa_agentica.md`.
 431 pytest, cobertura agéntica 95,64 %, Ruff y ocho pruebas web correctos. Motor y SSE intactos.
 Se detiene tras este commit fix para revisión. Pieza 4 todavía sin iniciar.
+
+## Pieza 4: acciones, vigía y actividad del asistente
+
+`d2f6576` aprobado. Implementados objetivos create/list/cancel y favoritos tipados, en tablas agent_*
+y preferencias propias. Identificación obligatoria, escrituras solo por intención solicitada, usuario
+fijado por el request y confirmaciones con ids reales; objetivos activos iguales se reutilizan.
+Vigía sin Ollama: snapshot, comparación, seis condiciones, reglas globales, prioridad, descartes con
+motivo, alertas verificadas y deduplicadas, fulfilled y bitácora transaccional. Integrado al final de
+daily/prekickoff con contención de fallos; salida vacía de prekickoff sigue sin dependencias pesadas.
+Endpoints de alertas/lectura, vigilancias y bitácora con esquemas estrictos. UI mínima con badge, alertas
+y registros del chat/vigía, usable a 390/1440 px y ambos temas; controles nuevos de 44 px y foco conservado.
+
+Datos reales: 40 partidos, 2 con Pinnacle, 0 con valor elegible. Pinnacle validado con alertas reales;
+value_appears permanece pendiente en producción, con su caso positivo probado en datos controlados.
+Vigía real: 1 alerta y después 0; ciclos de 1,41–1,47 s, sin iniciar LLM. Caso del panel pasó por
+analyze_match(181043) y dos create_watch; preparación final deja ids 1 y 7 activos, sin duplicar el 1.
+Colombia aún está fuera de 24 h y sin Pinnacle: no se inventó una alerta. La alerta visible id 1 es de
+Qatar U23–Singapore U23 y queda sin leer para revisión.
+
+Batería Ollama final: 12/13 herramientas/turnos, acciones 3/3, cero copias; fallo de seguimiento del
+turno 2 y límites de redacción registrados sin ocultarlos en `analisis/08_capa_agentica.md`.
+478 pytest, cobertura agéntica 95,97 %, Ruff y ocho pruebas web correctos. Capturas en docs/img/agente.
+CLAUDE.md §3 actualizado solo localmente. Motor y SSE intactos, sin dependencias nuevas.
+Se detiene tras el único commit feat(agents) de esta pieza para revisión. Pieza 5 pendiente.

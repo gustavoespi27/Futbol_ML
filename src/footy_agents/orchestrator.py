@@ -18,7 +18,7 @@ from footy_agents.memory import entities_from
 from footy_agents.observations import RECOVERABLE, Observation, observe
 from footy_agents.routing import intent_route, is_follow_up
 from footy_agents.schemas import ChatEvent, ToolCallRecord, UserPreferences
-from footy_agents.tools import OPENAI_TOOLS_SPEC, TOOL_MODELS, execute_tool, upcoming_focus
+from footy_agents.tools import OPENAI_TOOLS_SPEC, TOOL_MODELS, WRITE_TOOLS, execute_tool, upcoming_focus
 
 MAX_ITERATIONS = 4             # rondas con herramientas: la cuarta inferencia ya no las ofrece
 MAX_INFERENCES = 7             # 4 rondas + un reintento por pseudollamada + una recuperación + una reparación
@@ -97,6 +97,12 @@ Reglas estrictas:
 16. Si un resultado trae *_text, assessment o summary, úsalo textual para esa idea; no lo reformules con otras cifras.
     Usa también favorite para identificar al favorito; no deduzcas un ganador garantizado.
 17. Para fechas y horas de partidos usa kickoff_local textual; nunca conviertas horas tú mismo.
+18. Para «avísame/vigila» identifica primero el partido con find_team o analyze_match. Después usa create_watch.
+    Aunque una precarga ya dé el match_id, consulta find_team o analyze_match antes de crear la vigilancia.
+    Si piden inicio cercano Y precio Pinnacle, crea DOS vigilancias: kickoff_soon y pinnacle_available,
+    con el mismo match_id real; puedes hacer ambas llamadas juntas. Para listar usa list_watches,
+    para cancelar cancel_watch con el id de vigilancia (no el del partido), para favoritos add_favorite.
+    Nunca confirmes una escritura que no haya devuelto éxito; usa confirmation_text y los ids reales.
 
 Ruteo (pregunta → herramienta):
 «Analiza / quién gana un partido próximo» → find_team → analyze_match.
@@ -136,6 +142,8 @@ def summarize(record: ToolCallRecord) -> str:
 
 
 LABELS = {
+    "create_watch": "crear la vigilancia", "list_watches": "vigilancias del usuario",
+    "cancel_watch": "cancelar la vigilancia", "add_favorite": "guardar favorito",
     "get_upcoming_matches": "próximos partidos", "get_value_bets": "apuestas con valor", "simulate_match": "simulación",
     "get_league_standings": "tabla de posiciones", "get_system_performance": "rendimiento del sistema",
     "get_stake_limits": "límites de exposición", "find_team": "búsqueda del equipo",
@@ -183,18 +191,21 @@ def _assistant_calls(text: str, calls: list[ToolCall]) -> dict:
          "function": {"name": c.name, "arguments": json.dumps(c.arguments, ensure_ascii=False)}} for c in calls]}
 
 
-def _run_call(call: ToolCall) -> ToolCallRecord:
+def _run_call(call: ToolCall, user_id: str = "default") -> ToolCallRecord:
     if call.raw_arguments:
         return ToolCallRecord(tool_name=call.name, arguments={}, result=None, success=False, execution_time_ms=0.0,
                               error_message=f"Argumentos no son JSON válido: {call.raw_arguments[:200]}")
-    return execute_tool(call.name, call.arguments)
+    return execute_tool(call.name, call.arguments, user_id=user_id) if call.name in WRITE_TOOLS else execute_tool(
+        call.name, call.arguments)
 
 
 class _Turn:
     """Estado de un turno: herramientas usadas, opciones sugeridas por las observaciones y mensajes al LLM."""
 
-    def __init__(self, messages: list[dict]):
+    def __init__(self, messages: list[dict], user_id: str = "default"):
         self.messages = messages
+        self.user_id = user_id
+        self.requested_action: str | None = None
         self.records: list[ToolCallRecord] = []
         self.suggested: dict[str, str] = {}      # herramienta sugerida -> estado que la sugirió
         self.used: set[str] = set()
@@ -206,7 +217,17 @@ class _Turn:
             yield _step("deviation", f"Cambio de camino: {LABELS.get(call.name, call.name)}, "
                                      f"porque {REASONS[reason]}.")
         yield ChatEvent(event="tool_start", data={"tool": call.name, "args": call.arguments})
-        record = _run_call(call)
+        if call.name in WRITE_TOOLS - {"list_watches"} and call.name != self.requested_action:
+            record = ToolCallRecord(tool_name=call.name, arguments=call.arguments, result=None, success=False,
+                                    execution_time_ms=0,
+                                    error_message="El usuario no solicitó esta acción de escritura")
+        elif call.name == "create_watch" and not any(r.success and r.tool_name in {"find_team", "analyze_match"}
+                                                    and entities_from(r) for r in self.records):
+            record = ToolCallRecord(tool_name=call.name, arguments=call.arguments, result=None, success=False,
+                                    execution_time_ms=0, error_message="Antes de crear debes consultar analyze_match "
+                                    "con el match_id conocido, o find_team para identificar el equipo.")
+        else:
+            record = _run_call(call, self.user_id)
         self.records.append(record)
         self.entities = entities_from(record) or self.entities
         self.used.add(call.name)
@@ -258,8 +279,21 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
                     "con find_team ni el calendario: ya está identificado. Si el usuario cambia de equipo, "
                     "resuelve la nueva entidad.")
     turn = _Turn([{"role": "system", "content": system_prompt(prefs) + context}, *(history or []),
-                  {"role": "user", "content": message}])
+                  {"role": "user", "content": message}], user_id=prefs.user_id)
     route = intent_route(message, entities)
+    writing = bool(route and route[0] in WRITE_TOOLS)
+    turn.requested_action = route[0] if writing else None
+    tool_limit = MAX_ITERATIONS - 1
+    conditions = set()
+    if route and route[0] == "create_watch":
+        from footy_agents.names import normalize_name
+        query = normalize_name(message)
+        if re.search(r"falte poco|comien|empie|inicio|pronto", query):
+            conditions.add("kickoff_soon")
+        if "pinnacle" in query:
+            conditions.add("pinnacle_available")
+        if "valor" in query or "ventaja" in query:
+            conditions.add("value_appears")
     recovery_hint = (f"La pregunta original requiere {route[0]}; argumentos conocidos: "
                      f"{json.dumps(route[1], ensure_ascii=False)}. Haz una llamada real y responde a esa pregunta."
                      if route else "Responde a la pregunta original sin inventar datos.")
@@ -273,15 +307,29 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         yield from turn.execute(call)
         if consulted_entities is not None and turn.entities:
             consulted_entities.update(turn.entities)
-        if turn.entities.get("match_id") and ("analiza" in message.lower() or "pronost" in message.lower()):
+        if (not writing and turn.entities.get("match_id")
+                and ("analiza" in message.lower() or "pronost" in message.lower())):
             route = ("analyze_match", {"match_id": turn.entities["match_id"]})
             recovery_hint = (f"Consulta analyze_match con argumentos {json.dumps(route[1])}; "
                              "responde al análisis pedido.")
+        if writing and route[0] == "create_watch" and turn.entities.get("match_id"):
+            turn.messages.append({"role": "user", "content":
+                f"Para cumplir mi aviso, primero consulta analyze_match con match_id={turn.entities['match_id']}; "
+                f"después crea las vigilancias {sorted(conditions) or 'solicitadas'} para ese mismo partido."})
 
     tool_rounds, leak_retried, recovered, repaired = 0, False, False, False
     iteration = 0
     for iteration in range(1, MAX_INFERENCES + 1):
-        tools = OPENAI_TOOLS_SPEC if tool_rounds < MAX_ITERATIONS - 1 else None
+        tools = OPENAI_TOOLS_SPEC if tool_rounds < tool_limit else None
+        if tools and writing:
+            if route[0] == "create_watch":
+                resolved = any(r.success and r.tool_name in {"find_team", "analyze_match"} and entities_from(r)
+                               for r in turn.records)
+                allowed = ({"find_team", "analyze_match", "create_watch"} if resolved else
+                           {"analyze_match"} if turn.entities.get("match_id") else {"find_team", "analyze_match"})
+            else:
+                allowed = {route[0], "list_watches", "find_team"}
+            tools = [spec for spec in tools if spec["function"]["name"] in allowed]
         text: list[str] = []
         calls: list[ToolCall] = []
         try:
@@ -312,6 +360,16 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
                     consulted_entities.clear()
                     consulted_entities.update(turn.entities)
             tool_rounds += 1
+            successful = [r for r in turn.records if r.success and route and r.tool_name == route[0]
+                          and r.tool_name in WRITE_TOOLS
+                          and isinstance(r.result, dict) and r.result.get("confirmation_text")]
+            completed = {r.arguments.get("condition") for r in successful if r.tool_name == "create_watch"}
+            if successful and (not conditions or conditions <= completed):
+                confirmation = "\n".join(dict.fromkeys(r.result["confirmation_text"] for r in successful))
+                if verify_numbers(confirmation, turn.records).verified:
+                    yield ChatEvent(event="token", data={"delta": confirmation})
+                    yield ChatEvent(event="done", data={"iterations": iteration, "success": True})
+                    return
             continue
 
         answer = "".join(text)
@@ -334,8 +392,12 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
             yield from _fallback(turn.records, iteration)
             return
         unsupported = ASKS_INSTEAD.search(answer) or DOMAIN_CLAIM.search(answer)
-        missing_route = route and route[0] not in turn.used
-        if not recovered and (missing_route or (not turn.used and unsupported)) and tool_rounds < MAX_ITERATIONS - 1:
+        completed = {r.arguments.get("condition") for r in turn.records if r.success and r.tool_name == "create_watch"}
+        missing_route = route and (route[0] not in turn.used or bool(conditions - completed))
+        if writing and conditions - completed:
+            recovery_hint += (f" Faltan las condiciones {sorted(conditions - completed)}; usa el mismo match_id "
+                              f"identificado: {turn.entities.get('match_id') or (entities or {}).get('match_id')}.")
+        if not recovered and (missing_route or (not turn.used and unsupported)) and tool_rounds < tool_limit:
             recovered = True
             label = LABELS.get(route[0], route[0]) if route else "datos de este turno"
             yield _step("recovery", f"El agente decide consultar {label}")
@@ -343,7 +405,7 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
                                   {"role": "user", "content": recovery_hint}])
             continue
         pending = turn.pending_recovery()
-        if pending and not recovered and tool_rounds < MAX_ITERATIONS - 1:
+        if pending and not recovered and tool_rounds < tool_limit:
             recovered = True
             yield _step("recovery", f"Antes de responder, el agente prueba otra vía: {LABELS.get(pending, pending)}.")
             turn.messages.extend([{"role": "assistant", "content": answer}, {"role": "user", "content":

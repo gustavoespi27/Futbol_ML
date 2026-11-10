@@ -250,3 +250,143 @@ sintaxis de agent.js y ocho pruebas Node correctos. El módulo de respaldo tiene
 FakeLLM prueba doble fallo con datos, SAFE_TEXT sin datos, fallos terminales y seguimiento después de error
 o respaldo; se comprueba el horario local en las tres tools, tanto en verano como en invierno.
 Motor intacto; ejecución detenida tras el commit para revisión, antes de la pieza 4.
+
+## Pieza 4: acciones y vigía autónomo (2026-11-09)
+
+Se implementaron create_watch, list_watches, cancel_watch y add_favorite con argumentos Pydantic estrictos.
+La identidad procede del request, nunca del LLM. El ruteo reconoce las intenciones de avisar, listar,
+cancelar y agregar favoritos. Una pregunta de lectura no autoriza escrituras. Antes de crear, el chat
+debe identificar el objetivo mediante find_team/analyze_match; una precarga sola no basta. El conjunto
+de herramientas ofrecidas respeta esa etapa y el propósito solicitado. Se conserva el límite original
+de rondas. Las confirmaciones se arman en código a partir de los ids realmente devueltos, sin otra
+inferencia. Una vigilancia idéntica activa devuelve la existente con «ya estaba vigilando».
+
+Persistencia propia: agent_watches, agent_watch_state, agent_alerts y agent_watch_log, además de las
+preferencias existentes. DDL idempotente e índices únicos para objetivos activos y alertas. Estado,
+alerta y fulfilled se escriben en la misma transacción BEGIN IMMEDIATE; dos vigías concurrentes no
+duplican alertas. No se escribe en pro_bets, daily_picks ni en tablas del motor.
+
+El vigía ejecuta percibir → comparar → decidir → actuar → registrar. Lee service.upcoming y conserva
+Pinnacle, edge, elegibilidad real (`bet`), probabilidades oficiales, kickoff y fuente. Compara líneas
+crudas de Pinnacle (movimiento relativo ≥5 %) y probabilidades (≥3 puntos porcentuales). Inicio cercano
+significa próximas 24 horas; la regla global de pérdida de cobertura solo alerta en las últimas 12 horas.
+La primera percepción establece línea base para transiciones globales. Los objetivos explícitos de
+precio disponible o valor elegible pueden cumplirse con el estado ya disponible. Los objetivos son de
+una sola ejecución: cumplidos pasan a fulfilled. La prioridad ordena por kickoff y edge; una vigilancia
+explícita prevalece sobre la misma regla global, evitando dos avisos del mismo evento.
+
+Cada decisión, también los descartes y su motivo, queda en la bitácora junto al snapshot percibido.
+Los textos salen exclusivamente de plantillas con cifras en facts y pasan verify_numbers antes de
+guardarse. **El vigía no crea clientes LLM, no inicia Ollama y no lo consulta.** La ausencia de LLM está
+probada con funciones de arranque/inferencia prohibidas durante el test. daily y prekickoff lo llaman
+al finalizar dentro de try/except; su fallo no rompe el pipeline. La salida de prekickoff sin partidos
+conserva la prueba de no importar numpy/pandas/sklearn: el servicio y el verificador se importan de forma
+perezosa cuando son necesarios. Las escrituras agent_* no invalidan la revisión de datos del motor.
+
+Endpoints nuevos, con contratos extra=forbid:
+
+| Método y ruta | Uso |
+|---|---|
+| GET /api/agent/alerts?user_id=default&unread=true | Alertas pendientes del usuario; sin disparar el vigía |
+| POST /api/agent/alerts/{id}/read | JSON `{ "user_id": "default" }`; 404 si no pertenece al usuario |
+| GET /api/agent/watches?user_id=default | Objetivos y estados |
+| GET /api/agent/watch-log?user_id=default&limit=20 | Snapshot, decisiones, motivos, acciones y tiempo; límite 1–100 |
+
+La UI vanilla muestra alertas arriba, badge del FAB y «Bitácora del agente» con ejecuciones del chat y
+vigía. Los detalles se despliegan con teclado; conserva expansión, posición y foco al refrescar.
+Sondea cada 30 segundos solo con la página visible, sin iniciar el vigía ni Ollama. Un refresco pedido
+mientras otro está en curso se ejecuta después: marcar leída no deja el badge atrasado.
+
+### Validación con los datos reales
+
+`scripts/validate_agent_watch.py --output reports/agente/pieza4-datos-reales.json --publish` leyó el
+snapshot real: **40 partidos, 2 con Pinnacle y 0 con una selección elegible de valor**. Validó ambos
+objetivos para todos los partidos en tablas aisladas, copiando solo las identidades reales: dos
+alertas pinnacle_available y ninguna value_appears; repetición inmediata, cero alertas nuevas.
+No se alteraron cuotas para producir una oportunidad inexistente. Hay edges positivos de 10,24 % y
+11,59 % en los dos partidos con precio, pero el motor marca bet=false: el vigía no los convierte en
+recomendaciones. El caso positivo real de value_appears queda pendiente de que ocurra; el disparo
+positivo y sus límites están cubiertos por tests controlados, no se presenta como ocurrido en producción.
+
+Con --publish se crearon en tablas propias los objetivos 3 (Pinnacle) y 4 (valor) para Qatar U23–Singapore
+U23, match_id=181054. En la app, `scripts/agent_watch.py` produjo la alerta **1**, cumpliendo el objetivo 3;
+el 4 sigue pendiente sin valor elegible. Esa alerta real se ve en el panel y el badge. Se probó marcarla
+leída desde la UI, actualización inmediata del badge y foco; se restauró sin leer para la revisión.
+
+| Ejecución real | Percibidos | Alertas nuevas | Tiempo del ciclo, incluida lectura del snapshot |
+|---|---:|---:|---:|
+| agent_watch.py, primera | 40 | 1 | 1405,59 ms |
+| agent_watch.py, segunda inmediata | 40 | 0 | 1412,86 ms |
+| Después del caso de chat, primera | 40 | 0 | 1422,98 ms |
+| Después del caso de chat, segunda | 40 | 0 | 1465,98 ms |
+
+El objetivo de menos de dos segundos se cumplió en estas mediciones locales; no es una garantía para un
+snapshot vencido que deba recalcularse. Con los datos ya entregados al ciclo, la validación aislada midió
+3,912 y 1,319 ms. JSON y motivos completos en `reports/agente/pieza4-vigia-{1,2}.json`,
+`pieza4-vigia-post-chat-{1,2}.json` y `pieza4-datos-reales.json`.
+
+### Chat real y caso obligatorio
+
+Pregunta exacta: «Avísame cuando falte poco para Colombia vs Chile y si aparece precio de Pinnacle».
+Desde el panel real: precarga → analyze_match(181043) → create_watch(kickoff_soon) →
+create_watch(pinnacle_available), con **ids 1 y 6**. Una ejecución posterior devolvió los mismos ids;
+el test de cancelación dejó el 6 cancelado. Se repitió desde el panel para dejar la demo preparada:
+**1 activo (inicio) y 7 activo (Pinnacle)**; el 1 se reutilizó sin duplicarlo. Confirmaciones deterministas
+con esos ids, pasos visibles y registro en /runs: evidencia `reports/pieza4/chat.json`.
+
+Colombia–Chile comienza **vie 13-11 a las 21:00 de Chile**. Hoy faltan más de 24 horas y no tiene Pinnacle:
+los dos objetivos deben seguir pendientes. Una alerta de ese partido ahora sería ficticia. El vigía
+registra los descartes por ambos motivos; la alerta visible corresponde al precio real de Qatar U23.
+Para mostrar inicio cercano durante la presentación del jueves hay que comprobar antes la hora de
+inicio: el umbral de Colombia se cumple el jueves 12 a las 21:00, no antes. El vigía puede demostrarse
+con otro partido real que sí esté dentro del umbral, sin cambiar horas ni precios.
+
+Batería de cierre con Qwen 2.5 de 7B, 13 consultas secuenciales y memoria: comando
+`scripts/eval_agent_routing.py --mode acciones --output reports/agente/pieza4-cierre.json`.
+Ese modo ejecuta escrituras reales propias del agente y registra /runs. Las métricas de acciones exigen
+tool_result exitoso e ids confirmados; un intento bloqueado no cuenta como escritura conseguida.
+
+| # | Consulta | Herramienta/camino observado | Resultado | Segundos |
+|---|---|---|---|---:|
+| 1 | Analiza el partido de la roja | upcoming → analyze_match | Respaldo verificado | 25,664 |
+| 2 | ¿Y quién es favorito? | Ninguna | SAFE_TEXT; no completó la consulta | 13,042 |
+| 3 | ¿Cómo llega el Colo Colo? | get_team_form | Conteos correctos, aunque filtró etiquetas técnicas en el texto | 18,283 |
+| 4 | Simula Colo Colo contra la U | simulate_match | Consulta completada | 9,543 |
+| 5 | que partidos vienen ahora? | get_upcoming_matches | Consulta completada | 14,467 |
+| 6 | ¿Qué apuestas con valor hay hoy? | get_value_bets | Consulta completada | 8,245 |
+| 7 | ¿Por qué no hay apuestas recomendadas? | get_coverage | Consulta completada; persisten límites de redacción de cobertura | 12,472 |
+| 8 | ¿Qué tan fiable es el sistema? | get_system_performance | CLV/yield desfavorables; mercado con menor log loss | 15,658 |
+| 9 | Banca 100.000 pesos | get_stake_limits | Topes correctos tras reparación | 14,929 |
+| 10 | Combinada segura | Política determinista | Rechaza premisa sin LLM | 0,009 |
+| 11 | Avisar inicio y Pinnacle de Colombia–Chile | upcoming → analyze_match → create_watch ×2 | Reutiliza ids 1 y 6, sin duplicados | 9,220 |
+| 12 | ¿Qué vigilas? | list_watches | Lista ids reales y condiciones | 3,648 |
+| 13 | Deja de vigilar la vigilancia 6 | cancel_watch(6) | Confirmación de cancelación real | 3,771 |
+
+**12/13 herramientas esperadas y turnos completados; acciones 3/3; cero copias literales del turno previo.**
+El fallo del turno 2 conserva la variabilidad ya documentada de Qwen: tener las entidades no garantiza
+que consulte; el verificador bloqueó su respuesta. No se declara 13/13 ni corrección semántica general.
+El vigía y las confirmaciones de escritura son deterministas; la elección conversacional de herramientas
+sigue dependiendo del modelo. Las pruebas previas `pieza4-conversacion*.json` también se conservan: una
+iteración intermedia intentó crear sin identificar y fue bloqueada; la oferta de herramientas por etapa
+resolvió ese defecto. Un fallo intermedio desde el panel buscó el nombre compuesto «Colombia vs Chile»;
+find_team ahora puede resolver su primer equipo y la precarga prioriza analizar el id conocido.
+
+### Verificación y capturas
+
+**478 pytest**, cobertura agéntica **95,97 %** (1937 sentencias, 78 sin cubrir), Ruff, sintaxis de agent.js
+y ocho pruebas Node correctos. Incluye cada condición y umbral, inexistencia de targets, modelos extra=forbid,
+identidad del request, aislamiento de usuario, escrituras no solicitadas bloqueadas, deduplicación,
+concurrencia, migración, plantillas verificadas y pruebas HTTP. Un autorizador SQLite prohíbe escrituras
+fuera de agent_* durante el test del ciclo. El mapa local de CLAUDE.md §3 fue actualizado sin versionarlo.
+
+Auditoría real en Chrome: 390×844 y 1440×900, claro/oscuro, cero desbordamientos, cero fallos de contraste
+y cero errores JS; botones nuevos ≥44 px. Lectura de alerta con badge y foco comprobados. Evidencia en
+`reports/pieza4/ui.json`, `leida.json` y capturas:
+
+- [Chat móvil con pasos y confirmaciones](../img/agente/pieza4-chat-390-dark.png).
+- [Alerta real en móvil](../img/agente/pieza4-alertas-390-light.png).
+- [Bitácora móvil](../img/agente/pieza4-bitacora-390-light.png).
+- [Bitácora en escritorio](../img/agente/pieza4-bitacora-1440-dark.png).
+
+Variantes restantes en `docs/img/agente/pieza4-*.png`. No cambió el motor ni el contrato SSE. La pieza 4
+se entrega en un único feat(agents) y se detiene para revisión; pieza 5 pendiente.

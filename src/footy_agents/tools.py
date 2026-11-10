@@ -22,6 +22,7 @@ from footy.web.services.context import LOCAL_TZ
 from footy_agents.names import normalize_name
 from footy_agents.schemas import ToolCallRecord
 from footy_agents.tool_args import OPENAI_TOOLS_SPEC, TOOL_MODELS  # noqa: F401 - fachada pública
+from footy_agents.watch_schemas import CONDITION_LABELS, WatchArgs
 
 MAX_MATCHES = 20
 MAX_TEAMS = 5
@@ -287,7 +288,9 @@ def _value_status(m: dict) -> str:
 def tool_find_team(name: str) -> list[dict[str, Any]]:
     """Resuelve un nombre informal a equipos canónicos: primero los que juegan pronto, luego el resto de la base."""
     query = normalize_name(name)
-    query = normalize_name(NICKNAMES.get(query, NICKNAMES.get(query.removeprefix("la ").strip(), name)))
+    for separator in (" vs ", " versus ", " contra "):
+        query = query.split(separator, 1)[0].strip()
+    query = normalize_name(NICKNAMES.get(query, NICKNAMES.get(query.removeprefix("la ").strip(), query)))
     upcoming = sorted(service.upcoming(), key=_kickoff)
     next_match: dict[str, dict] = {}
     for m in upcoming:
@@ -413,7 +416,56 @@ def tool_get_stake_limits(bankroll: float) -> dict[str, Any]:
             "note": "Son topes de exposición, no una apuesta sugerida. El monto depende del precio justo de Pinnacle."}
 
 
+def tool_create_watch(condition: str, match_id: int | None = None, team: str | None = None,
+                      user_id: str = "default") -> dict:
+    from footy_agents import watches
+    if team is not None:
+        hits = [t for t in tool_find_team(team) if t["exact"]]
+        if len(hits) != 1:
+            raise ValueError("Equipo ambiguo o inexistente: usa find_team")
+        team = hits[0]["team"]
+    with closing(connect()) as conn:
+        return watches.create_watch(conn, user_id, WatchArgs(match_id=match_id, team=team, condition=condition))
+
+
+def tool_list_watches(user_id: str = "default") -> dict:
+    from footy_agents import watches
+    with closing(connect()) as conn:
+        rows = watches.list_watches(conn, user_id)
+    active = [w for w in rows if w.status == "active"]
+    text = "\n".join(f"Vigilancia {w.id}: {w.team or ('partido ' + str(w.match_id))}; "
+                     f"{CONDITION_LABELS[w.condition]}." for w in active) or "No hay vigilancias activas."
+    return {"status": "ok", "watches": [w.model_dump() for w in rows], "confirmation_text": text}
+
+
+def tool_cancel_watch(id: int, user_id: str = "default") -> dict:
+    from footy_agents import watches
+    with closing(connect()) as conn:
+        return watches.cancel_watch(conn, user_id, id)
+
+
+def tool_add_favorite(team: str | None = None, league: str | None = None, user_id: str = "default") -> dict:
+    from footy_agents.preferences import repo
+    if team:
+        hits = [t for t in tool_find_team(team) if t["exact"]]
+        if len(hits) != 1:
+            raise ValueError("Equipo ambiguo o inexistente: usa find_team")
+        name, field = hits[0]["team"], "favorite_teams"
+    else:
+        name, field = resolve_league(league), "favorite_leagues"
+    with closing(connect()) as conn:
+        prefs = repo.get_preferences(conn, user_id)
+        values = getattr(prefs, field)
+        if name not in values:
+            values.append(name)
+        repo.save_preferences(conn, prefs)
+    return {"status": "ok", "note": "Favorito guardado", "confirmation_text": f"Favorito guardado: {name}."}
+
+
+WRITE_TOOLS = {"create_watch", "list_watches", "cancel_watch", "add_favorite"}
 TOOLS_REGISTRY: dict[str, Any] = {
+    "create_watch": tool_create_watch, "list_watches": tool_list_watches,
+    "cancel_watch": tool_cancel_watch, "add_favorite": tool_add_favorite,
     "get_upcoming_matches": tool_get_upcoming_matches,
     "get_value_bets": tool_get_value_bets,
     "simulate_match": tool_simulate_match,
@@ -427,7 +479,7 @@ TOOLS_REGISTRY: dict[str, Any] = {
 }
 
 
-def execute_tool(name: str, arguments: dict[str, Any]) -> ToolCallRecord:
+def execute_tool(name: str, arguments: dict[str, Any], user_id: str = "default") -> ToolCallRecord:
     """Ejecuta una herramienta registrada de forma segura y mide el tiempo de respuesta."""
     start_time = time.perf_counter()
     func = TOOLS_REGISTRY.get(name)
@@ -445,7 +497,10 @@ def execute_tool(name: str, arguments: dict[str, Any]) -> ToolCallRecord:
 
     try:
         validated = TOOL_MODELS[name].model_validate(arguments)
-        res = func(**validated.model_dump())
+        kwargs = validated.model_dump()
+        if name in WRITE_TOOLS:
+            kwargs["user_id"] = user_id  # identidad del request, nunca un argumento elegido por el LLM
+        res = func(**kwargs)
         elapsed = (time.perf_counter() - start_time) * 1000
         return ToolCallRecord(
             tool_name=name,

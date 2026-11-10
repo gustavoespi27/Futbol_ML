@@ -122,6 +122,11 @@ def work() -> int:
     except requests.RequestException:
         pass                                      # dashboard cerrado: no hay nada que refrescar
     log.info("Fin. Pasos con error: %s", failed or "ninguno")
+    try:
+        from footy_agents.watcher import run_safely
+        run_safely()
+    except Exception:  # noqa: BLE001 - ni un fallo al importar el vigía rompe el pipeline
+        log.exception("No se pudo ejecutar el vigía")
     conn.close()
     return 1 if failed else 0
 

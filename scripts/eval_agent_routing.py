@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import re
 import time
 from pathlib import Path
 from unittest.mock import patch
@@ -24,7 +25,7 @@ CONVERSATION = [
 ]
 
 
-def conversation(output: Path, cases: list[tuple[str, str]] | None = None) -> list[dict]:
+def conversation(output: Path, cases: list[tuple[str, str]] | None = None, actions: bool = False) -> list[dict]:
     """Diez consultas secuenciales, herramientas reales de lectura y memoria SQLite aislada."""
     import sqlite3
 
@@ -34,19 +35,39 @@ def conversation(output: Path, cases: list[tuple[str, str]] | None = None) -> li
     if client.model != "qwen2.5:7b":
         raise ValueError("El sondeo requiere qwen2.5:7b")
     results: list[dict] = []
+    cases = list(CONVERSATION if cases is None else cases)
+    if actions:
+        cases += [("Avísame cuando falte poco para Colombia vs Chile y si aparece precio de Pinnacle", "create_watch"),
+                  ("¿Qué vigilas?", "list_watches"), ("", "cancel_watch")]
+    created_ids: list[int] = []
     with sqlite3.connect(":memory:") as db:
-        for question, expected in CONVERSATION if cases is None else cases:
+        for question, expected in cases:
+            if expected == "cancel_watch":
+                if not created_ids:
+                    raise RuntimeError("No hubo ids reales confirmados por create_watch; no inventar una cancelación")
+                question = f"Deja de vigilar la vigilancia {created_ids[-1]}"
             consulted: dict = {}
             start = time.perf_counter()
-            events = list(orchestrator.run_chat(client, question, UserPreferences(),
-                                               history=memory.history(db, "eval"),
-                                               entities=memory.recent_entities(db, "eval"),
-                                               consulted_entities=consulted))
+            stream = orchestrator.run_chat(client, question, UserPreferences(), history=memory.history(db, "eval"),
+                                           entities=memory.recent_entities(db, "eval"), consulted_entities=consulted)
+            if actions:
+                from footy_agents.schemas import ChatRequest
+                from footy_agents.web.router import _recorded
+                stream = _recorded(ChatRequest(message=question), stream, consulted)
+            events = list(stream)
             answer = "".join(e.data["delta"] for e in events if e.event == "token")
             path = [e.data["tool"] for e in events if e.event == "tool_start"]
+            successful = [e.data["tool"] for e in events if e.event == "tool_result" and e.data["success"]]
+            if expected == "create_watch":
+                created_ids = [int(id_) for id_ in re.findall(r"Vigilancia (\d+):", answer)]
             correct = expected in path if expected != "policy" else any(
                 e.event == "step" and e.data["kind"] == "policy" for e in events)
+            if expected in {"create_watch", "cancel_watch", "list_watches"}:
+                correct = expected in successful and bool(events[-1].data.get("success"))
+                if expected == "create_watch":
+                    correct = correct and len(created_ids) == 2
             results.append({"question": question, "expected": expected, "path": path, "correct": correct,
+                            "successful_path": successful,
                             "copied_previous": bool(results and answer.strip() == results[-1]["answer"].strip()),
                             "elapsed_s": round(time.perf_counter() - start, 3), "answer": answer,
                             "done": events[-1].data, "events": [e.model_dump() for e in events]})
@@ -99,7 +120,7 @@ def evaluate() -> list[dict]:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--mode", choices=["ruteo", "conversacion", "respaldo"], default="ruteo")
+    parser.add_argument("--mode", choices=["ruteo", "conversacion", "respaldo", "acciones"], default="ruteo")
     args = parser.parse_args()
     if args.mode == "respaldo":
         results = []
@@ -107,6 +128,8 @@ if __name__ == "__main__":
             output = args.output.with_name(f"{args.output.stem}-{repeat}{args.output.suffix}")
             results.extend({**row, "repeat": repeat} for row in conversation(
                 output, [CONVERSATION[i] for i in (0, 1, 4)]))
+    elif args.mode == "acciones":
+        results = conversation(args.output, actions=True)
     else:
         results = conversation(args.output) if args.mode == "conversacion" else evaluate()
     args.output.parent.mkdir(parents=True, exist_ok=True)

@@ -29,6 +29,8 @@ def verified_summary(records: list[ToolCallRecord]) -> str:
         for i, key in enumerate(("form_text", "limits_text", "assessment"), 1):
             if data.get(key):
                 groups[i].append(data[key])
+        if data.get("confirmation_text"):
+            groups[3].append(data["confirmation_text"])
         if record.tool_name == "get_coverage":
             for key in ("freshness", "rule"):
                 if data.get(key):

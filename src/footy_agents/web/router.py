@@ -9,12 +9,12 @@ import time
 from collections.abc import Iterator
 from contextlib import closing
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from footy.db.connection import connect
 from footy.db.repository import utc_now
-from footy_agents import memory
+from footy_agents import memory, watches
 from footy_agents.briefing_cache import cached_briefing
 from footy_agents.health import get_health
 from footy_agents.llm import LLMClient, OpenAICompatibleClient
@@ -28,9 +28,37 @@ from footy_agents.schemas import (
     PersonalizedFeedResponse,
     UserPreferences,
 )
+from footy_agents.watch_schemas import Alert, ReadAlert, Watch, WatchRun
 
 router = APIRouter(prefix="/api/agent", tags=["Agent"])
 log = logging.getLogger(__name__)
+
+
+@router.get("/alerts", response_model=list[Alert])
+def get_alerts(user_id: str = Query("default", min_length=1, max_length=100),
+               unread: bool = Query(False)) -> list[Alert]:
+    with closing(connect()) as conn:
+        return watches.alerts(conn, user_id, unread)
+
+
+@router.post("/alerts/{id}/read", status_code=204)
+def read_alert(id: int, body: ReadAlert) -> None:
+    with closing(connect()) as conn:
+        if not watches.mark_read(conn, body.user_id, id):
+            raise HTTPException(status_code=404, detail="Alerta no encontrada")
+
+
+@router.get("/watches", response_model=list[Watch])
+def get_watches(user_id: str = Query("default", min_length=1, max_length=100)) -> list[Watch]:
+    with closing(connect()) as conn:
+        return watches.list_watches(conn, user_id)
+
+
+@router.get("/watch-log", response_model=list[WatchRun])
+def watch_log(limit: int = Query(20, ge=1, le=100),
+              user_id: str = Query("default", min_length=1, max_length=100)) -> list[WatchRun]:
+    with closing(connect()) as conn:
+        return watches.recent_logs(conn, limit, user_id)
 
 
 @router.get("/health", response_model=AgentHealth)
