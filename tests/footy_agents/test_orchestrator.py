@@ -40,7 +40,7 @@ def fake_tool(monkeypatch):
 
 
 def test_direct_answer_streams_tokens():
-    out = events(FakeLLM([TextDelta("Hola, "), TextDelta("¿en qué te ayudo?")]))
+    out = events(FakeLLM([TextDelta("Hola, "), TextDelta("¿en qué te ayudo?")]), "hola")
     assert [e.event for e in out] == ["token", "done"]
     assert out[0].data["delta"] == "Hola, ¿en qué te ayudo?"
     assert out[-1].data == {"iterations": 1, "success": True}
@@ -86,7 +86,7 @@ def test_ollama_down_degrades_gracefully():
 def test_invalid_tool_arguments_reported_to_model():
     client = FakeLLM([ToolCall(id="c1", name="get_league_standings", raw_arguments="{liga: CHL")],
                      [TextDelta("No pude consultar la tabla.")])
-    out = events(client)
+    out = events(client, "¿Cómo va la tabla?")
     assert out[1].data["success"] is False and "JSON" in out[1].data["summary"]
 
 

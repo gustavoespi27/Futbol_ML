@@ -15,6 +15,7 @@ from footy_agents.grounding import verify_numbers
 from footy_agents.llm import LLMBusy, LLMClient, LLMUnavailable, TextDelta, ToolCall
 from footy_agents.memory import entities_from
 from footy_agents.observations import RECOVERABLE, Observation, observe
+from footy_agents.routing import intent_route, is_follow_up
 from footy_agents.schemas import ChatEvent, ToolCallRecord, UserPreferences
 from footy_agents.tools import OPENAI_TOOLS_SPEC, TOOL_MODELS, execute_tool, upcoming_focus
 
@@ -32,9 +33,6 @@ SAFE_BET_TEXT = ("No existen apuestas ni combinadas seguras: cada selección tie
 DOMAIN_CLAIM = re.compile(r"\b(?:pinnacle|apuestas?|partidos?|probabilidad(?:es)?|cuotas?|favorit[oa]s?|"
                           r"atrasad[oa]s?|desactualizad[oa]s?|ventaja|goles|tabla|rendimiento|clv|yield|"
                           r"aciertos?|fiab\w*)\b", re.I)
-TOOL_HINT = ("No respondas sin datos de este turno: consulta la herramienta que corresponda (find_team para un "
-             "equipo o apodo, analyze_match para un partido, get_value_bets para apuestas con valor, get_coverage "
-             "para cobertura o frescura de datos, get_team_form para cómo llega un equipo) y luego responde.")
 ASKS_INSTEAD = re.compile(r"\b(?:necesito|buscar[ée]|buscaremos|voy a (?:buscar|consultar)|primero,|"
                           r"podr[ií]as? (?:proporcionar|indicar|darme)|proporciona)\b", re.I)
 
@@ -226,6 +224,13 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         yield ChatEvent(event="token", data={"delta": SAFE_BET_TEXT})
         yield ChatEvent(event="done", data={"iterations": 0, "success": True})
         return
+    follows = is_follow_up(message, entities)
+    history = (history or [])[-2:] if follows else []
+    entities = entities if follows else None
+    if follows:
+        subject = (f"{entities.get('home')} vs {entities.get('away')}" if entities and entities.get("home")
+                   else (entities or {}).get("team", "el tema anterior"))
+        yield _step("observation", f"Continúa la conversación sobre {subject}")
     context = ""
     if entities:
         context = "\nContexto reciente (solo identidad; vuelve a consultar cifras): "
@@ -239,11 +244,10 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
                     "resuelve la nueva entidad.")
     turn = _Turn([{"role": "system", "content": system_prompt(prefs) + context}, *(history or []),
                   {"role": "user", "content": message}])
-    recovery_hint = TOOL_HINT
-    if entities and entities.get("match_id"):
-        recovery_hint = (f"Consulta ahora analyze_match con match_id={entities['match_id']} si la pregunta "
-                         "sigue sobre el último partido. No respondas con cifras del historial ni repitas find_team. "
-                         "Haz una llamada real, no escribas su nombre como respuesta.")
+    route = intent_route(message, entities)
+    recovery_hint = (f"La pregunta original requiere {route[0]}; argumentos conocidos: "
+                     f"{json.dumps(route[1], ensure_ascii=False)}. Haz una llamada real y responde a esa pregunta."
+                     if route else "Responde a la pregunta original sin inventar datos.")
     try:
         focus = upcoming_focus(message)
     except Exception:  # noqa: BLE001 - precarga opcional; el fallo no debe impedir el chat
@@ -252,6 +256,12 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         call = ToolCall(id="preload_upcoming", name="get_upcoming_matches", arguments=focus)
         turn.messages.append(_assistant_calls("", [call]))
         yield from turn.execute(call)
+        if consulted_entities is not None and turn.entities:
+            consulted_entities.update(turn.entities)
+        if turn.entities.get("match_id") and ("analiza" in message.lower() or "pronost" in message.lower()):
+            route = ("analyze_match", {"match_id": turn.entities["match_id"]})
+            recovery_hint = (f"Consulta analyze_match con argumentos {json.dumps(route[1])}; "
+                             "responde al análisis pedido.")
 
     tool_rounds, leak_retried, recovered, repaired = 0, False, False, False
     iteration = 0
@@ -308,10 +318,11 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
             yield ChatEvent(event="done", data={"iterations": iteration, "success": False})
             return
         unsupported = ASKS_INSTEAD.search(answer) or DOMAIN_CLAIM.search(answer)
-        if not turn.used and not recovered and unsupported and tool_rounds < MAX_ITERATIONS - 1:
+        missing_route = route and route[0] not in turn.used
+        if not recovered and (missing_route or (not turn.used and unsupported)) and tool_rounds < MAX_ITERATIONS - 1:
             recovered = True
-            yield _step("recovery", "El agente iba a responder sin consultar datos de este turno; decide "
-                                    "consultarlos primero.")
+            label = LABELS.get(route[0], route[0]) if route else "datos de este turno"
+            yield _step("recovery", f"El agente decide consultar {label}")
             turn.messages.extend([{"role": "assistant", "content": answer},
                                   {"role": "user", "content": recovery_hint}])
             continue

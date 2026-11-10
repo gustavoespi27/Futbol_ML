@@ -102,3 +102,46 @@ La memoria guarda identidad sin probabilidades ni cuotas; respeta usuario, 30 mi
 La migración agrega `entities` mediante ALTER si falta, sin modificar tablas del motor.
 Validación: 366 pytest; cobertura agéntica medida 95,41 %; Ruff, sintaxis JS y ocho pruebas web correctos.
 
+## Corrección de contaminación entre temas (2026-11-09)
+
+Comparación contra `c38152b`: Qwen 2.5 de 7B real, consultas en orden y herramientas reales de lectura.
+La memoria se guarda en SQLite en memoria, aislada de la conversación del usuario. No se modifica el motor.
+Comando: `.venv/Scripts/python scripts/eval_agent_routing.py --mode conversacion --output reports/agente/conversacion-despues.json`.
+Para reproducir el antes se usa el mismo script con los módulos de `c38152b`.
+Los datos reales pueden cambiar entre ejecuciones: esta prueba mide ruteo, no precisión predictiva.
+
+| Pregunta | Antes: herramientas | Después: herramientas | Después (s) |
+|---|---|---|---:|
+| Analiza el partido de la roja | upcoming | upcoming → analyze_match(181043) | 14,712 |
+| ¿Y quién es favorito? | find_team | analyze_match(181043) | 12,409 |
+| ¿Cómo llega el Colo Colo? | get_team_form | get_team_form | 9,793 |
+| Simula Colo Colo contra la U | simulate_match | simulate_match | 9,328 |
+| que partidos vienen ahora? | upcoming (contaminado por filtro CHL) | upcoming (sin liga heredada) | 10,968 |
+| ¿Qué apuestas con valor hay hoy? | get_value_bets | get_value_bets | 7,812 |
+| ¿Por qué no hay apuestas recomendadas? | ninguna; copia anterior | get_coverage | 12,937 |
+| ¿Qué tan fiable es el sistema? | ninguna; respuesta ajena al tema | get_system_performance | 13,961 |
+| ¿Cuánto debería apostar si tengo 100.000 pesos? | ninguna; copia anterior | get_stake_limits(100000) | 9,399 |
+| Dame una combinada segura para hoy | policy | policy | 0,001 |
+
+`upcoming` abrevia `get_upcoming_matches`. Resultado: herramienta esperada **5/10 → 10/10**;
+copias literales del turno anterior **2 → 0**. La última pregunta valida la política sin llamar al LLM.
+No se encontraron respuestas heredadas de otro tema en la revisión manual del después. El script detecta
+igualdad literal; esa métrica por sí sola no demuestra ausencia de paráfrasis ni corrección semántica.
+Evidencia local con eventos, argumentos, texto y latencias: `reports/agente/conversacion-antes.json` y
+`reports/agente/conversacion-despues.json`. Una ejecución por variante, sin inferencias concurrentes.
+
+La continuidad es determinista: menos de 80 caracteres, referencia de seguimiento y ninguna entidad nueva
+detectada por apodos, precarga o catálogo. Solo se envía el último par de mensajes. Un tema nuevo no recibe
+historial ni entidades. La bitácora registra ambas decisiones; solo la continuidad emite la observación visible.
+La precarga por equipo conserva la identidad del primer partido por kickoff, sin probabilidades ni precios.
+La recuperación selecciona una herramienta por intención original y pasa los argumentos conocidos.
+
+**Límites observados:** aunque el después cumple el criterio de herramientas, Qwen interpretó al revés el
+CLV negativo y el mayor log loss, confundió el límite diario con el límite por apuesta y sugirió posible
+desactualización sin consultarla en la respuesta sobre valor. `verify_numbers` comprueba presencia numérica,
+no el significado ni la asociación cifra-concepto. Estos defectos no quedan resueltos ni se presentan como
+aprobados por esta corrección de memoria. Se mantienen como pendientes para revisión antes de la demo.
+
+Validación final: **392 pytest**, cobertura agéntica **95,16 %** (1425 sentencias, 69 sin cubrir), Ruff,
+sintaxis de agent.js y ocho pruebas Node correctos. Pruebas FakeLLM cubren diez turnos, continuidad positiva
+y negativa, precarga, argumentos de recuperación, aislamiento de tema nuevo y decisión en bitácora.

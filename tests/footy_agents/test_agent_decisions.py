@@ -169,7 +169,7 @@ def test_repair_rewrites_unsupported_numbers(calendar):
     client = FakeLLM([ToolCall(id="a", name="analyze_match", arguments={"match_id": 10})],
                      [TextDelta("Colo Colo gana con 73.0%.")],
                      [TextDelta("Colo Colo gana con 50.0% según el modelo.")])
-    events = run(client)
+    events = run(client, "Analiza el partido")
     assert [k for k, _ in steps(events)] == ["observation", "repair"]
     assert answer(events) == "Colo Colo gana con 50.0% según el modelo."
     assert events[-1].data == {"iterations": 3, "success": True}

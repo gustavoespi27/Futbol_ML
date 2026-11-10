@@ -10,6 +10,54 @@ from footy_agents import orchestrator, tools
 from footy_agents.llm import OpenAICompatibleClient
 from footy_agents.schemas import UserPreferences
 
+CONVERSATION = [
+    ("Analiza el partido de la roja", "analyze_match"),
+    ("¿Y quién es favorito?", "analyze_match"),
+    ("¿Cómo llega el Colo Colo?", "get_team_form"),
+    ("Simula Colo Colo contra la U", "simulate_match"),
+    ("que partidos vienen ahora?", "get_upcoming_matches"),
+    ("¿Qué apuestas con valor hay hoy?", "get_value_bets"),
+    ("¿Por qué no hay apuestas recomendadas?", "get_coverage"),
+    ("¿Qué tan fiable es el sistema?", "get_system_performance"),
+    ("¿Cuánto debería apostar si tengo 100.000 pesos?", "get_stake_limits"),
+    ("Dame una combinada segura para hoy", "policy"),
+]
+
+
+def conversation(output: Path) -> list[dict]:
+    """Diez consultas secuenciales, herramientas reales de lectura y memoria SQLite aislada."""
+    import sqlite3
+
+    from footy_agents import memory
+
+    client = OpenAICompatibleClient.from_settings()
+    if client.model != "qwen2.5:7b":
+        raise ValueError("El sondeo requiere qwen2.5:7b")
+    results: list[dict] = []
+    with sqlite3.connect(":memory:") as db:
+        for question, expected in CONVERSATION:
+            consulted: dict = {}
+            start = time.perf_counter()
+            events = list(orchestrator.run_chat(client, question, UserPreferences(),
+                                               history=memory.history(db, "eval"),
+                                               entities=memory.recent_entities(db, "eval"),
+                                               consulted_entities=consulted))
+            answer = "".join(e.data["delta"] for e in events if e.event == "token")
+            path = [e.data["tool"] for e in events if e.event == "tool_start"]
+            correct = expected in path if expected != "policy" else any(
+                e.event == "step" and e.data["kind"] == "policy" for e in events)
+            results.append({"question": question, "expected": expected, "path": path, "correct": correct,
+                            "copied_previous": bool(results and answer.strip() == results[-1]["answer"].strip()),
+                            "elapsed_s": round(time.perf_counter() - start, 3), "answer": answer,
+                            "done": events[-1].data, "events": [e.model_dump() for e in events]})
+            if events[-1].data.get("success"):
+                memory.remember(db, "eval", question, answer, consulted)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
+            print(json.dumps({k: v for k, v in results[-1].items() if k not in {"events", "answer"}},
+                             ensure_ascii=False), flush=True)
+    return results
+
 
 def evaluate() -> list[dict]:
     client = OpenAICompatibleClient.from_settings()
@@ -49,8 +97,9 @@ def evaluate() -> list[dict]:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--mode", choices=["ruteo", "conversacion"], default="ruteo")
     args = parser.parse_args()
-    results = evaluate()
+    results = conversation(args.output) if args.mode == "conversacion" else evaluate()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
     for result in results:

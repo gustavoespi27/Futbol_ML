@@ -84,13 +84,15 @@ def test_chat_remembers_verified_answers_and_logs_runs(db):
     runs = router.runs(user_id="default", limit=5)
     assert [r.message for r in runs] == ["¿y ahora?", "hola"]
     assert runs[0].success and runs[0].iterations == 1 and runs[0].elapsed_ms >= 0
+    assert runs[0].steps[0] == {"kind": "memory", "detail": "Último turno y entidades"}
+    assert runs[1].steps[0] == {"kind": "memory", "detail": "Tema nuevo: sin historial ni entidades"}
 
 
 def test_failed_answer_is_logged_but_not_remembered(db):
     invented = [TextDelta("La cuota es 9,99.")]
     chat("hola", FakeLLM(invented, invented, invented))
     run = router.runs(user_id="default", limit=1)[0]
-    assert not run.success and [s["kind"] for s in run.steps] == ["recovery", "repair", "error"]
+    assert not run.success and [s["kind"] for s in run.steps] == ["memory", "recovery", "repair", "error"]
     assert memory.history(db(), "default") == []
 
 

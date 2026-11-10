@@ -34,3 +34,13 @@ Sondeo reproducible: `scripts/eval_agent_routing.py --output reports/agente/piez
 El LLM es Qwen 2.5 de 7B real, las herramientas usan una ficha sintética estable: mide ruteo,
 no calidad de pronósticos ni latencia sobre servicios reales. Evidencia y límites en `analisis/08_capa_agentica.md`.
 Tras el commit de esta pieza se detiene la ejecución para revisión; piezas 4 y 5 pendientes.
+
+### Corrección propia previa a pieza 4
+
+Revisión de `c38152b`: corregida la contaminación de memoria entre temas mediante `routing.py`.
+Solo un seguimiento corto y sin entidad nueva recibe el último turno y las entidades; decisión registrada
+en bitácora y observación visible únicamente al continuar. La precarga conserva el primer partido del equipo;
+el seguimiento real usa `analyze_match(181043)`. Recuperación por intención original con una herramienta.
+Evaluación real en orden: herramienta esperada 5/10 → 10/10, copias literales 2 → 0. Ver tabla y límites
+semánticos detectados en `analisis/08_capa_agentica.md`. 392 pytest, cobertura 95,16 %, Ruff y ocho tests web verdes.
+Se detiene tras el commit fix para revisión de Gustavo; no se inicia la pieza 4.

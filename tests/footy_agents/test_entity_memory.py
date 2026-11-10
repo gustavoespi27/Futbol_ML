@@ -71,7 +71,7 @@ def test_exact_team_direct_analysis_and_followup(monkeypatch):
                         [ToolCall("d", "analyze_match", {"match_id": 42})],
                         [TextDelta("Colombia es favorito.")]])
     events = list(orchestrator.run_chat(recovery, "¿Y quién es favorito?", UserPreferences(), entities=entity))
-    assert "match_id=42" in recovery.messages[1][-1]["content"]
+    assert '"match_id": 42' in recovery.messages[1][-1]["content"]
     assert any(e.event == "step" and e.data["kind"] == "recovery" for e in events)
     assert events[-1].data["success"]
 

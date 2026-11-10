@@ -83,10 +83,14 @@ def recent_entities(conn: sqlite3.Connection, user_id: str, now: datetime | None
 def entities_from(record: ToolCallRecord) -> dict:
     """Conserva identificadores y nombres, nunca probabilidades ni precios pasados."""
     if not record.success or record.tool_name not in {
-        "analyze_match", "find_team", "simulate_match", "get_team_form"
+        "analyze_match", "find_team", "simulate_match", "get_team_form", "get_upcoming_matches"
     }:
         return {}
     result = record.result
+    if record.tool_name == "get_upcoming_matches":
+        if not result or (len(result) != 1 and not record.arguments.get("team")):
+            return {}
+        result = min(result, key=lambda row: row.get("kickoff") or "9999")
     if record.tool_name == "find_team":
         exact = [r for r in result if r.get("exact")]
         if len(exact) != 1:
@@ -124,10 +128,15 @@ def log_run(conn: sqlite3.Connection, user_id: str, message: str, started_at: st
             elapsed_ms: float) -> None:
     init_tables(conn)
     done = next((ev.data for ev in reversed(events) if ev.event == "done"), {"iterations": 0, "success": False})
+    continued = any(ev.event == "step" and ev.data.get("text", "").startswith("Continúa la conversación")
+                    for ev in events)
+    memory_decision = {"kind": "memory", "detail": "Último turno y entidades" if continued
+                       else "Tema nuevo: sin historial ni entidades"}
     conn.execute(
         "INSERT INTO agent_runs (user_id, started_at, message, steps, iterations, success, elapsed_ms) "
         "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (user_id, started_at, message, json.dumps(steps_from(events), ensure_ascii=False, default=str),
+        (user_id, started_at, message, json.dumps([memory_decision, *steps_from(events)],
+                                                ensure_ascii=False, default=str),
          int(done["iterations"]), int(bool(done["success"])), round(elapsed_ms, 1)))
     conn.commit()
 
