@@ -1,11 +1,12 @@
 """Procedencia numérica y comprobaciones acotadas de confusiones semánticas conocidas."""
 
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
 from footy.betting import pro
+from footy_agents.calendar import WEEKDAYS, local_payload
 from footy_agents.names import normalize_name
 from footy_agents.schemas import AgentSchema, ToolCallRecord
 
@@ -93,21 +94,41 @@ def _dates(value: Any) -> set[str]:
 def verify_numbers(answer: str, records: list[ToolCallRecord], user_message: str = "") -> GroundingReport:
     # Las fechas ISO también se verifican: una fecha de partido inventada es tan grave como una cuota inventada.
     today = {datetime.now(timezone.utc).strftime("%Y-%m-%d"), datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")}
-    seen_dates = today | _dates(user_message) | {d for r in records if r.success for d in _dates(r.result)}
+    seen_dates = today | _dates(user_message) | {
+        d for r in records if r.success for d in _dates(local_payload(r.result))}
     bad_dates = [d for d in dict.fromkeys(ISO_DATE.findall(answer)) if d not in seen_dates]
-    known = [n for record in records if record.success for n in _values(record.result)]
+    known = [n for record in records if record.success for n in _values(local_payload(record.result))]
     known.extend([pro.KELLY_FRACTION, pro.MAX_STAKE, pro.MAX_DAILY, pro.MIN_EDGE])
     known.extend(value for _, value, _ in _numbers(user_message))
     missing = list(dict.fromkeys(raw for raw, value, tolerance in _numbers(answer)
                                 if not any(abs(value - candidate) <= tolerance + 1e-12 for candidate in known)))
     known_local = {d for r in records if r.success for d in _local_kickoffs(r.result)}
     missing = bad_dates + [m[0] for m in LOCAL_KICKOFF.finditer(answer) if m[0].lower() not in known_local] + missing
+    times = {m[0] for d in known_local for m in re.finditer(r"\d{2}:\d{2}", d)}
+    if times:
+        for m in re.finditer(r"\b(\d{1,2}):(\d{2})\s*(a\.?\s*m\.?|p\.?\s*m\.?)?", answer, re.I):
+            hour = int(m[1])
+            if m[3]:
+                hour = hour % 12 + (12 if m[3].lower().startswith("p") else 0)
+            if f"{hour:02}:{m[2]}" not in times:
+                missing.append(m[0])
     return GroundingReport(verified=not missing, unverified=missing)
 
 
 def check_claims(answer: str, records: list[ToolCallRecord]) -> GroundingReport:
     """Detecta límites cruzados, conteos de forma y polaridad de CLV; no es un verificador semántico general."""
     findings: list[str] = []
+    local_dates = {d for r in records if r.success for d in _local_dates(local_payload(r.result))}
+    q = normalize_name(answer)
+    weekdays = "|".join(normalize_name(day) for day in WEEKDAYS)
+    for match in re.finditer(r"\b(" + weekdays + r")\s+(?:el\s+)?(\d{1,2})\b", q):
+        if not any(normalize_name(WEEKDAYS[d.weekday()]) == match[1] and d.day == int(match[2]) for d in local_dates):
+            findings.append(f"Fecha local incorrecta: {match[0]}; copia kickoff_local y weekday.")
+    months = ("enero", "febrero", "marzo", "abril", "mayo", "junio",
+              "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre")
+    for match in re.finditer(r"\b(\d{1,2}) de (" + "|".join(months) + r")\b", q):
+        if local_dates and not any(d.day == int(match[1]) and months[d.month - 1] == match[2] for d in local_dates):
+            findings.append(f"Fecha narrada sin respaldo local: {match[0]}.")
     # No separar decimales ni miles al dividir oraciones; los dos topes correctos pueden coexistir en un párrafo.
     sentences = re.split(r"(?<!\d)[.!?;\n]+|[.!?;\n]+(?!\d)", answer)
     for sentence in sentences:
@@ -145,3 +166,12 @@ def check_claims(answer: str, records: list[ToolCallRecord]) -> GroundingReport:
             if value < 0 and positive or value > 0 and negative:
                 findings.append("Interpretación del CLV invertida; copia assessment.")
     return GroundingReport(verified=not findings, unverified=list(dict.fromkeys(findings)))
+
+
+def _local_dates(value: Any) -> set[date]:
+    if isinstance(value, dict):
+        own = {datetime.fromisoformat(value["local_date"]).date()} if value.get("local_date") else set()
+        return own | {d for child in value.values() for d in _local_dates(child)}
+    if isinstance(value, (list, tuple)):
+        return {d for child in value for d in _local_dates(child)}
+    return set()

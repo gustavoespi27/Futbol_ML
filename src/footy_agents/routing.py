@@ -2,6 +2,7 @@
 
 import re
 
+from footy_agents.calendar import calendar_args
 from footy_agents.names import normalize_name
 from footy_agents.tools import NICKNAMES, service, upcoming_focus
 
@@ -10,9 +11,11 @@ def is_follow_up(message: str, entities: dict | None) -> bool:
     """Solo referencias cortas sin un equipo o liga distintos conservan memoria."""
     q = normalize_name(message).lstrip("¿¡ ")
     if len(message.strip()) >= 80 or not (
-        q.startswith("y ") or any(re.search(r"\b" + phrase + r"\b", q)
+        re.match(r"^(?:y|si|dale|ok)\b", q) or any(re.search(r"\b" + phrase + r"\b", q)
                                  for phrase in ("ese partido", "este partido", "el mismo", "ahi", "favorito",
-                                                "y manana"))
+                                                "y manana", "eso", "esa", "ese", "otro", "otra",
+                                                "otros", "otras", "mas", "esos", "esas", "estos", "estas",
+                                                "el primero", "el segundo", "la primera", "de la lista"))
     ):
         return False
     entities = entities or {}
@@ -31,7 +34,13 @@ def is_follow_up(message: str, entities: dict | None) -> bool:
                 if f" {normalize_name(league[key])} " in f" {q} ":
                     if not {normalize_name(league['code']), normalize_name(league['name'])} & known:
                         return False
-        for match in service.upcoming():
+        matches = service.upcoming()
+        for match in matches:
+            id_ = match.get("match_id") or str(match.get("ref", "")).removeprefix("m:")
+            if str(id_) in {str(i) for i in entities.get("shown_ids", [])}:
+                known.update(normalize_name(str(match[k])) for k in ("home", "away", "league", "league_name")
+                             if match.get(k))
+        for match in matches:
             for side in ("home", "away"):
                 name = normalize_name(match[side])
                 if f" {name} " in f" {q} ":
@@ -63,10 +72,13 @@ def intent_route(message: str, entities: dict | None = None) -> tuple[str, dict]
         (r"como llega|forma|racha", "get_team_form"),
         (r"tabla|posicion", "get_league_standings"),
         (r"simula", "simulate_match"),
-        (r"partidos.*(?:vienen|hay)|calendario", "get_upcoming_matches"),
+        (r"partidos?.*(?:vienen|hay|juega)|calendario|(?:otros?|mas).*partidos?|"
+         r"partidos.*(?:importantes?|destacad|grandes?)", "get_upcoming_matches"),
     ):
         if re.search(pattern, q):
             args: dict = {}
+            if tool == "get_upcoming_matches":
+                args = calendar_args(message, entities)
             if tool == "get_stake_limits":
                 number = re.search(r"\d[\d.,]*", message)
                 if number:
@@ -78,8 +90,10 @@ def intent_route(message: str, entities: dict | None = None) -> tuple[str, dict]
             elif tool == "get_league_standings" and entities and entities.get("league"):
                 args = {"league": entities["league"]}
             return tool, args
+    if entities and entities.get("shown_ids") and re.match(r"^(?:si|dale|ok|otros?|otras?|mas)\b", q):
+        return "get_upcoming_matches", calendar_args(message, entities)
     if entities and entities.get("match_id"):
         return "analyze_match", {"match_id": entities["match_id"]}
-    if "analiza" in q or "pronost" in q:
+    if "analiza" in q or "pronost" in q or re.search(r"probab.*partido", q):
         return "analyze_match", {}
     return None

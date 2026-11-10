@@ -1,10 +1,12 @@
 """Contratos únicos para validación de herramientas y generación del esquema anunciado."""
 
 from math import isfinite
+from typing import Literal
 
 from pydantic import Field, field_validator
 
 from footy.betting import pro
+from footy_agents.calendar import requested_dates
 from footy_agents.schemas import AgentSchema
 from footy_agents.watch_schemas import CancelArgs, FavoriteArgs, WatchArgs
 
@@ -13,6 +15,17 @@ class UpcomingArgs(AgentSchema):
     limit: int = Field(default=10, ge=1, le=20, strict=True)
     league: str | None = Field(default=None, min_length=1, max_length=100)
     team: str | None = Field(default=None, min_length=1, max_length=100)
+    day: str | None = Field(default=None, min_length=1, max_length=20)
+    important: bool = Field(default=False, strict=True)
+    exclude_ids: list[int] = Field(default_factory=list, max_length=20)
+    category: Literal["international", "clubs"] | None = None
+
+    @field_validator("day")
+    @classmethod
+    def valid_day(cls, value: str | None) -> str | None:
+        if value is not None:
+            requested_dates(value)
+        return value
 
 
 class ValueArgs(AgentSchema):
@@ -87,8 +100,8 @@ DESCRIPTIONS = {
                      "No crea ni cancela objetivos."),
     "cancel_watch": "Usa para «Deja de vigilar el id 3»: requiere id real de list_watches. No es un match_id.",
     "add_favorite": "Usa para «Agrega a favoritos Colo Colo»: team o league. No crea vigilancias ni apuestas.",
-    'get_upcoming_matches': ('Usa para calendario: «¿Qué partidos hay hoy?». No para analizar un partido '
-        'conocido: usa analyze_match.'),
+    'get_upcoming_matches': ('Usa para calendario: «¿Qué partidos importantes hay el jueves?»: day, important, '
+        'category y exclude_ids. No para análisis de un partido conocido: usa analyze_match.'),
     'get_value_bets': ('Usa para ventaja Pinnacle: «¿Hay apuestas con valor?». No para favoritos '
         'ni explicar cobertura: usa analyze_match o get_coverage.'),
     'simulate_match': ('Usa para encuentro hipotético: «Simula Colo Colo contra la U». No para un '

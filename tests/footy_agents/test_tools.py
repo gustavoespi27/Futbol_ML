@@ -17,9 +17,9 @@ def test_execute_unknown_tool():
 def test_tool_get_upcoming_matches_mocked(monkeypatch):
     """Prueba la obtención condensada de partidos con mock de red/servicio."""
     mock_data = [
-        {"ref": "m:10", "league": "CHL", "league_name": "Chile", "kickoff": "2026-10-23T20:00:00Z",
+        {"ref": "m:10", "league": "CHL", "league_name": "Chile", "kickoff": "2099-10-23T20:00:00Z",
          "home": "Colo-Colo", "away": "U. de Chile", "pro": [{"bet": True}], "recommendation": {"text": "Apostar"}},
-        {"ref": "m:11", "league": "ARG", "league_name": "Argentina", "kickoff": "2026-10-23T22:00:00Z",
+        {"ref": "m:11", "league": "ARG", "league_name": "Argentina", "kickoff": "2099-10-23T22:00:00Z",
          "home": "Boca", "away": "River", "pro": [], "recommendation": {"text": "No apostar"}}
     ]
     monkeypatch.setattr("footy.web.service.upcoming", lambda: mock_data)
@@ -150,9 +150,9 @@ def test_invalid_arguments_never_execute(name, args, monkeypatch):
 def test_upcoming_by_team_with_probabilities(monkeypatch):
     """Filtro por equipo tolerante a guiones y probabilidades oficiales como porcentaje."""
     monkeypatch.setattr("footy.web.service.upcoming", lambda: [
-        {"ref": "m:1", "league": "CHL", "home": "Palestino", "away": "Colo Colo", "kickoff": "2026-10-24T20:00:00Z",
+        {"ref": "m:1", "league": "CHL", "home": "Palestino", "away": "Colo Colo", "kickoff": "2099-10-24T20:00:00Z",
          "p_official": [0.25, 0.27, 0.48], "source": "modelo"},
-        {"ref": "m:2", "league": "CHL", "home": "Everton", "away": "Cobresal", "kickoff": "2026-10-24T22:00:00Z"},
+        {"ref": "m:2", "league": "CHL", "home": "Everton", "away": "Cobresal", "kickoff": "2099-10-24T22:00:00Z"},
     ])
     record = tools.execute_tool("get_upcoming_matches", {"team": "Colo-Colo"})
     assert [m["match_id"] for m in record.result] == [1]

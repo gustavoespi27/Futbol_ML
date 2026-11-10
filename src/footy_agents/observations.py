@@ -52,6 +52,8 @@ def observe(record: ToolCallRecord) -> Observation:
         return Observation(status="not_found", note=str(result["error"]))
 
     if name == "get_upcoming_matches":
+        if isinstance(result, dict) and result.get("status") == "empty":
+            return Observation(status="empty", note=result["note"])
         if not result:
             if args.get("team"):
                 return Observation(status="not_found", note="Ningún partido próximo coincide con ese nombre de equipo.",

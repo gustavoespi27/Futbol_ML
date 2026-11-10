@@ -17,7 +17,7 @@ def test_migration_and_entity_isolation():
     entity = {"match_id": 42, "home": "Chile", "away": "Colombia", "league": "WCQ"}
     memory.remember(db, "u", "analiza", "respuesta", entity)
     memory.remember(db, "u", "hola", "hola")
-    assert memory.recent_entities(db, "u") == entity
+    assert memory.recent_entities(db, "u") == {}  # el nuevo tema no revive una entidad anterior
     assert memory.recent_entities(db, "otro") == {}
     assert memory.recent_entities(db, "u", datetime.now(timezone.utc) + timedelta(hours=1)) == {}
     memory.forget(db, "u")

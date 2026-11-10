@@ -60,6 +60,7 @@ def test_followup_preloads_before_first_inference(monkeypatch):
     assert [e.data["tool"] for e in events if e.event == "tool_start"] == ["analyze_match"]
     assert events[0].data == {
         "kind": "observation",
+        "memory": "continued",
         "text": "Continúa con Colombia vs Chile: se consulta el análisis actualizado",
     }
     assert any(e.event == "tool_result" and e.data["success"] for e in events)

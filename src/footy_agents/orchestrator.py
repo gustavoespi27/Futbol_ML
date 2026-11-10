@@ -9,12 +9,15 @@ import json
 import re
 from collections.abc import Iterator
 from datetime import datetime
+from difflib import SequenceMatcher
 
 from footy.web.services.context import LOCAL_TZ
+from footy_agents.calendar import calendar_args
 from footy_agents.fallback import verified_summary
 from footy_agents.grounding import check_claims, verify_numbers
 from footy_agents.llm import LLMBusy, LLMClient, LLMUnavailable, TextDelta, ToolCall
 from footy_agents.memory import entities_from
+from footy_agents.names import normalize_name
 from footy_agents.observations import RECOVERABLE, Observation, observe
 from footy_agents.routing import intent_route, is_follow_up
 from footy_agents.schemas import ChatEvent, ToolCallRecord, UserPreferences
@@ -103,6 +106,11 @@ Reglas estrictas:
     con el mismo match_id real; puedes hacer ambas llamadas juntas. Para listar usa list_watches,
     para cancelar cancel_watch con el id de vigilancia (no el del partido), para favoritos add_favorite.
     Nunca confirmes una escritura que no haya devuelto éxito; usa confirmation_text y los ids reales.
+19. En un seguimiento responde solo la pregunta específica (cuotas, apuesta, hora), sin repetir el análisis anterior.
+    Para cuotas usa odds_status y best_odds; sin cuotas no inventes posibles precios ni sugieras una apuesta.
+20. Para el calendario respeta day, important y exclude_ids. No sustituyas una fecha sin partidos por otra.
+    Copia kickoff_local; local_date y weekday son la única fecha y día del partido. Importante excluye juveniles.
+    Si solo preguntan qué partidos hay, lista equipos y kickoff_local; no añadas probabilidades ni apuestas.
 
 Ruteo (pregunta → herramienta):
 «Analiza / quién gana un partido próximo» → find_team → analyze_match.
@@ -157,13 +165,13 @@ REASONS = {
 }
 
 
-def _step(kind: str, text: str) -> ChatEvent:
+def _step(kind: str, text: str, **data) -> ChatEvent:
     """Paso visible del razonamiento del agente: observación, desvío, recuperación o reparación."""
-    return ChatEvent(event="step", data={"kind": kind, "text": text})
+    return ChatEvent(event="step", data={"kind": kind, "text": text, **data})
 
 
-def _fallback(records: list[ToolCallRecord], iteration: int) -> Iterator[ChatEvent]:
-    text = verified_summary(records)
+def _fallback(records: list[ToolCallRecord], iteration: int, question: str = "") -> Iterator[ChatEvent]:
+    text = verified_summary(records, question)
     if text:
         yield _step("repair", "Se entrega el resumen verificado de los datos consultados")
     else:
@@ -177,6 +185,10 @@ def _tool_message(call: ToolCall, record: ToolCallRecord, obs: Observation) -> d
     payload = {"status": obs.status, "note": obs.note, "options": obs.options}
     if record.success:
         payload["data"] = record.result
+        if call.name == "get_upcoming_matches" and isinstance(record.result, list) and not call.arguments.get("team"):
+            # El calendario necesita identidades y fechas; evitar que veinte análisis llenen el contexto y se mezclen.
+            keys = {"match_id", "home", "away", "league", "league_name", "kickoff_local", "local_date", "weekday"}
+            payload["data"] = [{k: v for k, v in row.items() if k in keys} for row in record.result]
     else:
         payload["error"] = record.error_message
     content = json.dumps(payload, ensure_ascii=False, default=str)
@@ -185,10 +197,12 @@ def _tool_message(call: ToolCall, record: ToolCallRecord, obs: Observation) -> d
     return {"role": "tool", "tool_call_id": call.id, "content": content}
 
 
-def _assistant_calls(text: str, calls: list[ToolCall]) -> dict:
+def _assistant_calls(text: str, calls: list[ToolCall], filters: dict | None = None) -> dict:
     return {"role": "assistant", "content": text, "tool_calls": [
         {"id": c.id, "type": "function",
-         "function": {"name": c.name, "arguments": json.dumps(c.arguments, ensure_ascii=False)}} for c in calls]}
+         "function": {"name": c.name, "arguments": json.dumps(
+             {**c.arguments, **(filters or {})} if c.name == "get_upcoming_matches" else c.arguments,
+             ensure_ascii=False)}} for c in calls]}
 
 
 def _run_call(call: ToolCall, user_id: str = "default") -> ToolCallRecord:
@@ -210,8 +224,11 @@ class _Turn:
         self.suggested: dict[str, str] = {}      # herramienta sugerida -> estado que la sugirió
         self.used: set[str] = set()
         self.entities: dict = {}
+        self.calendar_filters: dict = {}
 
     def execute(self, call: ToolCall) -> Iterator[ChatEvent]:
+        if call.name == "get_upcoming_matches" and self.calendar_filters:
+            call = ToolCall(id=call.id, name=call.name, arguments={**call.arguments, **self.calendar_filters})
         reason = self.suggested.pop(call.name, None)
         if reason:
             yield _step("deviation", f"Cambio de camino: {LABELS.get(call.name, call.name)}, "
@@ -230,6 +247,9 @@ class _Turn:
             record = _run_call(call, self.user_id)
         self.records.append(record)
         self.entities = entities_from(record) or self.entities
+        if call.name == "get_upcoming_matches" and record.success:
+            self.entities["calendar_filters"] = {k: v for k, v in call.arguments.items()
+                                                 if k in {"day", "important", "category"}}
         self.used.add(call.name)
         obs = observe(record)
         yield ChatEvent(event="tool_result", data={
@@ -260,16 +280,20 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         yield ChatEvent(event="token", data={"delta": SAFE_BET_TEXT})
         yield ChatEvent(event="done", data={"iterations": 0, "success": True})
         return
+    previous_answer = next((m.get("content", "") for m in reversed(history or []) if m.get("role") == "assistant"), "")
     follows = is_follow_up(message, entities)
     history = (history or [])[-2:] if follows else []
     entities = entities if follows else None
     if follows:
         subject = (f"{entities.get('home')} vs {entities.get('away')}" if entities and entities.get("home")
                    else (entities or {}).get("team", "el tema anterior"))
-        if entities and entities.get("match_id"):
-            yield _step("observation", f"Continúa con {subject}: se consulta el análisis actualizado")
+        continuation_route = intent_route(message, entities)
+        if entities and entities.get("match_id") and not (
+                continuation_route and continuation_route[0] == "get_upcoming_matches"):
+            yield _step("observation", f"Continúa con {subject}: se consulta el análisis actualizado",
+                        memory="continued")
         else:
-            yield _step("observation", f"Continúa la conversación sobre {subject}")
+            yield _step("observation", f"Continúa la conversación sobre {subject}", memory="continued")
     context = ""
     if entities:
         context = "\nContexto reciente (solo identidad; vuelve a consultar cifras): "
@@ -284,12 +308,24 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
     turn = _Turn([{"role": "system", "content": system_prompt(prefs) + context}, *(history or []),
                   {"role": "user", "content": message}], user_id=prefs.user_id)
     route = intent_route(message, entities)
+    turn.calendar_filters = calendar_args(message, entities)
+    if follows and re.match(r"^(?:sí|si|dale|ok)\b", message.lower().strip()) and entities:
+        turn.calendar_filters = {**entities.get("calendar_filters", {}), **turn.calendar_filters}
+        if route and route[0] == "get_upcoming_matches":
+            route = (route[0], turn.calendar_filters)
+    calendar_request = bool(route and route[0] == "get_upcoming_matches")
+    if calendar_request:
+        turn.calendar_filters = {"day": None, "important": False, "exclude_ids": [], "category": None,
+                                 **turn.calendar_filters}
+        turn.messages[0]["content"] += ("\nFiltro de calendario obligatorio: "
+                                         + json.dumps(turn.calendar_filters, ensure_ascii=False))
+        turn.messages[0]["content"] += ("\nResponde solo con los partidos del filtro y sus kickoff_local, "
+                                        "o su nota de vacío.")
     writing = bool(route and route[0] in WRITE_TOOLS)
     turn.requested_action = route[0] if writing else None
     tool_limit = MAX_ITERATIONS - 1
     conditions = set()
     if route and route[0] == "create_watch":
-        from footy_agents.names import normalize_name
         query = normalize_name(message)
         if re.search(r"falte poco|comien|empie|inicio|pronto", query):
             conditions.add("kickoff_soon")
@@ -304,20 +340,20 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         focus = None if entities and entities.get("match_id") else upcoming_focus(message)
     except Exception:  # noqa: BLE001 - precarga opcional; el fallo no debe impedir el chat
         focus = None
-    if entities and entities.get("match_id"):
+    if entities and entities.get("match_id") and not calendar_request:
         call = ToolCall(id="preload_analysis", name="analyze_match", arguments={"match_id": entities["match_id"]})
-        turn.messages.append(_assistant_calls("", [call]))
+        turn.messages.append(_assistant_calls("", [call], turn.calendar_filters))
         yield from turn.execute(call)
         if consulted_entities is not None and turn.entities:
             consulted_entities.update(turn.entities)
-    elif focus:
+    elif focus is not None:
         call = ToolCall(id="preload_upcoming", name="get_upcoming_matches", arguments=focus)
-        turn.messages.append(_assistant_calls("", [call]))
+        turn.messages.append(_assistant_calls("", [call], turn.calendar_filters))
         yield from turn.execute(call)
         if consulted_entities is not None and turn.entities:
             consulted_entities.update(turn.entities)
         if (not writing and turn.entities.get("match_id")
-                and ("analiza" in message.lower() or "pronost" in message.lower())):
+                and any(word in message.lower() for word in ("analiza", "pronost", "probab"))):
             route = ("analyze_match", {"match_id": turn.entities["match_id"]})
             recovery_hint = (f"Consulta analyze_match con argumentos {json.dumps(route[1])}; "
                              "responde al análisis pedido.")
@@ -362,7 +398,7 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         if calls:
             if tools is None:   # pidió herramientas cuando ya no se ofrecían: se corta el turno
                 break
-            turn.messages.append(_assistant_calls("".join(text), calls))
+            turn.messages.append(_assistant_calls("".join(text), calls, turn.calendar_filters))
             for call in calls:
                 yield from turn.execute(call)
                 if consulted_entities is not None and turn.entities:
@@ -384,7 +420,7 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         answer = "".join(text)
         if not answer.strip():
             if verified_summary(turn.records):
-                yield from _fallback(turn.records, iteration)
+                yield from _fallback(turn.records, iteration, message)
                 return
             yield ChatEvent(event="error", data={"error": "El modelo no devolvió respuesta."})
             yield ChatEvent(event="done", data={"iterations": iteration, "success": False})
@@ -398,7 +434,7 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
                     "Ejecuta una llamada real si hace falta consultar; "
                     "responde sin pseudollamadas ni nombres técnicos."}])
                 continue
-            yield from _fallback(turn.records, iteration)
+            yield from _fallback(turn.records, iteration, message)
             return
         unsupported = ASKS_INSTEAD.search(answer) or DOMAIN_CLAIM.search(answer)
         completed = {r.arguments.get("condition") for r in turn.records if r.success and r.tool_name == "create_watch"}
@@ -425,6 +461,18 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         claims = check_claims(answer, turn.records)
         report.unverified.extend(claims.unverified)
         report.verified = report.verified and claims.verified
+        odds_results = [r.result for r in turn.records if r.success and r.tool_name == "analyze_match"
+                        and isinstance(r.result, dict) and r.result.get("odds_status")]
+        if "cuota" in normalize_name(message) and odds_results:
+            if normalize_name(odds_results[-1]["odds_status"]) not in normalize_name(answer):
+                report.verified = False
+                report.unverified.append("La pregunta es sobre cuotas: copia odds_status y best_odds; "
+                                         "no repitas probabilidades ni el análisis anterior.")
+        repeated = bool(previous_answer and SequenceMatcher(
+            None, answer.casefold(), previous_answer.casefold()).ratio() >= .8)
+        if repeated:
+            report.verified = False
+            report.unverified.append("Respuesta repetida del turno anterior")
         if not report.verified and not repaired:
             repaired = True
             yield _step("repair", "La respuesta contiene cifras sin respaldo o una interpretación incorrecta; "
@@ -433,10 +481,12 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
                 "Corrige estos hallazgos de verificación: "
                 + ", ".join(report.unverified) + ". Si las necesitas, vuelve a consultarlas con la herramienta "
                 "que corresponda; si no, reescribe la respuesta completa sin ellas. Copia literalmente form_text, "
-                "limits_text y assessment para las ideas correspondientes, sin reinterpretarlas."}])
+                "limits_text y assessment para las ideas correspondientes, sin reinterpretarlas. "
+                + (f"Responde solo lo nuevo que se preguntó: {message}; no repitas el análisis anterior"
+                   if repeated else "")}])
             continue
         if not report.verified:
-            yield from _fallback(turn.records, iteration)
+            yield from _fallback(turn.records, iteration, message)
             return
         else:
             for start in range(0, len(answer), 80):
@@ -445,7 +495,7 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         return
 
     if verified_summary(turn.records):
-        yield from _fallback(turn.records, iteration)
+        yield from _fallback(turn.records, iteration, message)
         return
     yield ChatEvent(event="error", data={"error": f"Se alcanzó el límite de {MAX_ITERATIONS} iteraciones."})
     yield ChatEvent(event="done", data={"iterations": iteration, "success": False})

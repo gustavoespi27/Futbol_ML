@@ -25,6 +25,17 @@ CONVERSATION = [
     ("¿Cuánto debería apostar si tengo 100.000 pesos?", "get_stake_limits"),
     ("Dame una combinada segura para hoy", "policy"),
 ]
+GUSTAVO_CONVERSATION = [
+    ("¿Qué apuestas con valor hay hoy?", "get_value_bets"),
+    ("que partido importante se juega mañana?", "get_upcoming_matches"),
+    ("que tan probable es el partido de chile vs colombia?", "analyze_match"),
+    ("cual es la posible apuesta que haya en ese partido?", "analyze_match"),
+    ("y no tienes datos de las posibles cuotas?", "analyze_match"),
+    ("que otro partido importante hay de selecciones?", "get_upcoming_matches"),
+    ("si, busca eso", "get_upcoming_matches"),
+    ("que partidos de copa o ligas hay cerca?", "get_upcoming_matches"),
+    ("que partidos importantes hay el jueves?", "get_upcoming_matches"),
+]
 FALLBACK_STEP = "Se entrega el resumen verificado de los datos consultados"
 
 
@@ -298,7 +309,8 @@ def evaluate() -> list[dict]:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--mode", choices=["ruteo", "conversacion", "respaldo", "acciones", "cierre"], default="ruteo")
+    parser.add_argument("--mode",
+                        choices=["ruteo", "conversacion", "respaldo", "acciones", "cierre", "gustavo"], default="ruteo")
     args = parser.parse_args()
     if args.mode == "respaldo":
         results = []
@@ -307,6 +319,8 @@ if __name__ == "__main__":
             results.extend(
                 {**row, "repeat": repeat} for row in conversation(output, [CONVERSATION[i] for i in (0, 1, 4)])
             )
+    elif args.mode == "gustavo":
+        results = conversation(args.output, GUSTAVO_CONVERSATION)
     elif args.mode == "acciones":
         results = conversation(args.output, actions=True)
     elif args.mode == "cierre":

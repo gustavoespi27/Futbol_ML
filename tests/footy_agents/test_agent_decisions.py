@@ -198,7 +198,9 @@ def test_team_form_summarizes_profile(calendar, monkeypatch):
     monkeypatch.setattr(tools.service, "team_profile", lambda team_id: profile)
     form = tools.tool_get_team_form("el colo")
     assert form["form_last5"] == "GEGGG" and form["standing"]["pos"] == 1 and "season" not in form["standing"]
-    assert form["last_results"][0] == {"date": "2026-10-02", "opponent": "R2", "home": True, "score": "1-0",
+    assert form["last_results"][0] == {"local_date": "2026-10-02", "weekday": "viernes",
+                                       "kickoff_local": "vie 02-10, 17:00 hora de Chile", "opponent": "R2",
+                                       "home": True, "score": "1-0",
                                        "result": "G", "competition": "Primera División"}
     with pytest.raises(ValueError, match="find_team"):
         tools.tool_get_team_form("Colito")

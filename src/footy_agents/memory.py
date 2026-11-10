@@ -77,7 +77,7 @@ def recent_entities(conn: sqlite3.Connection, user_id: str, now: datetime | None
     init_tables(conn)
     since = ((now or datetime.now(timezone.utc)) - MEMORY_WINDOW).strftime("%Y-%m-%dT%H:%M:%SZ")
     row = conn.execute("SELECT entities FROM agent_chat_memory WHERE user_id = ? AND created_at >= ? "
-                       "AND entities != '{}' ORDER BY id DESC LIMIT 1", (user_id, since)).fetchone()
+                       "ORDER BY id DESC LIMIT 1", (user_id, since)).fetchone()
     return json.loads(row[0]) if row else {}
 
 
@@ -89,9 +89,15 @@ def entities_from(record: ToolCallRecord) -> dict:
         return {}
     result = record.result
     if record.tool_name == "get_upcoming_matches":
-        if not result or (len(result) != 1 and not record.arguments.get("team")):
-            return {}
-        result = min(result, key=lambda row: row.get("kickoff") or "9999")
+        if not isinstance(result, list) or not result:
+            return {"shown_ids": []}
+        shown = {"shown_ids": [row["match_id"] for row in result if row.get("match_id")]}
+        if len(result) != 1 and not record.arguments.get("team"):
+            return shown
+        result = min(result, key=lambda row: (row.get("local_date") or row.get("kickoff") or "9999",
+                                             row.get("kickoff_local") or ""))
+        return {**shown, **{k: result[k] for k in ("match_id", "home", "away", "league", "league_name")
+                           if result.get(k) is not None}}
     if record.tool_name == "find_team":
         exact = [r for r in result if r.get("exact")]
         if len(exact) != 1:
@@ -129,7 +135,7 @@ def log_run(conn: sqlite3.Connection, user_id: str, message: str, started_at: st
             elapsed_ms: float) -> None:
     init_tables(conn)
     done = next((ev.data for ev in reversed(events) if ev.event == "done"), {"iterations": 0, "success": False})
-    continued = any(ev.event == "step" and ev.data.get("text", "").startswith("Continúa la conversación")
+    continued = any(ev.event == "step" and ev.data.get("memory") == "continued"
                     for ev in events)
     memory_decision = {"kind": "memory", "detail": "Último turno y entidades" if continued
                        else "Tema nuevo: sin historial ni entidades"}

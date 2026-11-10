@@ -52,10 +52,11 @@ def test_upcoming_entities_single_and_team_filter():
     def record(rows, args):
         return ToolCallRecord(tool_name="get_upcoming_matches", arguments=args, result=rows,
                               success=True, execution_time_ms=0)
-    assert memory.entities_from(record(matches, {})) == {}
-    assert memory.entities_from(record(matches[:1], {})) == ENTITY
-    assert memory.entities_from(record(list(reversed(matches)), {"team": "Chile"})) == ENTITY
-    assert memory.entities_from(record([], {"team": "Chile"})) == {}
+    assert memory.entities_from(record(matches, {})) == {"shown_ids": [181043, 99]}
+    assert memory.entities_from(record(matches[:1], {})) == {**ENTITY, "shown_ids": [181043]}
+    assert memory.entities_from(record(list(reversed(matches)), {"team": "Chile"})) == {
+        **ENTITY, "shown_ids": [99, 181043]}
+    assert memory.entities_from(record([], {"team": "Chile"})) == {"shown_ids": []}
 
 
 def test_ten_turn_conversation_has_no_contamination(monkeypatch):
@@ -81,7 +82,11 @@ def test_ten_turn_conversation_has_no_contamination(monkeypatch):
         "get_stake_limits": {"bankroll": 100000}, "analyze_match": {"match_id": 181043}}
     with sqlite3.connect(":memory:") as db:
         for i, (question, expected) in enumerate(CONVERSATION):
-            text = "Respuesta " + chr(65 + i)
+            text = ("Análisis consultado.", "El favorito es Colombia.", "Forma reciente del equipo.",
+                    "Simulación hipotética lista.",
+                    "Calendario disponible.", "Evaluación de ventaja.", "Cobertura de referencia.",
+                    "Rendimiento histórico.",
+                    "Topes de exposición.", "Política educativa.")[i]
             client = FakeLLM(expected, arguments.get(expected, {}), text, preloaded=i == 1)
             consulted: dict = {}
             events = list(orchestrator.run_chat(client, question, UserPreferences(), history=memory.history(db, "u"),

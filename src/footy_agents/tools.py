@@ -4,6 +4,7 @@ Envuelven los servicios existentes en footy.web.service sin modificarlos ni romp
 Cada herramienta devuelve un payload condensado y seguro para el contexto del LLM.
 """
 
+import re
 import time
 from collections import Counter
 from contextlib import closing
@@ -15,10 +16,12 @@ from typing import Any
 from pydantic import ValidationError
 
 from footy.betting import pro
+from footy.config import settings
 from footy.db.connection import connect
 from footy.leagues import load_params
 from footy.web import service
 from footy.web.services.context import LOCAL_TZ
+from footy_agents.calendar import WEEKDAYS, competition_priority, local_fields, local_payload, requested_dates
 from footy_agents.names import normalize_name
 from footy_agents.schemas import ToolCallRecord
 from footy_agents.tool_args import OPENAI_TOOLS_SPEC, TOOL_MODELS  # noqa: F401 - fachada pública
@@ -30,14 +33,7 @@ MAX_TEAMS = 5
 
 def kickoff_local(kickoff: str | None) -> str | None:
     """Fecha local calculada con zona IANA y días españoles independientes del locale de Windows."""
-    if not kickoff:
-        return None
-    value = datetime.fromisoformat(kickoff.replace("Z", "+00:00"))
-    if value.tzinfo is None:
-        raise ValueError("El kickoff debe incluir zona horaria")
-    local = value.astimezone(LOCAL_TZ)
-    day = ("lun", "mar", "mié", "jue", "vie", "sáb", "dom")[local.weekday()]
-    return f"{day} {local:%d-%m}, {local:%H:%M} hora de Chile"
+    return local_fields(kickoff)["kickoff_local"]
 
 # Apodos frecuentes en Chile -> nombre canónico de la base (una consulta informal no debe terminar en «no encontrado»).
 NICKNAMES = {
@@ -104,9 +100,24 @@ def labeled_1x2(home: str, away: str, p) -> dict[str, Any] | None:
 
 
 def tool_get_upcoming_matches(limit: int = 10, league: str | None = None,
-                              team: str | None = None) -> list[dict[str, Any]]:
+                              team: str | None = None, day: str | None = None, important: bool = False,
+                              exclude_ids: list[int] | None = None, category: str | None = None) -> list[dict] | dict:
     """Próximos partidos con liga, fecha, probabilidades 1X2 del sistema y si tienen cuotas."""
-    matches = service.upcoming()
+    now = datetime.now(timezone.utc)
+    matches = [m for m in service.upcoming() if _kickoff(m) > now and _match_id(m) not in (exclude_ids or [])]
+    dates = requested_dates(day) if day else []
+    if dates:
+        matches = [m for m in matches if _kickoff(m).astimezone(LOCAL_TZ).date() in dates]
+    competitions = settings().get("competitions", {})
+    if category:
+        matches = [m for m in matches if (
+            competitions.get(m.get("league"), {}).get("type") == "international"
+            or m.get("league") == "FRIENDLY"
+        ) == (category == "international")]
+    if important:
+        matches = [m for m in matches if not re.search(
+            r"\b(?:u|sub)[ -]?(?:1[789]|2[0-3])\b",
+            " ".join(str(m.get(k, "")) for k in ("home", "away", "league_name")), re.I)]
     if league:
         code = resolve_league(league)
         matches = [m for m in matches if m.get("league") == code]
@@ -115,6 +126,15 @@ def tool_get_upcoming_matches(limit: int = 10, league: str | None = None,
         matches = [m for m in matches
                    if q in normalize_name(m.get("home", "")) or q in normalize_name(m.get("away", ""))]
 
+    matches.sort(key=lambda m: (*competition_priority(m), _kickoff(m)) if important else (_kickoff(m),))
+    if not matches and dates:
+        label = " / ".join(f"{WEEKDAYS[d.weekday()]} {d:%d-%m}" for d in dates)
+        return {"status": "empty", "note": f"No hay partidos el {label} con ese filtro.",
+                "local_date": dates[0].isoformat(), "weekday": WEEKDAYS[dates[0].weekday()], "matches": []}
+    if not matches and category:
+        label = "selecciones" if category == "international" else "clubes (copas o ligas)"
+        return {"status": "empty", "note": f"No hay partidos próximos de {label} con ese filtro.", "matches": []}
+
     def probs(m: dict) -> dict[str, Any] | None:
         return labeled_1x2(m.get("home", ""), m.get("away", ""), m.get("p_official"))
 
@@ -122,8 +142,7 @@ def tool_get_upcoming_matches(limit: int = 10, league: str | None = None,
         "match_id": int(m["ref"][2:]) if m.get("ref", "").startswith("m:") else None,
         "league": m.get("league"),
         "league_name": m.get("league_name"),
-        "kickoff": m.get("kickoff"),
-        "kickoff_local": kickoff_local(m.get("kickoff")),
+        **local_fields(m.get("kickoff")),
         "home": m.get("home"),
         "away": m.get("away"),
         "probabilities_1x2": probs(m),
@@ -310,7 +329,7 @@ def tool_find_team(name: str) -> list[dict[str, Any]]:
         out.append({"team": team, "exact": normalize_name(team) == query,
                     "next_match": None if m is None else {
                         "match_id": _match_id(m), "league": m.get("league"), "league_name": m.get("league_name"),
-                        "kickoff": m.get("kickoff"), "kickoff_local": kickoff_local(m.get("kickoff")),
+                        **local_fields(m.get("kickoff")),
                         "home": m.get("home"), "away": m.get("away"),
                         "probabilities_1x2": labeled_1x2(m.get("home", ""), m.get("away", ""), m.get("p_official"))}})
     return out
@@ -327,10 +346,20 @@ def tool_analyze_match(match_id: int) -> dict[str, Any]:
               "best_odds": round(o["odds"], 2), "bookmaker": o.get("book"),
               "pinnacle_fair_odds": round(o["fair_odds"], 2),
               "edge": _pct(o["edge"])} for o in m.get("pro") or [] if o.get("bet")]
+    books = {book: odds for book, odds in (m.get("odds_1x2") or {}).items()
+             if isinstance(odds, (list, tuple)) and len(odds) == 3
+             and all(isinstance(o, (int, float)) and o > 1 for o in odds)}
+    best = []
+    for index, selection in enumerate((m["home"], "Empate", m["away"])):
+        if books:
+            book, odds = max(books.items(), key=lambda item: item[1][index])
+            best.append({"selection": selection, "odds": odds[index], "bookmaker": book})
+    odds_status = ("con Pinnacle" if "Pinnacle" in books else
+                   f"cuotas de {len(books)} casas, sin Pinnacle" if books else "sin cuotas de ninguna casa todavía")
     return {
+        "odds_status": odds_status, "best_odds": best,
         "match_id": match_id, "status": "started" if started else "ok" if m.get("pro") else "no_pinnacle",
-        "league": m.get("league"), "league_name": m.get("league_name"), "kickoff": m.get("kickoff"),
-        "kickoff_local": kickoff_local(m.get("kickoff")),
+        "league": m.get("league"), "league_name": m.get("league_name"), **local_fields(m.get("kickoff")),
         "home": m.get("home"), "away": m.get("away"),
         "probability_source": m.get("source"), "model_name": m.get("model_name"),
         "probabilities_1x2": labeled_1x2(m.get("home", ""), m.get("away", ""), p),
@@ -359,7 +388,8 @@ def tool_get_coverage() -> dict[str, Any]:
         "without_pinnacle_price": len(matches) - len(priced),
         "by_probability_source": dict(Counter(m.get("source") or "sin_fuente" for m in matches)),
         "next_with_pinnacle": None if first is None else {
-            "match_id": _match_id(first), "home": first["home"], "away": first["away"], "kickoff": first["kickoff"]},
+            "match_id": _match_id(first), "home": first["home"], "away": first["away"],
+            **local_fields(first["kickoff"])},
         "rule": "Solo hay ventaja evaluable frente al precio justo de Pinnacle; sin ese precio no se recomienda "
                 "apostar.",
     }
@@ -390,13 +420,13 @@ def tool_get_team_form(team: str) -> dict[str, Any]:
         "team": profile["name"], "league_name": profile.get("league_name"),
         "standing": None if not standing else {k: standing[k] for k in STANDING_KEYS},
         "form_last5": form, "last5_counts": counts, "form_text": form_text,
-        "last_results": [{"date": r["date"][:10], "opponent": r["opponent"], "home": r["is_home"],
+        "last_results": [{**local_fields(r["date"]), "opponent": r["opponent"], "home": r["is_home"],
                           "score": f"{r['score'][0]}-{r['score'][1]}", "result": letters.get(r["outcome"], "?"),
                           "competition": r.get("league_name")} for r in recent[-5:]],
         "season_averages": None if not season else {"goals_for_per_game": season.get("gf_pg"),
                                                     "goals_against_per_game": season.get("ga_pg"),
                                                     "matches": season.get("played")},
-        "next_matches": [{"opponent": u.get("opponent"), "kickoff": u.get("kickoff") or u.get("date")}
+        "next_matches": [{"opponent": u.get("opponent"), **local_fields(u.get("kickoff") or u.get("date"))}
                          for u in (profile.get("upcoming") or [])[:2]],
         "form_legend": "G = ganó, E = empató, P = perdió (más antiguo a la izquierda)",
     }
@@ -497,10 +527,10 @@ def execute_tool(name: str, arguments: dict[str, Any], user_id: str = "default")
 
     try:
         validated = TOOL_MODELS[name].model_validate(arguments)
-        kwargs = validated.model_dump()
+        kwargs = validated.model_dump(exclude_unset=True)
         if name in WRITE_TOOLS:
             kwargs["user_id"] = user_id  # identidad del request, nunca un argumento elegido por el LLM
-        res = func(**kwargs)
+        res = local_payload(func(**kwargs))
         elapsed = (time.perf_counter() - start_time) * 1000
         return ToolCallRecord(
             tool_name=name,

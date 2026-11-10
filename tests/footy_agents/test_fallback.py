@@ -106,6 +106,11 @@ def test_three_tools_provide_local_kickoff(monkeypatch, kickoff, expected):
         conn.execute("CREATE TABLE teams (name TEXT)")
         return conn
     monkeypatch.setattr(tools, "connect", database)
+    class Clock(tools.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2026, 1, 1, tzinfo=tz)
+    monkeypatch.setattr(tools, "datetime", Clock)
     rows = [tools.tool_get_upcoming_matches()[0], tools.tool_analyze_match(181043),
             next(row for row in tools.tool_find_team("Chile") if row["exact"])["next_match"]]
     for row in rows:

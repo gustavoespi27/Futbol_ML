@@ -93,7 +93,8 @@ def test_league_alias_and_unknown():
 @pytest.mark.parametrize("question", ["¿Qué probabilidad tiene Botosani de ganar?", "Partidos de E0"])
 def test_preload_before_inference(monkeypatch, question):
     monkeypatch.setattr(tools.service, "upcoming", lambda: [
-        {"home": "FC Botosani", "away": "Everton", "league": "E0", "p_official": [.5, .3, .2]}])
+        {"home": "FC Botosani", "away": "Everton", "league": "E0", "kickoff": "2099-11-14T20:00:00Z",
+         "p_official": [.5, .3, .2]}])
     monkeypatch.setattr(orchestrator, "upcoming_focus", tools.upcoming_focus)
     client = FakeLLM([TextDelta("Probabilidad local 50%.")])
     events = run(client, question)

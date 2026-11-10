@@ -562,3 +562,42 @@ sintaxis de agent.js y ocho pruebas Node correctos. FakeLLM cubre ejecución pre
 inferencia, eventos y observación, ausencia de match_id, equipo nuevo, cambio a rendimiento y respaldo
 tras dos fallos. El comportamiento queda congelado hasta la presentación; se detiene tras este fix
 para revisión, sin iniciar otros cambios.
+
+## Fechas locales, calendario y repetición (corrección tras la prueba de Gustavo)
+
+**Problema observado** (agent_runs 143–156): el modelo mezclaba el `kickoff` UTC con la hora local
+(«viernes 14 de noviembre a las 21:00» para Colombia–Chile, que es vie 13-11 a las 21:00), convertía horas
+por su cuenta, etiquetaba como «jueves 10» partidos de otros días, repetía siempre los mismos cinco partidos
+juveniles y copiaba la respuesta anterior en seguimientos sobre cuotas.
+
+**Corrección** (`calendar.py` y cambios en tools, routing, grounding y orquestador):
+
+- Ningún payload visible para el LLM trae `kickoff` UTC: una barrera recursiva lo reemplaza por
+  `kickoff_local`, `local_date` y `weekday` en America/Santiago, incluidas estructuras anidadas.
+- `check_claims` valida «<día> <N>» contra las fechas locales del turno; un día equivocado se repara.
+- `get_upcoming_matches` admite `day` (hoy, mañana, día de la semana, fin de semana o fecha ISO),
+  `important` (excluye juveniles y ordena por prioridad de competición), `category` (selecciones o clubes) y
+  `exclude_ids` (lo ya mostrado). Excluye partidos iniciados.
+- `analyze_match` informa `odds_status` y `best_odds`; un borrador ≥ 80 % similar a la respuesta anterior se
+  repara antes de mostrarse.
+- La continuidad reconoce «sí/dale/ok», «eso», «otros/más» y referencias a la lista anterior (`shown_ids`).
+  La bitácora usa un indicador explícito de memoria y no depende del texto del paso.
+
+**Validación con Qwen 2.5 7B** (la misma secuencia de nueve preguntas de Gustavo, en orden, con memoria):
+
+| Pregunta | Resultado |
+|---|---|
+| ¿Qué apuestas con valor hay hoy? | Correcta (cero elegibles); añade «datos actualizados» sin consultar cobertura |
+| que partido importante se juega mañana? | Filtra miércoles 11; fecha y hora locales correctas |
+| que tan probable es el partido de chile vs colombia? | Respaldo verificado: Colombia 67,5 %, vie 13-11 21:00 |
+| cual es la posible apuesta que haya en ese partido? | Seguimiento con precarga; sin ventaja evaluable sin Pinnacle; fecha correcta |
+| y no tienes datos de las posibles cuotas? | «Sin cuotas de ninguna casa todavía»; no repite la respuesta anterior |
+| que otro partido importante hay de selecciones? | Liga de Naciones del jueves 12, excluye Colombia–Chile y juveniles |
+| si, busca eso | Reconoce continuidad; frase ambigua: argumento inválido y respuesta genérica, sin cifras inventadas |
+| que partidos de copa o ligas hay cerca? | Solo clubes, con día y hora locales correctos |
+| que partidos importantes hay el jueves? | Solo partidos del jueves 12, horas locales correctas |
+
+**Resultado:** fechas y horas correctas en 9/9; cero respuestas copiadas; «el jueves» lista solo el jueves 12.
+Pendientes menores: afirmaciones de frescura sin `get_coverage` y referencias ambiguas como «sí, busca eso».
+
+Validación: **542 pytest**, Ruff, sintaxis JS y pruebas Node correctos.
