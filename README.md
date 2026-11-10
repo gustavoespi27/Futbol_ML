@@ -67,10 +67,11 @@ Colo Colo?»): el apelativo se quita antes de decidir la consulta. La personalid
 (`footy_agents/persona.py`) y cambia solo el tono: las reglas de cifras, valor y riesgo mandan sobre el estilo. El
 saludo o «¿quién eres?» recibe una presentación fija, sin LLM.
 
-Su mascota es un zorro DT, «el zorro del banco»: orejas enormes, cejas decididas, silbato con cordón verde, tablet
-táctica y cinta verde en la cola. Son ilustraciones propias con el fondo quitado (`scripts/prepare_mascot.py`), una
-por lugar: la cabeza en el botón del chat y el avatar; en el saludo mira la tablet y luego al usuario; con lentes en el
-resumen del día; y es quien da los avisos. Si una pose aún no existe, se usa la base. Respeta «reducir movimiento».
+Su mascota es un zorro DT, «el zorro del banco», con silbato, tablet táctica y cinta verde en la cola. Cada lugar
+tiene su pose y su animación: en el chat mira la tablet y luego al usuario (y se queda consultándola mientras piensa
+la respuesta); en el resumen del día explica con lentes y un brillo en el lente; en los avisos toca el silbato, con
+ondas de sonido, y salta cuando llega uno nuevo. Las ilustraciones se preparan con `scripts/prepare_mascot.py` (quita
+el fondo y recorta) y respetan «reducir movimiento».
 
 ![El Míster: cuerpo entero y cabeza en distintos tamaños](docs/img/readme/el-mister.png)
 

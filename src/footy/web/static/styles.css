@@ -1652,13 +1652,22 @@ section.view > .trust-hidden { display: none; }
 .brief-main { display: flex; align-items: flex-start; gap: var(--s-3); }
 .brief-pose { flex: none; }
 .brief-text { flex: 1; min-width: 0; }
-@media (max-width: 560px) { .brief-pose .mister { width: 72px; height: 72px; } }
+@media (max-width: 560px) { .brief-pose .mister-pose { --pose: 72px; } }
 /* Avisos: los da el Míster */
 .alerts-mister { flex: none; margin: -6px 0 -6px -4px; }
 /* Saludo del chat: mira la tablet y luego al usuario (dos cuadros que se alternan) */
 .mister-duo { position: relative; display: block; width: var(--duo); height: var(--duo); }
 .mister-duo .mister { position: absolute; inset: 0; width: 100%; height: 100%; }
 .mister-duo .duo-b { opacity: 0; }
+/* Poses con efecto: el contenedor fija el tamaño y los efectos se ubican en % de la ilustración */
+.mister-pose { position: relative; display: block; width: var(--pose); height: var(--pose); }
+.mister-pose .mister { width: 100%; height: 100%; }
+.alerts-empty .mister-pose { margin: 0 auto 4px; }
+.fx-glint { position: absolute; left: 53%; top: 31%; width: 13%; height: 13%; pointer-events: none; overflow: visible;
+  transform: scale(0); }
+.fx-glint path { fill: #fff8c4; stroke: #e0a400; stroke-width: 1; }
+.fx-waves { position: absolute; left: -6%; top: 40%; width: 26%; height: 26%; overflow: visible; pointer-events: none; }
+.fx-waves path { fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linecap: round; opacity: 0; }
 .mister-quote { flex: 1 1 100%; display: flex; align-items: center; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--grid); }
 .mister-quote .mister { flex: none; }
 .mister-quote p { margin: 0; font-size: var(--fs-sm); font-style: italic; color: var(--text-2); }
@@ -1669,10 +1678,31 @@ section.view > .trust-hidden { display: none; }
   .mister-live.is-thinking .mister-face { animation: fx-think 1.6s ease-in-out infinite; }
   .agent-fab:hover .mister-face { animation: fx-nod .6s ease-in-out; }
   .agent-fab .mister-face { animation: fx-pop .5s cubic-bezier(.34, 1.56, .64, 1) both; }
+  /* Chat: mira la tablet y luego al usuario; mientras piensa, se queda consultando la tablet */
+  .mister-duo { animation: fx-bob 4s ease-in-out infinite; }
   .mister-duo .duo-a { animation: fx-duo-a 7s ease-in-out infinite; }
   .mister-duo .duo-b { animation: fx-duo-b 7s ease-in-out infinite; }
-  .brief-pose .mister, .alerts-mister .mister { animation: fx-bob 4s ease-in-out infinite; }
+  .mister-duo.is-thinking .duo-a { animation: fx-study 1.2s ease-in-out infinite; opacity: 1; }
+  .mister-duo.is-thinking .duo-b { animation: none; opacity: 0; }
+  /* Resumen: explica con el dedo en alto y un destello cruza los lentes */
+  .pose-brief .mister { transform-origin: 50% 100%; animation: fx-explain 5s ease-in-out infinite; }
+  .pose-brief .fx-glint { animation: fx-glint 5s ease-in-out infinite; }
+  /* Avisos: ondas del silbato y salto cuando llega un aviso nuevo */
+  .pose-alerts .mister { transform-origin: 50% 100%; animation: fx-bob 3s ease-in-out infinite; }
+  .pose-alerts .fx-waves path { animation: fx-wave 2.4s ease-out infinite; }
+  .pose-alerts .fx-waves path:nth-child(2) { animation-delay: .18s; }
+  .pose-alerts .fx-waves path:nth-child(3) { animation-delay: .36s; }
+  .mister-pose.hop .mister { animation: fx-hop .7s cubic-bezier(.34, 1.56, .64, 1) 2; }
 }
+@keyframes fx-duo-a { 0%, 42% { opacity: 1; } 50%, 92% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes fx-duo-b { 0%, 42% { opacity: 0; } 50%, 92% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes fx-study { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-2.5deg) translateY(1px); } }
+@keyframes fx-explain { 0%, 60%, 100% { transform: rotate(0); } 70% { transform: rotate(-3deg); } 80% { transform: rotate(2deg); }
+  90% { transform: rotate(-1deg); } }
+@keyframes fx-glint { 0%, 62% { transform: scale(0) rotate(0); } 70% { transform: scale(1.1) rotate(45deg); } 78% { transform: scale(.8) rotate(80deg); }
+  86%, 100% { transform: scale(0) rotate(120deg); } }
+@keyframes fx-wave { 0% { opacity: 0; transform: translateX(4px); } 20% { opacity: 1; } 60%, 100% { opacity: 0; transform: translateX(-3px); } }
+@keyframes fx-hop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-10px) rotate(-4deg); } }
 @keyframes fx-duo-a { 0%, 42% { opacity: 1; } 50%, 92% { opacity: 0; } 100% { opacity: 1; } }
 @keyframes fx-duo-b { 0%, 42% { opacity: 0; } 50%, 92% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes fx-think { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-8deg); } 70% { transform: rotate(6deg); } }

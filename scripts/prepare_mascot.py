@@ -50,10 +50,10 @@ def remove_background(image: Image.Image, threshold: int = 60) -> Image.Image:
     return out.crop(out.getbbox())
 
 
-def face_crop(image: Image.Image, box: tuple[int, int, int, int], clear: tuple[int, int] | None = None,
-              fade: int = 28) -> Image.Image:
+def face_crop(image: Image.Image, box: tuple[int, int, int, int], clear: tuple[int, int] | None = None) -> Image.Image:
     """Cabeza cuadrada de 256 px; el borde inferior se desvanece en vez de cortar el cuello en seco."""
     crop = image.crop(box)
+    fade = max(4, crop.height // 14)            # proporcional: en imágenes chicas no debe tapar la boca
     px = crop.load()
     if clear:
         for y in range(clear[1], crop.height):
