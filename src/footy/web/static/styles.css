@@ -1823,10 +1823,17 @@ section.view > .trust-hidden { display: none; }
 
 /* Solo aparece con el modo de presentación activado. */
 .chat-demo-indicator { color: var(--text); font-size: 10px; line-height: 1.2; }
-.chat-trace { max-width: 100%; margin-top: 6px; padding: 6px 10px; border: 1px solid var(--line);
+.chat-trace { max-width: 100%; margin-top: 6px; padding: 6px 10px; border: 1px solid var(--border);
   border-radius: 10px; color: var(--muted); font-size: var(--fs-xs); overflow-wrap: anywhere; }
 .chat-trace summary { min-height: 32px; display: list-item; align-content: center; cursor: pointer; color: var(--text); }
 .chat-trace ol { margin: 8px 0 4px; padding-left: 18px; }
 .chat-trace li { margin: 6px 0; }
 .chat-trace b { color: var(--text); }
-@media (max-width: 640px) { .chat-trace summary { min-height: 44px; } }
+@media (max-width: 640px) {
+  .chat-trace summary { min-height: 44px; }
+  .chat-icon-btn, .chat-head .td-close, .chat-jump, .history-del { width: 44px; height: 44px; flex: none; }
+  .chat-actions { flex: none; }
+  .memory-list li span { min-width: 0; overflow-wrap: anywhere; }
+  #reco-tabs .tab { flex: 1; justify-content: center; flex-wrap: wrap; white-space: normal;
+    min-width: 0; min-height: 44px; padding: 8px 4px; gap: 3px; }
+}

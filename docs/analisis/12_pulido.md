@@ -90,3 +90,39 @@ Ejemplos: Chequia, España y Taiwán; juveniles conservan el sufijo. Mapa explí
 
 Validación: **691 pytest**, Ruff, sintaxis JS y **14 Node**. Pruebas de cifras intactas, entradas sin mutación,
 límites de palabra y find_team con «la roja»/Spain conservando el mismo match_id y nombre canónico.
+
+## P1-2 — Auditoría móvil final
+
+Chrome real, **390×844**, claro y oscuro: Apuestas, Avisos (estado vacío real), historial y memoria,
+chat arriba con botón ↓, chat abajo con modo demo, ficha Argentina–Uruguay y comparador DraftKings abierto.
+**14 variantes sin overflow horizontal ni errores JS**. La captura de Avisos no valida una alerta nueva:
+no se crearon vigilancias ni alertas artificiales para esta revisión.
+
+Correcciones: botones de cabecera/↓/borrado de memoria de 34–40 a 44 px; nombres largos en memoria se
+parten; las tres pestañas de Apuestas se ven completas sin desplazamiento horizontal; el borde del bloque
+demo usa el token existente `--border`. El botón ↓ aparece al subir y devuelve al final; en el chat se
+observó «España» conservando el nombre canónico en los datos. Detalle DraftKings legible, sin referencia
+Pinnacle ni ventaja inventada. Cambios solo de CSS; no cambia el comportamiento del agente.
+
+Capturas versionadas solo de las vistas modificadas: `docs/img/pulido/p1-2-{apuestas,historial,
+chat-arriba,chat-abajo}-{light,dark}.png`. Avisos/ficha/comparador sin cambios visuales nuevos quedan como
+evidencia local en `reports/pulido/p1-2-after.json` y PNG asociados.
+Validación final: **691 pytest**, Ruff, sintaxis de todos los JS estáticos y **14 Node**.
+
+## Entrega para auditoría
+
+Rama `feature/pulido`, seis tareas y seis commits independientes:
+
+| Tarea | Commit |
+|---|---|
+| P0-1 presentación | a28e380 |
+| P0-2 precios | 2a460f3 |
+| P0-3 verificación | c78bbed |
+| P0-4 evaluación | 8c39dc9 |
+| P1-1 nombres públicos | 81a2377 |
+| P1-2 móvil | `fix(web): pulir controles y pestañas en móvil` |
+
+Desviaciones explicadas: P0-2 corrige también el comparador que mostraba ventaja basada en modelo sin
+Pinnacle, dentro del alcance de presentación; la evaluación conserva el fallo real y la respuesta repetida;
+P1-1 usa JSON compartido en vez de YAML para evitar duplicar el mapa en JS. P2 no se implementa.
+Motor de predicción y tracking intactos. No se integra a main; queda para auditoría de Claude.
