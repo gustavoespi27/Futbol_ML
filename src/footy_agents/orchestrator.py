@@ -63,6 +63,25 @@ def has_tool_leak(text: str) -> bool:
     return bool(LEAK.search(text))
 
 
+def _comparison_findings(answer: str, data: dict) -> list[str]:
+    """Permite contexto sin cifras, conservando todas las líneas verificadas de la comparación."""
+    extra = answer
+    findings = []
+    for line in data["comparison_text"].splitlines():
+        if not line.strip():
+            continue
+        if line.strip() not in extra:
+            findings.append("Incluye todas las líneas de comparison_text sin reformularlas.")
+        else:
+            extra = extra.replace(line.strip(), "", 1)
+    if re.search(r"\d|[¼½¾]", extra):
+        findings.append("El contexto añadido a la comparación no debe introducir cifras.")
+    if not data.get("has_pinnacle", data.get("status") == "ok") and re.search(
+            r"\b(?:valor|ventaja|rentabilidad|rentable)\b", normalize_name(extra)):
+        findings.append("Sin Pinnacle no puedes afirmar presencia ni ausencia de valor fuera del texto verificado.")
+    return list(dict.fromkeys(findings))
+
+
 def strip_tool_mentions(text: str) -> str:
     """Quita solo las oraciones que nombran herramientas («puedes usar analyze_match»); el resto se conserva."""
     kept = [s for s in SENTENCE.findall(text) if not LEAK.search(s)]
@@ -527,12 +546,12 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         claims = check_claims(answer, turn.records)
         report.unverified.extend(claims.unverified)
         report.verified = report.verified and claims.verified
-        comparisons = [r.result["comparison_text"] for r in turn.records if r.success and r.tool_name == "request_odds"
+        comparisons = [r.result for r in turn.records if r.success and r.tool_name == "request_odds"
                        and isinstance(r.result, dict) and r.result.get("comparison_text")]
-        if comparisons and answer.strip() != comparisons[-1].strip():
-            report.verified = False
-            report.unverified.append("Copia comparison_text completo, sin añadir conclusiones ni reformularlo. "
-                                     "Sin Pinnacle no puedes afirmar presencia ni ausencia de valor.")
+        if comparisons:
+            findings = _comparison_findings(answer, comparisons[-1])
+            report.verified = report.verified and not findings
+            report.unverified.extend(findings)
         odds_results = [r.result for r in turn.records if r.success and r.tool_name == "analyze_match"
                         and isinstance(r.result, dict) and r.result.get("odds_status")]
         compared = any(r.success and r.tool_name == "request_odds" for r in turn.records)

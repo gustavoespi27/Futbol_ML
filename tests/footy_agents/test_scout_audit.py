@@ -83,3 +83,33 @@ def test_specific_calendar_offers_delegation(count, args, expected):
         execution_time_ms=0,
     )
     assert ("request_odds" in observe(record).options) is expected
+
+
+def test_comparison_with_intro_is_verified_without_repair(monkeypatch):
+    monkeypatch.setitem(tools.TOOLS_REGISTRY, "analyze_match", lambda **_: {**ENTITY, "status": "no_pinnacle"})
+    answer = "Míster, aquí está la comparación de precios:\n\n" + COMPARISON
+    client = FakeLLM([ToolCall("r", "request_odds", {"match_id": 42})], [TextDelta(answer)])
+    events = list(orchestrator.run_chat(client, "Compara cuotas", UserPreferences(), entities=ENTITY))
+    assert events[-1].data["success"]
+    assert "".join(e.data["delta"] for e in events if e.event == "token") == answer
+    assert not any(e.event == "step" and e.data["kind"] == "repair" for e in events)
+    assert len(client.messages) == 2
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        COMPARISON + "\nHay apuestas con valor.",
+        COMPARISON + "\nNo hay apuestas con valor.",
+        COMPARISON + "\nEl tope es 2 % por apuesta.",
+        COMPARISON + "\nLa cuota podría ser 9999.99.",
+        COMPARISON.splitlines()[0],
+    ],
+)
+def test_comparison_context_cannot_add_claims_or_omit_lines(monkeypatch, bad):
+    monkeypatch.setitem(tools.TOOLS_REGISTRY, "analyze_match", lambda **_: {**ENTITY, "status": "no_pinnacle"})
+    client = FakeLLM([ToolCall("r", "request_odds", {"match_id": 42})], [TextDelta(bad)], [TextDelta(COMPARISON)])
+    events = list(orchestrator.run_chat(client, "Compara cuotas", UserPreferences(), entities=ENTITY))
+    assert events[-1].data["success"]
+    assert "".join(e.data["delta"] for e in events if e.event == "token") == COMPARISON
+    assert any(e.event == "step" and e.data["kind"] == "repair" for e in events)
