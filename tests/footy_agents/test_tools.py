@@ -107,8 +107,8 @@ def test_tool_league_standings_mocked(monkeypatch):
 
     record = tools.execute_tool("get_league_standings", {"league": "CHL"})
     assert record.success is True
-    assert len(record.result["top_standings"]) == 8
-    assert record.result["top_standings"][0]["team"] == "Equipo 1"
+    assert len(record.result["standings"]) == 8
+    assert record.result["standings"][0]["team"] == "Equipo 1"
     assert "Códigos cercanos" in tools.execute_tool("get_league_standings", {"league": "XXX"}).error_message
 
 

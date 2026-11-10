@@ -44,7 +44,9 @@ NICKNAMES = {
     "la verde": "Bolivia", "la vinotinto": "Venezuela", "la blanquirroja": "Peru", "la bicolor": "Peru",
     "la albirroja": "Paraguay", "el tri": "Mexico", "la canarinha": "Brazil", "la verdeamarela": "Brazil",
     "los cafeteros": "Colombia", "el colo": "Colo Colo", "el cacique": "Colo Colo", "el popular": "Colo Colo",
-    "la u": "Universidad de Chile", "los azules": "Universidad de Chile", "la uc": "U. Catolica",
+    "la u": "Universidad de Chile", "u de chile": "Universidad de Chile", "la u de chile": "Universidad de Chile",
+    "u de ch": "Universidad de Chile", "u catolica": "U. Catolica", "los azules": "Universidad de Chile",
+    "la uc": "U. Catolica",
     "los cruzados": "U. Catolica", "la catolica": "U. Catolica",
 }
 STANDING_KEYS = ("pos", "teams", "points", "played", "won", "drawn", "lost", "gf", "ga")
@@ -417,29 +419,37 @@ def tool_simulate_match(league: str | None = None, home_team: str = "", away_tea
     return out
 
 
-def tool_get_league_standings(league: str) -> dict[str, Any]:
-    """Obtiene la tabla de posiciones y la racha reciente de una liga."""
+STANDINGS_PARTS = {"top": "primeros 8", "bottom": "últimos 6", "all": "tabla completa"}
+
+
+def tool_get_league_standings(league: str, part: str = "top") -> dict[str, Any]:
+    """Tabla de posiciones de una liga: los primeros (por defecto), los últimos o la tabla completa."""
     league = resolve_league(league)
     st = service.standings(league)
     if not st:
         return {"error": f"No hay tabla disponible para la liga {league}"}
+    rows = st["rows"]
+    shown = rows[-6:] if part == "bottom" else rows if part == "all" else rows[:8]
     return {
         "league": league,
         "league_name": st.get("league_name"),
         "season": st.get("season"),
-        "top_standings": [{
+        "teams": len(rows),
+        "part": part,
+        "standings": [{
             "position": row["pos"],
             "team": row["name"],
             "played": row["played"],
             "points": row["points"],
             "gd": row["gd"],
             "recent": row["recent"],
-        } for row in st["rows"][:8]],
+        } for row in shown],
         # Tabla lista para mostrar: la respuesta a «cómo va la tabla» es presentar datos, no redactarlos.
         "standings_text": "\n".join(
-            [f"{st.get('league_name') or league} {st.get('season') or ''}".strip() + " · primeros 8:"]
+            [f"{st.get('league_name') or league} {st.get('season') or ''}".strip()
+             + f" · {STANDINGS_PARTS.get(part, 'primeros 8')} de {len(rows)}:"]
             + [f"{row['pos']}. {row['name']} — {row['points']} pts ({row['played']} PJ, DG {row['gd']:+d})"
-               for row in st["rows"][:8]]),
+               for row in shown]),
     }
 
 

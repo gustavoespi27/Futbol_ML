@@ -3,6 +3,7 @@
 import pytest
 
 from footy_agents import orchestrator, tools
+from footy_agents.llm import TextDelta
 from footy_agents.routing import intent_route
 from footy_agents.schemas import UserPreferences
 
@@ -110,3 +111,59 @@ def test_hypothetical_matchup_routes_to_simulation_and_scheduled_to_analysis(mon
         "simulate_match", {"home_team": "colo colo", "away_team": "barcelona de espana"})
     assert intent_route("quién ganaría Colombia contra Chile", None) == ("analyze_match", {"match_id": 181043})
     assert tools.find_club("barcelona de espana")[0]["name"] == "Barcelona"
+
+
+def test_clarification_completes_the_pending_simulation(monkeypatch):
+    calls = []
+
+    def cross(home_league, away_league, home_id, away_id, odds):
+        calls.append((home_id, away_id))
+        return {"home": "Colo Colo", "away": "Real Madrid", "source": "modelo entre ligas", "xg": [0.9, 2.3],
+                "p_model": [.12, .18, .70], "top_scores": [["0-2", .11]]}
+    monkeypatch.setattr(tools.service, "predict_cross", cross)
+    monkeypatch.setattr(tools, "load_params", lambda: {})
+    monkeypatch.setattr(tools.service, "upcoming", lambda: [])
+    monkeypatch.setattr(orchestrator, "upcoming_focus", lambda _: None)
+    first: dict = {}
+    events = list(orchestrator.run_chat(Recorder(), "que pasa si juega colo colo vs el real?", UserPreferences(),
+                                        consulted_entities=first))
+    assert "Real Madrid (La Liga); Real Salt Lake (MLS)" in "".join(e.data["delta"] for e in events
+                                                                   if e.event == "token")
+    assert first["clarify"]["options"][0]["team"] == "Real Madrid"
+    assert orchestrator.clarification_reply("qué partidos hay hoy", first) is None     # otro tema: no se secuestra
+    assert orchestrator.clarification_reply("el segundo", first)[1] == "Real Salt Lake"
+    client = Recorder([TextDelta("Real Madrid es favorito con 70%.")])
+    events = list(orchestrator.run_chat(client, "real madrid", UserPreferences(), entities=first))
+    assert calls == [(93, 900)]
+    assert any(e.event == "step" and "Aclaración recibida: Real Madrid" in e.data["text"] for e in events)
+    assert "".join(e.data["delta"] for e in events if e.event == "token") == "Real Madrid es favorito con 70%."
+
+
+def test_table_follow_up_keeps_the_league_and_shows_the_bottom(monkeypatch):
+    rows = [{"pos": i, "name": f"Equipo {i}", "played": 12, "points": 40 - i, "gd": 10 - i, "recent": []}
+            for i in range(1, 21)]
+    monkeypatch.setattr(tools.service, "standings", lambda code: {"league_name": "La Liga", "season": "2026",
+                                                                 "rows": rows})
+    monkeypatch.setattr(tools.service, "upcoming", lambda: [])
+    monkeypatch.setattr(orchestrator, "upcoming_focus", lambda _: None)
+    first: dict = {}
+    list(orchestrator.run_chat(Recorder(), "¿cómo va la tabla de la liga española?", UserPreferences(),
+                               consulted_entities=first))
+    assert first["league"] == "SP1"
+    assert intent_route("y cuáles son los últimos de la tabla?", first) == (
+        "get_league_standings", {"league": "SP1", "part": "bottom"})
+    client = Recorder()                                   # sin turnos: la tabla sale sin inferencia
+    events = list(orchestrator.run_chat(client, "y cuáles son los últimos de la tabla?", UserPreferences(),
+                                        entities=first))
+    text = "".join(e.data["delta"] for e in events if e.event == "token")
+    assert "últimos 6 de 20" in text and "20. Equipo 20" in text and "1. Equipo 1 " not in text
+    assert client.calls == []
+
+
+def test_hypothetical_phrasings_are_matchups_even_after_another_match(monkeypatch):
+    monkeypatch.setattr(tools.service, "upcoming", lambda: [{"ref": "m:181043", "home": "Colombia", "away": "Chile"}])
+    previous = {"match_id": 181043, "home": "Colombia", "away": "Chile"}
+    expected = ("simulate_match", {"home_team": "u de chile", "away_team": "barcelona"})
+    assert intent_route("que pása si se enfrenta u de chile vs barcelona?", previous) == expected
+    assert intent_route("no te pregunté por ese partido, te pregunté que si en el hipotético caso que se enfrente "
+                        "u de chile vs barcelona cuáles son los porcentajes de cada uno", previous) == expected

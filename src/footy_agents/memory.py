@@ -84,10 +84,19 @@ def recent_entities(conn: sqlite3.Connection, user_id: str, now: datetime | None
 def entities_from(record: ToolCallRecord) -> dict:
     """Conserva identificadores y nombres, nunca probabilidades ni precios pasados."""
     if not record.success or record.tool_name not in {
-        "analyze_match", "request_odds", "find_team", "simulate_match", "get_team_form", "get_upcoming_matches"
+        "analyze_match", "request_odds", "find_team", "simulate_match", "get_team_form", "get_upcoming_matches",
+        "get_league_standings"
     }:
         return {}
     result = record.result
+    if record.tool_name == "get_league_standings":
+        # «¿y los últimos?» después de una tabla: la liga consultada sigue siendo el tema.
+        return {k: result[k] for k in ("league", "league_name") if isinstance(result, dict) and result.get(k)}
+    if record.tool_name == "simulate_match" and isinstance(result, dict) and result.get("status") == "ambiguous":
+        # Pregunta pendiente: «¿cuál Real?». La respuesta siguiente («Real Madrid») completa esta misma simulación.
+        return {"clarify": {"tool": "simulate_match", "args": dict(record.arguments),
+                            "options": [{"team": o["team"], "league_name": o.get("league_name", "")}
+                                        for o in result.get("options", [])]}}
     if record.tool_name == "get_upcoming_matches":
         if not isinstance(result, list) or not result:
             return {"shown_ids": []}

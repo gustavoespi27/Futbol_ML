@@ -83,6 +83,37 @@ def _comparison_findings(answer: str, data: dict) -> list[str]:
     return list(dict.fromkeys(findings))
 
 
+ORDINALS = {"primero": 0, "primera": 0, "1": 0, "segundo": 1, "segunda": 1, "2": 1, "tercero": 2, "tercera": 2,
+            "3": 2}
+
+
+def clarification_reply(message: str, entities: dict | None) -> tuple[str, str] | None:
+    """Respuesta a «¿cuál de estos equipos?»: si calza con una opción pendiente, devuelve la consulta original
+    completada («simula colo colo contra real madrid») y el equipo elegido. None si no es una respuesta a eso."""
+    pending = (entities or {}).get("clarify")
+    if not pending or pending.get("tool") != "simulate_match" or len(message.split()) > 8:
+        return None
+    q = normalize_name(message)
+    words = set(q.split())
+    options = pending.get("options", [])
+    chosen = next((o for o in options if normalize_name(o["team"]) == q), None)
+    chosen = chosen or next((o for o in options
+                             if (set(normalize_name(o["team"]).split()) - {"fc", "cf"}) <= words), None)
+    chosen = chosen or next((options[ORDINALS[w]] for w in words if w in ORDINALS and ORDINALS[w] < len(options)), None)
+    chosen = chosen or next((o for o in options if o.get("league_name") and
+                             normalize_name(o["league_name"]) in q), None)
+    if chosen is None:
+        return None
+    args = dict(pending.get("args", {}))
+    team = normalize_name(chosen["team"])
+    for side in ("home_team", "away_team"):
+        raw = normalize_name(str(args.get(side, "")))
+        if raw and set(raw.split()) - {"el", "la", "los", "las"} <= set(team.split()):
+            args[side] = chosen["team"]
+            break
+    return f"simula {args.get('home_team', '')} contra {args.get('away_team', '')}", chosen["team"]
+
+
 def league_reply(message: str, history: list[dict] | None) -> tuple[str, str] | None:
     """Respuesta corta que solo nombra una liga justo después de que el Míster pidió precisarla: devuelve la pregunta
     anterior completada con esa liga y su código. None en cualquier otro caso."""
@@ -367,6 +398,11 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         yield ChatEvent(event="token", data={"delta": greeting or intro_text(user_name)})
         yield ChatEvent(event="done", data={"iterations": 0, "success": True})
         return
+    clarified = clarification_reply(message, entities)
+    if clarified:
+        # «real madrid» tras «¿cuál Real?»: completa la simulación pendiente en vez de abrir un tema nuevo.
+        yield _step("observation", f"Aclaración recibida: {clarified[1]}; se retoma la simulación pendiente.")
+        message = clarified[0]
     retaken = league_reply(message, history)
     if retaken:
         # «chl» tras «¿qué liga?»: no es un tema nuevo, completa la pregunta anterior con la liga resuelta.
@@ -446,7 +482,8 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         focus = None if entities and entities.get("match_id") else upcoming_focus(message)
     except Exception:  # noqa: BLE001 - precarga opcional; el fallo no debe impedir el chat
         focus = None
-    if route and route[0] in {"simulate_match", "get_league_standings"} and route[1] and not writing:
+    if route and not writing and (route[0] == "get_league_standings" and route[1].get("league")
+                                  or route[0] == "simulate_match" and route[1].get("home_team")):
         # Datos que la pregunta pide sin ambigüedad: se consultan antes de redactar. La tabla y una ambigüedad de
         # nombres se muestran tal cual; la simulación la redacta el modelo con el resultado ya en mano.
         call = ToolCall(id=f"preload_{route[0]}", name=route[0], arguments=route[1])
@@ -456,6 +493,9 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         data = record.result if record.success and isinstance(record.result, dict) else {}
         direct = data.get("standings_text") or (data.get("note") if data.get("status") == "ambiguous" else None)
         if direct:
+            if consulted_entities is not None and turn.entities:      # la aclaración pendiente pasa al turno siguiente
+                consulted_entities.clear()
+                consulted_entities.update(turn.entities)
             yield ChatEvent(event="token", data={"delta": direct})
             yield ChatEvent(event="done", data={"iterations": 0, "success": True})
             return

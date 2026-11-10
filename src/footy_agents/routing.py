@@ -7,16 +7,29 @@ from footy_agents.names import normalize_name
 from footy_agents.tools import NICKNAMES, league_in_text, service, upcoming_focus
 
 # Cruce hipotético entre dos equipos: «¿quién ganaría Colo Colo contra el Barcelona?», «simula A vs B».
-MATCHUP = re.compile(r"(?:quien ganaria|ganaria|simula(?:r|cion)?(?: de)?|si jugaran|que pasaria si juega[n]?)\s+"
+MATCHUP = re.compile(r"(?:quien ganaria|ganaria|simula(?:r|cion)?(?: de)?|si jugaran|que pasa(?:ria)? si juega[n]?|"
+                     r"si juega[n]?|como saldria|como seria|(?:si |que )?se enfrent(?:a|an|ara|aran|ase|asen|e|en)|"
+                     r"enfrentamiento(?: entre)?|"
+                     r"hipotetico(?: caso)?(?: de)?(?: que)?(?: se enfrent(?:a|an|e|en)| jueguen?| juega[n]?)?)\s+"
                      r"(?:un partido entre |el partido |entre )?(.+?)\s+(?:contra|vs|versus|frente a|y)\s+(.+)$")
+# Lo que sigue al segundo equipo es la pregunta, no el nombre: «… vs barcelona, ¿cuáles son los porcentajes?».
+TAIL = re.compile(r"[,?]|\s(?:cuales?|quien|que|como|cuanto|con que|porcentajes?|probabilidad)\b.*$")
+# «Colo Colo vs Barcelona» a secas: solo frases cortas, para no confundir preguntas largas con un cruce.
+BARE_MATCHUP = re.compile(r"^(.+?)\s+(?:contra|vs|versus)\s+(.+)$")
 ARTICLE = re.compile(r"^(?:el|la|los|las|al|a)\s+")
+ACTION_WORDS = {"analiza", "partido", "pronostico", "cuotas", "cuota", "como", "que", "quien", "tabla", "forma",
+                "llega", "juega", "juegan", "jugo", "fue", "paga", "compara", "dame", "muestra"}
 
 
 def matchup(q: str) -> tuple[str, str] | None:
     m = MATCHUP.search(q)
+    bare = None if m else BARE_MATCHUP.search(q)
+    if bare and any(len(side.split()) > 3 or set(side.split()) & ACTION_WORDS for side in bare.groups()):
+        bare = None
+    m = m or bare
     if not m:
         return None
-    home, away = (ARTICLE.sub("", side).strip() for side in m.groups())
+    home, away = (ARTICLE.sub("", TAIL.split(side, maxsplit=1)[0]).strip() for side in m.groups())
     return (home, away) if home and away else None
 
 
@@ -34,6 +47,10 @@ def _scheduled(home: str, away: str) -> int | None:
 ODDS_INTENT = re.compile(r"\b(?:cuanto paga|cuotas?|compara cuotas|que casa paga mas)\b")
 
 
+# Preguntas cortas sobre una tabla ya mostrada («¿y los últimos?»): continúan solo si hay una liga en el contexto.
+TABLE_FOLLOW = r"\b(?:tabla|ultimos|primeros|descenso|lider|puntero|colista)\b"
+
+
 def is_follow_up(message: str, entities: dict | None) -> bool:
     """Solo referencias cortas sin un equipo o liga distintos conservan memoria."""
     q = normalize_name(message).lstrip("¿¡ ")
@@ -45,6 +62,7 @@ def is_follow_up(message: str, entities: dict | None) -> bool:
                                                 "el primero", "el segundo", "la primera", "de la lista",
                                                 "compara cuotas", "cuanto paga", "que casa paga mas",
                                                 "cuota", "cuotas"))
+        or ((entities or {}).get("league") and re.search(TABLE_FOLLOW, q))
     ):
         return False
     entities = entities or {}
@@ -110,7 +128,7 @@ def intent_route(message: str, entities: dict | None = None) -> tuple[str, dict]
         (r"por que no hay|cobertura|actualizad", "get_coverage"),
         (r"valor|ventaja", "get_value_bets"),
         (r"como llega|forma|racha", "get_team_form"),
-        (r"tabla|posicion", "get_league_standings"),
+        (r"tabla|posicion|ultimos|descenso|colista|lider|puntero", "get_league_standings"),
         (r"simula", "simulate_match"),
         (r"partidos?.*(?:vienen|hay|juega)|calendario|(?:otros?|mas).*partidos?|"
          r"partidos.*(?:importantes?|destacad|grandes?)", "get_upcoming_matches"),
@@ -133,7 +151,9 @@ def intent_route(message: str, entities: dict | None = None) -> tuple[str, dict]
                 args = {"team": entities["team"]}
             elif tool == "get_league_standings":
                 league = league_in_text(message) or (entities or {}).get("league")
-                args = {"league": league} if league else {}
+                part = ("bottom" if re.search(r"ultimos|descenso|colista|zona baja|abajo|peores|cola", q) else
+                        "all" if re.search(r"completa|toda la tabla|todos los equipos", q) else "top")
+                args = {"league": league, **({"part": part} if part != "top" else {})} if league else {}
             return tool, args
     if entities and entities.get("shown_ids") and re.match(r"^(?:si|dale|ok|otros?|otras?|mas)\b", q):
         return "get_upcoming_matches", calendar_args(message, entities)

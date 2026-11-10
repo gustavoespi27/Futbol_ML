@@ -55,6 +55,7 @@ class SimulationArgs(AgentSchema):
 
 class StandingsArgs(AgentSchema):
     league: str = Field(min_length=1, max_length=100)
+    part: Literal["top", "bottom", "all"] = "top"
 
 
 class StakeArgs(AgentSchema):
