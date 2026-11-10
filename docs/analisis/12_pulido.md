@@ -38,3 +38,10 @@ Validación: **665 pytest**, Ruff, sintaxis JS y **13 pruebas Node**. Argentina�
 del modelo presentado como referencia. Chrome 390/1440, sin errores JS ni overflow.
 Capturas `docs/img/pulido/p0-2-argentina-{lista-1440,detalle-390,detalle-1440}.png`;
 evidencia local `reports/pulido/p0-2-ui.json`.
+
+## P0-3 — Frescura y porcentajes
+
+check_claims exige get_coverage exitoso en el turno para afirmar frescura; una consulta fallida no basta.
+Detecta porcentajes presentados como cuotas, preservando cuota decimal y probabilidad/ventaja correctamente
+identificadas. Pruebas positivas, negativas y reparación con FakeLLM que consulta cobertura.
+Validación: **688 pytest** y Ruff. No cambia el motor ni los contratos SSE.

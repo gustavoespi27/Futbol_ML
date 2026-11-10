@@ -137,6 +137,23 @@ def check_claims(answer: str, records: list[ToolCallRecord]) -> GroundingReport:
             findings.append(f"Fecha narrada sin respaldo local: {match[0]}.")
     # No separar decimales ni miles al dividir oraciones; los dos topes correctos pueden coexistir en un párrafo.
     sentences = re.split(r"(?<!\d)[.!?;\n]+|[.!?;\n]+(?!\d)", answer)
+    coverage_consulted = any(r.success and r.tool_name == "get_coverage" for r in records)
+    for sentence in sentences:
+        q = normalize_name(sentence)
+        if not coverage_consulted:
+            for match in re.finditer(r"\b(?:datos (?:estan )?actualizados|al dia|recien actualizados|"
+                                     r"actualizados hasta el momento)\b", q):
+                prefix = q[max(0, match.start() - 45):match.start()]
+                if not re.search(r"\b(?:no|sin|si|cuando|confirmar|comprobar|verificar|consultar)\b", prefix):
+                    findings.append("Para afirmar frescura consulta get_coverage.")
+        if re.search(r"\bcuotas?\b", q):
+            for percent in re.finditer(r"\d+(?:[.,]\d+)?\s*%", sentence):
+                prefix = normalize_name(sentence[:percent.start()])
+                quotas = list(re.finditer(r"\bcuotas?\b", prefix))
+                labels = list(re.finditer(
+                    r"\b(?:probabilidad(?:es)?|ventaja|riesgo|banca|stake|kelly|tope|aciertos?)\b", prefix))
+                if quotas and (not labels or labels[-1].start() < quotas[-1].start()):
+                    findings.append("Un porcentaje es probabilidad, no cuota.")
     # Un partido ya jugado (p. ej. el último de la forma reciente) no puede presentarse como el próximo.
     today = datetime.now(LOCAL_TZ).date()
     for sentence in sentences:
