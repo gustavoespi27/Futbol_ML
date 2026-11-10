@@ -1820,3 +1820,13 @@ section.view > .trust-hidden { display: none; }
 @keyframes fx-think { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-8deg); } 70% { transform: rotate(6deg); } }
 @keyframes fx-nod { 0%, 100% { transform: rotate(0); } 35% { transform: rotate(-10deg) scale(1.05); } 70% { transform: rotate(4deg); } }
 @keyframes fx-pop { from { transform: scale(.6) translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Solo aparece con el modo de presentación activado. */
+.chat-demo-indicator { color: var(--text); font-size: 10px; line-height: 1.2; }
+.chat-trace { max-width: 100%; margin-top: 6px; padding: 6px 10px; border: 1px solid var(--line);
+  border-radius: 10px; color: var(--muted); font-size: var(--fs-xs); overflow-wrap: anywhere; }
+.chat-trace summary { min-height: 32px; display: list-item; align-content: center; cursor: pointer; color: var(--text); }
+.chat-trace ol { margin: 8px 0 4px; padding-left: 18px; }
+.chat-trace li { margin: 6px 0; }
+.chat-trace b { color: var(--text); }
+@media (max-width: 640px) { .chat-trace summary { min-height: 44px; } }

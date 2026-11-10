@@ -97,6 +97,42 @@ const agentApi = async (path, opts = {}) => {
 };
 const userQuery = `user_id=${encodeURIComponent(AGENT_USER)}`;
 
+let demoMode = false;
+try { demoMode = FootyDemo.enabled(location.search, sessionStorage.getItem("mister-demo")); }
+catch (e) { demoMode = FootyDemo.enabled(location.search, null); }
+function renderChatTrace(msg) {
+  let details = msg.querySelector(".chat-trace");
+  if (!demoMode || !msg.demoTrace?.length) { if (details) details.remove(); return; }
+  if (!details) {
+    details = document.createElement("details");
+    details.className = "chat-trace";
+    details.open = chat.busy;
+    details.innerHTML = "<summary>Cómo lo resolvió</summary><ol></ol>";
+    msg.append(details);
+  }
+  details.querySelector("ol").innerHTML = msg.demoTrace.map(row => {
+    const state = row.type !== "tool" ? "" : row.pending ? " · en curso" : ` · ${row.success ? "✓" : "✕"}`
+      + (row.ms === null ? "" : ` · ${new Intl.NumberFormat("es-CL", { maximumFractionDigits: 1 }).format(row.ms)} ms`);
+    return `<li><b>${esc(row.label + state)}</b>${row.text ? `<br>${esc(row.text)}` : ""}</li>`;
+  }).join("");
+}
+function setDemoMode(value) {
+  demoMode = value;
+  try { sessionStorage.setItem("mister-demo", value ? "1" : "0"); } catch (e) { /* sesión sin storage */ }
+  $("#chat-demo-indicator").hidden = !value;
+  chatEl(".chat-log").querySelectorAll(".msg.bot").forEach(renderChatTrace);
+}
+setDemoMode(demoMode);
+window.addEventListener("keydown", e => {
+  if (e.ctrlKey && e.shiftKey && e.code === "KeyD") {
+    e.preventDefault();
+    const url = new URL(location.href);
+    url.searchParams.delete("demo");
+    history.replaceState(null, "", url);
+    setDemoMode(!demoMode);
+  }
+});
+
 function toggleChat(force) {
   if ((force ?? !chat.open) && !chat.open) chatReturnFocus = document.activeElement;
   chat.open = force ?? !chat.open;
@@ -183,6 +219,12 @@ async function sendChat(message) {
   chatEl(".chat-suggest").hidden = true;
   chatBubble("user", agentText(message));
   const msg = chatBubble("bot");
+  msg.demoTrace = [];
+  const trace = (event, data) => {
+    msg.demoTrace = FootyDemo.append(msg.demoTrace, event, data);
+    renderChatTrace(msg);
+    if (demoMode) scrollChat();
+  };
   const out = $(".msg-text", msg);
   out.innerHTML = `<span class="msg-thinking">El Míster está revisando la pizarra<i></i><i></i><i></i></span>`;
   scrollChat({ force: true });                      // al preguntar se baja de inmediato para ver que está pensando
@@ -194,6 +236,9 @@ async function sendChat(message) {
       setConversation(created.id);
     }
     await agentStream("/api/agent/chat", { body: { message, user_id: AGENT_USER, conversation_id: chat.conversationId }, on: {
+      step: d => trace("step", d),
+      tool_start: d => trace("tool_start", d),
+      tool_result: d => trace("tool_result", d),
       token: (d) => { text += d.delta; out.innerHTML = agentText(text); scroll(); },
       error: (d) => {
         if (!text) out.textContent = "";
