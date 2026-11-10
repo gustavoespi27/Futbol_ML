@@ -44,3 +44,13 @@ el seguimiento real usa `analyze_match(181043)`. Recuperación por intención or
 Evaluación real en orden: herramienta esperada 5/10 → 10/10, copias literales 2 → 0. Ver tabla y límites
 semánticos detectados en `analisis/08_capa_agentica.md`. 392 pytest, cobertura 95,16 %, Ruff y ocho tests web verdes.
 Se detiene tras el commit fix para revisión de Gustavo; no se inicia la pieza 4.
+
+### Corrección de interpretación previa a pieza 4
+
+`c8fceab` aprobado en vivo por Gustavo. Se añadieron textos canónicos a forma, límites y rendimiento,
+y `check_claims` para topes cruzados, conteos de últimos partidos y polaridad de CLV. Se integra en la
+reparación existente, sin ampliar eventos SSE ni tocar el motor. 420 pytest, cobertura 95,36 %, Ruff y
+ocho pruebas web correctos. Batería real: 9/10 herramientas, sin copias; las tres confusiones corregidas.
+La revisión manual en `analisis/08_capa_agentica.md` registra también un bloqueo, la pérdida de contexto
+subsiguiente y límites pendientes de tiempo/cobertura y omisiones. No se declara corrección semántica general.
+Se detiene tras este commit fix para revisión; pieza 4 pendiente.

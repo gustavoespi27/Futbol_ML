@@ -1,4 +1,4 @@
-"""Verificación numérica superficial: procedencia de cifras, no veracidad semántica de afirmaciones."""
+"""Procedencia numérica y comprobaciones acotadas de confusiones semánticas conocidas."""
 
 import re
 from datetime import datetime, timezone
@@ -6,6 +6,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from footy.betting import pro
+from footy_agents.names import normalize_name
 from footy_agents.schemas import AgentSchema, ToolCallRecord
 
 LOCAL_TZ = ZoneInfo("America/Santiago")
@@ -91,3 +92,45 @@ def verify_numbers(answer: str, records: list[ToolCallRecord], user_message: str
                                 if not any(abs(value - candidate) <= tolerance + 1e-12 for candidate in known)))
     missing = bad_dates + missing
     return GroundingReport(verified=not missing, unverified=missing)
+
+
+def check_claims(answer: str, records: list[ToolCallRecord]) -> GroundingReport:
+    """Detecta límites cruzados, conteos de forma y polaridad de CLV; no es un verificador semántico general."""
+    findings: list[str] = []
+    # No separar decimales ni miles al dividir oraciones; los dos topes correctos pueden coexistir en un párrafo.
+    sentences = re.split(r"(?<!\d)[.!?;\n]+|[.!?;\n]+(?!\d)", answer)
+    for sentence in sentences:
+        q = normalize_name(sentence)
+        percentages = [value for raw, value, _ in _numbers(sentence) if raw.endswith("%")]
+        if (any(abs(p - pro.MAX_STAKE) < 1e-9 for p in percentages) and re.search(r"\b(?:dia|diario|diaria)\b", q)
+                or any(abs(p - pro.MAX_DAILY) < 1e-9 for p in percentages) and "por apuesta" in q):
+            findings.append("Topes cruzados: el 2 % es por apuesta y el 10 % es diario; copia limits_text.")
+    form_records = [r for r in records if r.success and r.tool_name == "get_team_form"
+                    and isinstance(r.result, dict) and r.result.get("last5_counts")]
+    # Solo comparar automáticamente si hay un único equipo: no atribuir conteos de un equipo al otro.
+    if len({r.result.get("team") for r in form_records}) == 1:
+        counts = form_records[-1].result["last5_counts"]
+        q = normalize_name(answer)
+        for pattern, key in ((r"(?:gano|ganado|ganados|gana)", "won"),
+                             (r"(?:empato|empatado|empatados|empata)", "drawn"),
+                             (r"(?:perdio|perdido|perdidos|pierde)", "lost")):
+            for match in re.finditer(r"\b" + pattern + r"\s+(\d+)\b", q):
+                if int(match[1]) != counts[key]:
+                    findings.append(f"Conteo de forma incorrecto para {key}; copia form_text.")
+    clv_records = [r for r in records if r.success and r.tool_name == "get_system_performance"
+                   and isinstance(r.result, dict) and (r.result.get("tracking") or {}).get("bets_clv") is not None]
+    if clv_records:
+        raw = clv_records[-1].result["tracking"]["bets_clv"]
+        value = _numbers(str(raw))[0][1] if isinstance(raw, str) else float(raw)
+        for sentence in sentences:
+            q = normalize_name(sentence)
+            if "clv" not in q and "linea de cierre" not in q:
+                continue
+            positive = bool(re.search(r"\b(?:positivo|positiva|favorable|ganador|ganadora|mejor precio|se gano)\b", q))
+            negative = bool(re.search(r"\b(?:negativo|negativa|desfavorable|perdedor|peor precio|se perdio)\b", q))
+            # Excluir negaciones simples, preservando «no es desfavorable» como juicio positivo.
+            positive = positive and not re.search(r"\bno (?:es |fue )?(?:positivo|positiva|favorable|ganador)\b", q)
+            negative = negative and not re.search(r"\bno (?:es |fue )?(?:negativo|negativa|desfavorable)\b", q)
+            if value < 0 and positive or value > 0 and negative:
+                findings.append("Interpretación del CLV invertida; copia assessment.")
+    return GroundingReport(verified=not findings, unverified=list(dict.fromkeys(findings)))

@@ -197,16 +197,50 @@ def tool_get_league_standings(league: str) -> dict[str, Any]:
     }
 
 
+def performance_assessment(tracking: dict[str, Any]) -> str:
+    """Interpreta métricas disponibles sin atribuir al mercado una tasa de acierto inexistente."""
+    parts = []
+    clv = tracking.get("bets_clv")
+    if clv is None:
+        parts.append("CLV: sin datos disponibles.")
+    elif clv < 0:
+        parts.append(f"CLV {_pct(clv)}: las apuestas se tomaron a peor precio que el cierre; señal desfavorable.")
+    elif clv > 0:
+        parts.append(f"CLV {_pct(clv)}: las apuestas se tomaron a mejor precio que el cierre; señal favorable.")
+    else:
+        parts.append("CLV 0 %: sin diferencia media frente al precio de cierre; señal neutra.")
+    yield_ = tracking.get("bets_yield")
+    parts.append("Yield: sin datos disponibles." if yield_ is None else
+                 f"Yield {_pct(yield_)}: {'pérdida' if yield_ < 0 else 'ganancia' if yield_ > 0 else 'equilibrio'} "
+                 "por unidad apostada en el seguimiento en papel.")
+    hit = tracking.get("hit_rate")
+    parts.append("Aciertos 1X2: sin datos disponibles." if hit is None else
+                 f"Aciertos 1X2: {_pct(hit)} de los pronósticos evaluados; no es rentabilidad de apuestas.")
+    parts.append("No hay una tasa de acierto 1X2 del mercado en esta herramienta; no se puede comparar ese porcentaje.")
+    official, market = tracking.get("ll_official"), tracking.get("ll_market")
+    if official is None or market is None:
+        parts.append("Log loss: faltan datos para comparar el pronóstico oficial con el mercado.")
+    else:
+        best = "el mercado es mejor" if market < official else (
+            "el pronóstico oficial es mejor" if official < market else "ambos son iguales")
+        parts.append(f"Log loss oficial {official:.4f} frente a mercado {market:.4f}: menor es mejor; {best} "
+                     "en estas medias publicadas. La comparación no demuestra superioridad estadística "
+                     "ni garantiza muestras idénticas.")
+    return " ".join(parts)
+
+
 def tool_get_system_performance() -> dict[str, Any]:
     """Rendimiento real del sistema: seguimiento en vivo (aciertos, log loss, apuestas en papel) y motor vigente."""
     ov = service.overview()
     tracking = dict(ov.get("tracking") or {})
+    assessment = performance_assessment(tracking)
     for key in ("hit_rate", "bets_yield", "bets_clv"):     # fracciones -> porcentaje listo para citar
         if tracking.get(key) is not None:
             tracking[key] = _pct(tracking[key])
     return {
         "model_version": ov.get("model_version"),
         "tracking": tracking,
+        "assessment": assessment,
         "engine": ov.get("engine"),
         "last_daily_run": ov.get("last_daily_run"),
         "glossary": {
@@ -324,14 +358,18 @@ def tool_get_team_form(team: str) -> dict[str, Any]:
         raise ValueError(f"Sin ficha disponible para {team}")
     letters = {"W": "G", "D": "E", "L": "P"}
     recent = profile.get("recent") or []
+    last = recent[-5:]
+    counts = {key: sum(r["outcome"] == outcome for r in last)
+              for key, outcome in (("won", "W"), ("drawn", "D"), ("lost", "L"))}
+    form = "".join(letters.get(r["outcome"], "?") for r in last)
+    form_text = (f"En sus últimos {len(last)} partidos ganó {counts['won']}, empató {counts['drawn']} "
+                 f"y perdió {counts['lost']} ({form}, más antiguo a la izquierda)." if last
+                 else "No hay partidos recientes disponibles para evaluar su forma.")
     standing, season = profile.get("standing"), profile.get("season")
     return {
         "team": profile["name"], "league_name": profile.get("league_name"),
         "standing": None if not standing else {k: standing[k] for k in STANDING_KEYS},
-        "form_last5": "".join(letters.get(r["outcome"], "?") for r in recent[-5:]),
-        "last5_counts": {"won": sum(r["outcome"] == "W" for r in recent[-5:]),
-                         "drawn": sum(r["outcome"] == "D" for r in recent[-5:]),
-                         "lost": sum(r["outcome"] == "L" for r in recent[-5:])},
+        "form_last5": form, "last5_counts": counts, "form_text": form_text,
         "last_results": [{"date": r["date"][:10], "opponent": r["opponent"], "home": r["is_home"],
                           "score": f"{r['score'][0]}-{r['score'][1]}", "result": letters.get(r["outcome"], "?"),
                           "competition": r.get("league_name")} for r in recent[-5:]],
@@ -352,6 +390,9 @@ def tool_get_stake_limits(bankroll: float) -> dict[str, Any]:
             "max_per_bet_clp": clp(single), "max_daily_clp": clp(daily),
             "kelly_fraction": pro.KELLY_FRACTION, "max_stake_fraction": pro.MAX_STAKE,
             "max_daily_fraction": pro.MAX_DAILY,
+            "limits_text": f"Tope por apuesta: {clp(single)} ({pro.MAX_STAKE * 100:g} % de la banca). "
+                           f"Tope diario: {clp(daily)} ({pro.MAX_DAILY * 100:g} % de la banca). "
+                           "Son topes, no una apuesta sugerida.",
             "note": "Son topes de exposición, no una apuesta sugerida. El monto depende del precio justo de Pinnacle."}
 
 

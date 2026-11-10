@@ -11,7 +11,7 @@ from collections.abc import Iterator
 from datetime import datetime
 
 from footy.web.services.context import LOCAL_TZ
-from footy_agents.grounding import verify_numbers
+from footy_agents.grounding import check_claims, verify_numbers
 from footy_agents.llm import LLMBusy, LLMClient, LLMUnavailable, TextDelta, ToolCall
 from footy_agents.memory import entities_from
 from footy_agents.observations import RECOVERABLE, Observation, observe
@@ -93,6 +93,8 @@ Reglas estrictas:
 14. Los mensajes anteriores de la conversación son contexto: vuelve a consultar las herramientas para las cifras.
 15. Termina respondiendo la pregunta original del usuario. Los desvíos sirven para completar la respuesta, no para
     cambiar de tema: si consultaste el rendimiento, cita sus métricas aunque hayas revisado otras cosas.
+16. Si un resultado trae *_text, assessment o summary, úsalo textual para esa idea; no lo reformules con otras cifras.
+    Usa también favorite para identificar al favorito; no deduzcas un ganador garantizado.
 
 Ruteo (pregunta → herramienta):
 «Analiza / quién gana un partido próximo» → find_team → analyze_match.
@@ -335,14 +337,18 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
                 "Úsalo con el nombre que dio el usuario y luego responde."}])
             continue
         report = verify_numbers(answer, turn.records, user_message=message)
+        claims = check_claims(answer, turn.records)
+        report.unverified.extend(claims.unverified)
+        report.verified = report.verified and claims.verified
         if not report.verified and not repaired:
             repaired = True
-            yield _step("repair", "La respuesta citaba cifras sin respaldo; el agente la reescribe solo con datos "
-                                  "verificados.")
+            yield _step("repair", "La respuesta contiene cifras sin respaldo o una interpretación incorrecta; "
+                                  "el agente la reescribe con los textos verificados.")
             turn.messages.extend([{"role": "assistant", "content": answer}, {"role": "user", "content":
-                "Estas cifras no aparecen en los resultados de las herramientas de este turno: "
+                "Corrige estos hallazgos de verificación: "
                 + ", ".join(report.unverified) + ". Si las necesitas, vuelve a consultarlas con la herramienta "
-                "que corresponda; si no, reescribe la respuesta completa sin ellas."}])
+                "que corresponda; si no, reescribe la respuesta completa sin ellas. Copia literalmente form_text, "
+                "limits_text y assessment para las ideas correspondientes, sin reinterpretarlas."}])
             continue
         if not report.verified:
             yield ChatEvent(event="error", data={"error": SAFE_TEXT})

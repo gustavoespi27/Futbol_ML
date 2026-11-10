@@ -145,3 +145,55 @@ aprobados por esta corrección de memoria. Se mantienen como pendientes para rev
 Validación final: **392 pytest**, cobertura agéntica **95,16 %** (1425 sentencias, 69 sin cubrir), Ruff,
 sintaxis de agent.js y ocho pruebas Node correctos. Pruebas FakeLLM cubren diez turnos, continuidad positiva
 y negativa, precarga, argumentos de recuperación, aislamiento de tema nuevo y decisión en bitácora.
+
+## Frases canónicas y comprobación semántica mínima (2026-11-09)
+
+Corrección posterior a la aprobación de `c8fceab`. Las herramientas entregan `form_text`, `limits_text`
+y `assessment` calculados en código. La evaluación de rendimiento interpreta CLV, yield y log loss;
+explica que no hay tasa de aciertos del mercado en el payload y no inventa esa comparación.
+Las probabilidades de analyze_match y simulate_match conservan su `summary` y `favorite` etiquetados.
+El prompt exige copiar estos textos para la idea correspondiente.
+
+`check_claims` comprueba tres confusiones acotadas: porcentajes de topes asociados al horizonte equivocado,
+conteos de forma incompatibles con `last5_counts` y polaridad del CLV invertida. Los hallazgos se integran
+en la reparación existente antes de emitir tokens. Una segunda respuesta inválida queda bloqueada.
+No es una validación general de significado. Con varios equipos en el turno se omite la comparación
+automática de conteos para no adjudicar a uno las cifras del otro. Las asociaciones por oración pueden
+rechazar frases compuestas ambiguas: las frases canónicas separan cada tope en una oración.
+
+Se repitió la conversación completa, en orden, con Qwen 2.5 de 7B y herramientas reales, usando
+`scripts/eval_agent_routing.py --mode conversacion --output reports/agente/conversacion-interpretacion.json`.
+La columna siguiente fue revisada manualmente; `done.success` solo expresa el resultado del verificador,
+no esta revisión semántica.
+
+| Pregunta | Herramienta esperada usada | Interpretación correcta (revisión manual) | Latencia (s) |
+|---|---|---|---:|
+| Analiza el partido de la roja | Sí | No evaluable: bloqueada tras reparación numérica | 26,301 |
+| ¿Y quién es favorito? | No | No: pide identificar el partido; el turno anterior no guardó respuesta ni entidades | 8,813 |
+| ¿Cómo llega el Colo Colo? | Sí | Sí: 2 ganados, 2 empatados, 1 perdido; EEPGG | 9,806 |
+| Simula Colo Colo contra la U | Sí | Sí: favorito Colo Colo; probabilidades etiquetadas correctamente | 9,463 |
+| que partidos vienen ahora? | Sí | No: conversión UTC/Chile incorrecta y conclusión de valor no sustentada por el calendario | 12,054 |
+| ¿Qué apuestas con valor hay hoy? | Sí | No: atribuye actualización a una herramienta que no informa frescura | 7,816 |
+| ¿Por qué no hay apuestas recomendadas? | Sí | Parcial: identifica cobertura de dos partidos, pero la frase «sin este precio» generaliza esa ausencia | 16,037 |
+| ¿Qué tan fiable es el sistema? | Sí | Parcial: CLV negativo desfavorable y yield negativo pérdida correctos; omite decir explícitamente cuál log loss es mejor | 22,084 |
+| ¿Cuánto debería apostar si tengo 100.000 pesos? | Sí | Sí: $2.000 por apuesta, $10.000 diarios, topes sin apuesta sugerida | 8,890 |
+| Dame una combinada segura para hoy | Sí (política sin LLM) | Sí: rechaza seguridad y remite a Combinadas educativa | 0,000 |
+
+**Resultado completo: 9/10 herramientas esperadas, cero copias literales del turno anterior.** Las tres
+confusiones solicitadas no aparecieron en el texto final. Rendimiento necesitó reparación; límites y forma
+respondieron con los conceptos correctos, aunque el modelo no siempre copió literalmente toda la frase.
+No se afirma que las diez interpretaciones sean correctas: la tabla conserva los defectos adicionales.
+Comparación con la batería anterior: forma pasó sin error en aquella ejecución, pero Gustavo observó
+conteos erróneos en vivo; CLV y topes diarios estaban invertidos en la evidencia anterior. Esta nueva prueba
+comprueba su corrección, sin establecer una tasa general de fiabilidad ni una mejora de latencia.
+
+Para investigar el bloqueo inicial se repitieron **solo los dos primeros turnos**, sin cambiar código ni datos
+deliberadamente y sin inferencias concurrentes. El primer análisis pasó a 15,103 s; la evidencia separada está
+en `reports/agente/interpretacion-diagnostico-turnos.json`, con borradores numéricos locales en
+`interpretacion-diagnostico.json`. Este diagnóstico no reemplaza ni mejora el resultado de la batería completa.
+Las respuestas dependen del modelo y siguen siendo variables.
+
+Validación: **420 pytest**, cobertura agéntica **95,36 %** (1486 sentencias, 69 sin cubrir), Ruff,
+sintaxis de agent.js y ocho pruebas Node correctos. FakeLLM verifica reparación para conteos, ambos
+topes cruzados y ambas polaridades del CLV; las versiones correctas pasan sin publicar el borrador erróneo.
+Motor y contrato SSE intactos. Pieza 4 sin iniciar; este commit se entrega para revisión.
