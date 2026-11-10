@@ -218,6 +218,7 @@ async function sendChat(message) {
 
 /* ---------- historial de conversaciones y lo que el Míster sabe del usuario ---------- */
 const MEMORY_LABELS = {
+  name: (i) => `Te llamas ${i.label}`,
   team: (i) => i.stated ? `Hincha de ${i.label}` : `Consultas seguido a ${i.label}`,
   league: (i) => `Te interesa ${i.label}`,
   topic: (i) => `Sueles preguntar por ${i.label}`,

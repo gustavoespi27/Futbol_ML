@@ -176,6 +176,70 @@ def tool_get_value_bets(min_edge: float = pro.MIN_EDGE) -> list[dict[str, Any]]:
     } for s in singles if s["edge"] >= max(min_edge, pro.MIN_EDGE)]
 
 
+RECO_SECTIONS = {
+    "valor": "Con valor: la mejor cuota supera en 6 % o más el precio justo de Pinnacle; es la única recomendación "
+             "de apuesta, con monto de 1/4 de Kelly.",
+    "fiables": "Más fiables: lo que el modelo ve más probable en cada partido; sirve para medir su precisión y "
+               "suele pagar poco, así que por sí solo no es una recomendación de apuesta.",
+    "casi_valor": "Casi con valor: les falta poco para tener ventaja; pasan a recomendación si alguna casa paga al "
+                  "menos la cuota mínima.",
+}
+
+
+def _when(kickoff: str | None) -> str:
+    return local_fields(kickoff).get("kickoff_local", "") if kickoff else ""
+
+
+def _upcoming_only(rows: list[dict]) -> list[dict]:
+    now = datetime.now(timezone.utc)
+    return [r for r in rows if r.get("kickoff") and _kickoff(r) > now]
+
+
+def tool_get_recommendations(section: str = "todas", limit: int = 3) -> dict[str, Any]:
+    """Las tres pestañas de Apuestas (con valor, más fiables, casi con valor) con textos listos para citar."""
+    from footy.prediction import reliable
+
+    matches = service.upcoming()
+    picks = service.current_suggestions(matches)
+    value = _upcoming_only(picks.get("singles", []))
+    near = _upcoming_only(picks.get("closest", []))
+    likely = _upcoming_only(reliable.candidates(matches))
+    lists = {
+        "valor": [f"{s['home']} vs {s['away']} ({_when(s.get('kickoff'))}): {s['label']} a {s['odds']:.2f} en "
+                  f"{s['book']}, ventaja {s['edge'] * 100:+.1f}% sobre el precio justo de Pinnacle." for s in value],
+        "fiables": [f"{c['home']} vs {c['away']} ({_when(c.get('kickoff'))}): {c['label']}, "
+                    f"{c['p'] * 100:.1f}% según el modelo." for c in likely],
+        "casi_valor": [f"{c['home']} vs {c['away']} ({_when(c.get('kickoff'))}): {c['label']} a {c['odds']:.2f}; "
+                       f"tendría valor desde cuota {c['min_odds']:.2f} (hoy {c['ev'] * 100:+.1f}%)." for c in near],
+    }
+    # Siempre las tres pestañas: si piden una vacía, el modelo igual tiene las otras para responder la pregunta.
+    focus = None if section == "todas" else section
+    out: dict[str, Any] = {"focus": focus or "todas",
+        "where_text": "Están en la sección Apuestas del menú, en las pestañas Con valor, Más fiables y Casi con valor; "
+                      "debajo está el semáforo de cada partido.",
+        "summary_text": (f"Con valor: {len(value)}; más fiables: {len(likely)}; "
+                         f"casi con valor: {len(near)}."),
+        "no_safe_bets_text": "Ninguna apuesta es segura: incluso lo más probable puede fallar.",
+    }
+    for key in RECO_SECTIONS:
+        n = max(limit, 3) if key == focus else (3 if focus is None else 2)
+        out[key] = {"explanation_text": RECO_SECTIONS[key], "count": len(lists[key]),
+                    "items_text": lists[key][:n] or ["No hay selecciones en esta pestaña por ahora."]}
+    return out
+
+
+def recommendations_text(result: dict) -> str:
+    """Texto canónico de get_recommendations (respaldo y política): solo frases que trae la herramienta."""
+    parts = [result["summary_text"]]
+    focus = result.get("focus")
+    for key in sorted(RECO_SECTIONS, key=lambda k: k != focus):      # la pestaña pedida va primero
+        if key in result:
+            items = "\n".join(f"• {t}" for t in result[key]["items_text"])
+            parts.append(f"{result[key]['explanation_text']}\n{items}")
+    parts.append(result["where_text"])
+    return "\n\n".join(parts)
+
+
 def _league_team(code: str, name: str) -> dict:
     """Equipo activo de la liga por nombre canónico, apodo o coincidencia parcial única."""
     roster = service.teams(code)
@@ -501,6 +565,7 @@ TOOLS_REGISTRY: dict[str, Any] = {
     "cancel_watch": tool_cancel_watch, "add_favorite": tool_add_favorite,
     "get_upcoming_matches": tool_get_upcoming_matches,
     "get_value_bets": tool_get_value_bets,
+    "get_recommendations": tool_get_recommendations,
     "simulate_match": tool_simulate_match,
     "get_league_standings": tool_get_league_standings,
     "get_system_performance": tool_get_system_performance,

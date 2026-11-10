@@ -39,6 +39,22 @@ INTRO_TEXT = (f"¡Hola! Aquí {NAME_MID}. En este equipo los números mandan, no
               "vigilar un partido y avisarte. Partido a partido: ¿por cuál empezamos?")
 
 
+def intro_text(user_name: str = "") -> str:
+    """Saludo fijo; si el Míster ya sabe el nombre del usuario, lo saluda por su nombre."""
+    return INTRO_TEXT.replace("¡Hola!", f"¡Hola, {user_name}!", 1) if user_name else INTRO_TEXT
+
+
+NAME_ONLY = re.compile(rf"^\W*(?:{_HELLO}\W+)?(?:me llamo|mi nombre es|soy)\s+\w+(?:\s+\w+)?\W*$", re.I)
+
+
+def name_reply(message: str, given: str | None) -> str | None:
+    """Respuesta fija cuando el mensaje solo presenta al usuario («hola, me llamo Gustavo»)."""
+    if not given or not NAME_ONLY.match(without_vocative(message)):
+        return None
+    return (f"¡Mucho gusto, {given}! Aquí el Míster; ya anoté tu nombre. En este equipo los números mandan, no la "
+            "camiseta. ¿Por qué partido empezamos?")
+
+
 def without_vocative(message: str) -> str:
     """Quita el apelativo («míster», «oye míster») y deja la pregunta tal cual."""
     text = re.sub(r"\s{2,}", " ", VOCATIVE.sub(" ", message))

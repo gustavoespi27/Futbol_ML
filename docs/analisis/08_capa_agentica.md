@@ -663,3 +663,20 @@ recuerdo o todo; `scripts/reset_agent_demo.py` también la vacía.
 Al probarlo apareció un error semántico: con la forma reciente de Colo Colo, el modelo presentó el último partido
 (8 de noviembre) como «el próximo». `check_claims` ahora rechaza una fecha pasada en una oración que habla de un
 partido próximo o programado, y la respuesta se repara.
+
+## Nombre, «apuesta segura» y recomendaciones de la máquina
+
+- **Nombre:** «me llamo…», «mi nombre es…» o «soy Gustavo» (con mayúscula, para no confundirlo con «soy hincha de…»)
+  se guarda en la memoria personalizada; «olvida mi nombre» lo borra. Si el mensaje solo presenta al usuario, el
+  Míster responde «¡Mucho gusto, Gustavo!» sin LLM, y desde entonces el saludo fijo y el prompt usan su nombre.
+- **«¿Qué sería seguro apostar?»:** la política sigue rechazando la premisa, pero ya no corta la conversación: muestra
+  lo que el modelo ve más probable (pestaña Más fiables, con la advertencia de que paga poco) y dónde está cada
+  pestaña. La regla también cubre «apostar», no solo «apuesta».
+- **Recomendaciones de la máquina:** nueva herramienta `get_recommendations` con las tres pestañas de Apuestas
+  (Con valor, Más fiables y Casi con valor), cada una con su explicación y ejemplos como texto listo para citar.
+  Siempre trae las tres, así una pestaña vacía no deja al modelo sin respuesta. Cuando el ruteo determinista
+  reconoce la pregunta, la respuesta sale tal cual del sistema, sin redacción: en pruebas con Qwen 7B, el modelo
+  escribía los títulos de cada pestaña pero omitía sus ejemplos. «Fiable» del sistema sigue yendo a
+  `get_system_performance`; «más fiables» va a las recomendaciones.
+- La migración que agrega el tipo `name` a la memoria corre en una transacción exclusiva: en la primera versión, el
+  navegador consultando en paralelo pudo perder filas durante la reconstrucción de la tabla.

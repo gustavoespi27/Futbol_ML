@@ -42,6 +42,11 @@ class ValueArgs(AgentSchema):
         return max(numeric, pro.MIN_EDGE)
 
 
+class RecommendationArgs(AgentSchema):
+    section: Literal["todas", "valor", "fiables", "casi_valor"] = "todas"
+    limit: int = Field(default=3, ge=1, le=5)
+
+
 class SimulationArgs(AgentSchema):
     league: str = Field(min_length=1, max_length=100)
     home_team: str = Field(min_length=1, max_length=100)
@@ -79,6 +84,7 @@ class TeamFormArgs(AgentSchema):
 TOOL_MODELS = {
     "get_upcoming_matches": UpcomingArgs,
     "get_value_bets": ValueArgs,
+    "get_recommendations": RecommendationArgs,
     "simulate_match": SimulationArgs,
     "get_league_standings": StandingsArgs,
     "get_system_performance": PerformanceArgs,
@@ -104,6 +110,8 @@ DESCRIPTIONS = {
         'category y exclude_ids. No para análisis de un partido conocido: usa analyze_match.'),
     'get_value_bets': ('Usa para ventaja Pinnacle: «¿Hay apuestas con valor?». No para favoritos '
         'ni explicar cobertura: usa analyze_match o get_coverage.'),
+    'get_recommendations': ('Usa para «recomendaciones de la máquina», «más fiables» o «casi con valor»: '
+        'pestañas de Apuestas con ejemplos. No para analizar un partido: usa analyze_match.'),
     'simulate_match': ('Usa para encuentro hipotético: «Simula Colo Colo contra la U». No para un '
         'partido del calendario con match_id: usa analyze_match.'),
     'get_league_standings': ('Usa para posiciones: «¿Cómo va Colo Colo en la tabla?». No para pronóstico '

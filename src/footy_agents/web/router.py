@@ -130,9 +130,11 @@ def chat(req: ChatRequest, client: LLMClient = Depends(get_llm_client)) -> Strea
         else:
             past, entities = memory.history(conn, req.user_id), memory.recent_entities(conn, req.user_id)
         known = user_memory.prompt_summary(conn, req.user_id)
+        called = user_memory.name(conn, req.user_id)
     consulted: dict = {}
     return _sse(_recorded(req, run_chat(client, req.message, prefs, history=past, entities=entities,
-                                      consulted_entities=consulted, user_memory=known), consulted))
+                                      consulted_entities=consulted, user_memory=known, user_name=called),
+                              consulted))
 
 
 def resolve_team(raw: str) -> str | None:

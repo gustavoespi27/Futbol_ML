@@ -133,3 +133,97 @@ def test_past_match_cannot_be_called_next():
     bad = check_claims("El próximo partido está programado para el 8 de noviembre contra Ñublense.", records)
     assert not bad.verified and "ya se jugó" in bad.unverified[0]
     assert check_claims("Su último partido fue el 8 de noviembre ante Ñublense.", records).verified
+
+
+@pytest.mark.parametrize("message, expected", [
+    ("Hola, me llamo gustavo", "Gustavo"),
+    ("mi nombre es Gustavo Espinoza y sigo a Colo Colo", "Gustavo Espinoza"),
+    ("Soy Gustavo, ¿cómo llega Colombia?", "Gustavo"),
+    ("soy hincha de Colo Colo", None),
+    ("Soy del Colo", None),
+])
+def test_user_name_detection(message, expected):
+    assert user_memory.user_name(message) == expected
+
+
+def test_name_is_remembered_used_and_forgotten(db):
+    conn, _ = db
+    user_memory.learn(conn, "u", "me llamo gustavo", [], {}, resolve)
+    assert user_memory.name(conn, "u") == "Gustavo"
+    assert user_memory.prompt_summary(conn, "u").startswith("se llama Gustavo")
+    assert user_memory.items(conn, "u")[0].kind == "name"
+    user_memory.learn(conn, "u", "olvida mi nombre", [], {}, resolve)
+    assert user_memory.name(conn, "u") == ""
+
+
+def test_old_memory_table_is_migrated_with_its_rows(db):
+    conn, _ = db
+    conn.executescript("CREATE TABLE agent_user_memory (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, "
+                       "kind TEXT NOT NULL CHECK (kind IN ('team', 'league', 'topic')), key TEXT NOT NULL, "
+                       "label TEXT NOT NULL, weight REAL NOT NULL, stated INTEGER NOT NULL DEFAULT 0, "
+                       "updated_at TEXT NOT NULL, UNIQUE (user_id, kind, key));"
+                       "INSERT INTO agent_user_memory VALUES (1,'u','team','colo colo','Colo Colo',5,1,'x');")
+    user_memory.learn(conn, "u", "me llamo Ana", [], {}, resolve)
+    assert {i.label for i in user_memory.items(conn, "u")} == {"Ana", "Colo Colo"}
+
+
+class NoLLM:
+    def stream_chat(self, messages, tools=None):
+        raise AssertionError("no debe llamar al LLM")
+
+
+def test_name_greeting_and_personal_intro_without_llm():
+    out = list(orchestrator.run_chat(NoLLM(), "Hola, me llamo Gustavo", UserPreferences()))
+    assert out[1].data["delta"].startswith("¡Mucho gusto, Gustavo!")
+    again = list(orchestrator.run_chat(NoLLM(), "hola míster", UserPreferences(), user_name="Gustavo"))
+    assert again[1].data["delta"].startswith("¡Hola, Gustavo!")
+
+
+def test_safe_bet_offers_most_likely_and_where(monkeypatch):
+    from footy_agents.schemas import ToolCallRecord
+    result = {"where_text": "Están en la sección Apuestas.", "summary_text": "x", "no_safe_bets_text": "y",
+              "fiables": {"explanation_text": "Más fiables: ...", "count": 1,
+                          "items_text": ["Chile vs Perú (vie 13-11, 21:00 hora de Chile): Gana local, 70.0%."]}}
+    monkeypatch.setattr(orchestrator, "execute_tool", lambda name, args: ToolCallRecord(
+        tool_name=name, arguments=args, result=result, success=True, execution_time_ms=1))
+    out = list(orchestrator.run_chat(NoLLM(), "¿qué sería seguro apostar hoy?", UserPreferences()))
+    text = "".join(e.data["delta"] for e in out if e.event == "token")
+    assert text.startswith("No existen apuestas ni combinadas seguras")
+    assert "Chile vs Perú" in text and "sección Apuestas" in text and "Con valor" in text
+
+
+@pytest.mark.parametrize("message, section", [
+    ("¿cuáles son las recomendaciones de la máquina?", "todas"),
+    ("muéstrame las más fiables", "fiables"),
+    ("¿qué está casi con valor?", "casi_valor"),
+])
+def test_recommendations_route(message, section):
+    from footy_agents.routing import intent_route
+    assert intent_route(message, None) == ("get_recommendations", {"section": section})
+
+
+def test_recommendations_fallback_text():
+    from footy_agents.fallback import verified_summary
+    from footy_agents.schemas import ToolCallRecord
+    result = {"where_text": "Están en la sección Apuestas.", "summary_text": "Con valor: 0; más fiables: 1.",
+              "valor": {"explanation_text": "Con valor: ...", "count": 0,
+                        "items_text": ["No hay selecciones en esta pestaña por ahora."]}}
+    rec = ToolCallRecord(tool_name="get_recommendations", arguments={}, result=result, success=True,
+                         execution_time_ms=1)
+    text = verified_summary([rec])
+    assert "No hay selecciones" in text and "sección Apuestas" in text
+
+
+def test_recommendations_are_shown_straight_from_the_system(monkeypatch):
+    from footy_agents.schemas import ToolCallRecord
+    result = {"focus": "fiables", "where_text": "Están en la sección Apuestas.", "summary_text": "Con valor: 0.",
+              "no_safe_bets_text": "y",
+              "valor": {"explanation_text": "Con valor: ...", "count": 0, "items_text": ["No hay selecciones."]},
+              "fiables": {"explanation_text": "Más fiables: ...", "count": 1, "items_text": ["Chile vs Perú: local."]},
+              "casi_valor": {"explanation_text": "Casi con valor: ...", "count": 0, "items_text": ["No hay."]}}
+    monkeypatch.setattr(orchestrator, "execute_tool", lambda name, args: ToolCallRecord(
+        tool_name=name, arguments=args, result=result, success=True, execution_time_ms=1))
+    out = list(orchestrator.run_chat(NoLLM(), "muéstrame las más fiables", UserPreferences()))
+    text = "".join(e.data["delta"] for e in out if e.event == "token")
+    assert text.index("Más fiables") < text.index("Con valor: ...") and "Chile vs Perú" in text
+    assert out[-1].data == {"iterations": 0, "success": True}

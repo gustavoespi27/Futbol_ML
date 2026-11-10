@@ -19,16 +19,27 @@ from footy_agents.llm import LLMBusy, LLMClient, LLMUnavailable, TextDelta, Tool
 from footy_agents.memory import entities_from
 from footy_agents.names import normalize_name
 from footy_agents.observations import RECOVERABLE, Observation, observe
-from footy_agents.persona import INTRO_TEXT, NAME, PERSONA, is_intro, without_vocative
+from footy_agents.persona import NAME, PERSONA, intro_text, is_intro, name_reply, without_vocative
 from footy_agents.routing import intent_route, is_follow_up
 from footy_agents.schemas import ChatEvent, ToolCallRecord, UserPreferences
-from footy_agents.tools import OPENAI_TOOLS_SPEC, TOOL_MODELS, WRITE_TOOLS, execute_tool, upcoming_focus
+from footy_agents.tools import (
+    OPENAI_TOOLS_SPEC,
+    TOOL_MODELS,
+    WRITE_TOOLS,
+    execute_tool,
+    recommendations_text,
+    upcoming_focus,
+)
+from footy_agents.user_memory import user_name as stated_name
 
 MAX_ITERATIONS = 4             # rondas con herramientas: la cuarta inferencia ya no las ofrece
 MAX_INFERENCES = 7             # 4 rondas + un reintento por pseudollamada + una recuperación + una reparación
 SAFE_TEXT = "No pude verificar una respuesta con los datos disponibles."
-SAFE_BET = re.compile(r"\b(?:combinadas?|apuestas?|parlay|pick|fija)\b[^.?!]*\bsegur[ao]s?\b|"
-                      r"\bsegur[ao]s?\b[^.?!]*\b(?:combinadas?|apuestas?|parlay|pick)\b|\b(?:la )?fija\b", re.I)
+_BET_WORDS = r"(?:combinadas?|apuestas?|apost(?:ar|aria|o)|parlay|pick)"
+SAFE_BET = re.compile(rf"\b(?:{_BET_WORDS}|fija)\b[^.?!]*\bsegur[ao]s?\b|"
+                      rf"\bsegur[ao]s?\b[^.?!]*\b{_BET_WORDS}\b|\b(?:la )?fija\b", re.I)
+SAFE_BET_SHORT = ("No existen apuestas ni combinadas seguras: cada selección puede perder y, al combinarlas, el "
+                  "riesgo se multiplica.")
 SAFE_BET_TEXT = ("No existen apuestas ni combinadas seguras: cada selección tiene probabilidad de perder y, al "
                  "combinarlas, el riesgo se multiplica. El sistema solo marca valor cuando una cuota supera el precio "
                  "justo de Pinnacle, y aun así es seguimiento en papel, no consejo financiero. En la sección "
@@ -122,6 +133,9 @@ Ruteo (pregunta → herramienta):
 «Cómo llega el equipo» → get_team_form; apodo desconocido → find_team.
 «Qué partidos hay» → get_upcoming_matches.
 «Hay ventaja» → get_value_bets; «por qué no hay apuestas / frescura» → get_coverage.
+«Recomendaciones de la máquina», «más fiables», «casi con valor», «dónde veo las apuestas» → get_recommendations
+(section según lo que pidan); responde con sus explanation_text e items_text de cada pestaña, sin
+quedarte solo en los conteos; si una pestaña está vacía, dilo y muestra las otras.
 «Cómo va en la tabla» → get_league_standings.
 «Rendimiento / CLV» → get_system_performance; «banca / cuánto apostar» → get_stake_limits.
 Si find_team da un único exacto con next_match y pidieron análisis/pronóstico, ve directo a analyze_match;
@@ -140,7 +154,8 @@ def system_prompt(prefs: UserPreferences, user_memory: str = "") -> str:
         risk=prefs.risk_profile,
     )
     if user_memory:
-        prompt += (f"\nLo que sabes del usuario por conversaciones anteriores: {user_memory}. Úsalo para priorizar "
+        prompt += (f"\nLo que sabes del usuario por conversaciones anteriores: {user_memory}. Si sabes su nombre, "
+                   "úsalo de vez en cuando. Úsalo para priorizar "
                    "y personalizar el tono (por ejemplo, mencionar primero a su equipo), sin inventar datos.")
     return prompt
 
@@ -160,7 +175,8 @@ def summarize(record: ToolCallRecord) -> str:
 LABELS = {
     "create_watch": "crear la vigilancia", "list_watches": "vigilancias del usuario",
     "cancel_watch": "cancelar la vigilancia", "add_favorite": "guardar favorito",
-    "get_upcoming_matches": "próximos partidos", "get_value_bets": "apuestas con valor", "simulate_match": "simulación",
+    "get_upcoming_matches": "próximos partidos", "get_value_bets": "apuestas con valor",
+    "get_recommendations": "recomendaciones de la máquina", "simulate_match": "simulación",
     "get_league_standings": "tabla de posiciones", "get_system_performance": "rendimiento del sistema",
     "get_stake_limits": "límites de exposición", "find_team": "búsqueda del equipo",
     "analyze_match": "análisis del partido", "get_coverage": "cobertura de datos",
@@ -276,7 +292,8 @@ class _Turn:
 
 def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
              history: list[dict] | None = None, entities: dict | None = None,
-             consulted_entities: dict | None = None, user_memory: str = "") -> Iterator[ChatEvent]:
+             consulted_entities: dict | None = None, user_memory: str = "",
+             user_name: str = "") -> Iterator[ChatEvent]:
     """Un turno del usuario. Emite eventos step, tool_start, tool_result, token, done y error (contrato SSE).
 
     El camino no es fijo: cada resultado se clasifica (observations.observe) y el modelo decide con esa observación.
@@ -285,15 +302,44 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
     """
     message = without_vocative(message) or message       # «míster, …»: el apelativo no es parte de la consulta
     if SAFE_BET.search(message):
-        yield _step("policy", "Premisa rechazada: no existen apuestas seguras; responde la regla de riesgo.")
-        yield ChatEvent(event="token", data={"delta": SAFE_BET_TEXT})
+        # Se rechaza la premisa, pero se orienta: lo más probable según el modelo y dónde está cada pestaña.
+        yield _step("policy", "Premisa rechazada: no existen apuestas seguras; se ofrece lo más probable "
+                              "y dónde verlo.")
+        args = {"section": "fiables", "limit": 3}
+        yield ChatEvent(event="tool_start", data={"tool": "get_recommendations", "args": args})
+        record = execute_tool("get_recommendations", args)
+        yield ChatEvent(event="tool_result", data={
+            "tool": "get_recommendations", "success": record.success, "elapsed_ms": record.execution_time_ms,
+            "summary": summarize(record)})
+        text = SAFE_BET_TEXT
+        if record.success and isinstance(record.result, dict) and record.result.get("fiables"):
+            data = record.result
+            text = (SAFE_BET_SHORT + " Lo más cercano es lo que el modelo ve más probable, aunque suele pagar poco:\n"
+                    + "\n".join(f"• {t}" for t in data["fiables"]["items_text"]) + "\n\n" + data["where_text"]
+                    + " Valor real solo hay cuando una cuota supera el precio justo de Pinnacle (pestaña Con valor).")
+        yield ChatEvent(event="token", data={"delta": text})
         yield ChatEvent(event="done", data={"iterations": 0, "success": True})
         return
-    if is_intro(message):
+    given = stated_name(message)
+    greeting = name_reply(message, given)
+    if greeting or is_intro(message):
         yield _step("policy", f"Saludo sin consulta de datos: {NAME} se presenta sin usar herramientas.")
-        yield ChatEvent(event="token", data={"delta": INTRO_TEXT})
+        yield ChatEvent(event="token", data={"delta": greeting or intro_text(user_name)})
         yield ChatEvent(event="done", data={"iterations": 0, "success": True})
         return
+    route = intent_route(message, entities)
+    if route and route[0] == "get_recommendations":
+        # Mostrar las pestañas de Apuestas es presentar datos, no razonar: sale tal cual del sistema, completo.
+        yield _step("policy", "Recomendaciones de la máquina: se muestran tal cual del sistema, sin redacción.")
+        yield ChatEvent(event="tool_start", data={"tool": route[0], "args": route[1]})
+        record = execute_tool(route[0], route[1])
+        yield ChatEvent(event="tool_result", data={
+            "tool": route[0], "success": record.success, "elapsed_ms": record.execution_time_ms,
+            "summary": summarize(record)})
+        if record.success and isinstance(record.result, dict):
+            yield ChatEvent(event="token", data={"delta": recommendations_text(record.result)})
+            yield ChatEvent(event="done", data={"iterations": 0, "success": True})
+            return
     previous_answer = next((m.get("content", "") for m in reversed(history or []) if m.get("role") == "assistant"), "")
     follows = is_follow_up(message, entities)
     history = (history or [])[-2:] if follows else []

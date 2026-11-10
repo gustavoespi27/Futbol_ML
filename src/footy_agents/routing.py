@@ -65,6 +65,8 @@ def intent_route(message: str, entities: dict | None = None) -> tuple[str, dict]
                     args["id"] = int(id_[0])
             return tool, args
     for pattern, tool in (
+        (r"recomendacion|mas fiables?|casi con valor|cerca de tener valor|"
+         r"secciones? de apuestas|donde (?:estan|veo|encuentro).*apuestas", "get_recommendations"),
         (r"rendimiento|fiable|fiabilidad|clv|yield|acierto", "get_system_performance"),
         (r"banca|cuanto.*apostar|pesos", "get_stake_limits"),
         (r"por que no hay|cobertura|actualizad", "get_coverage"),
@@ -79,6 +81,10 @@ def intent_route(message: str, entities: dict | None = None) -> tuple[str, dict]
             args: dict = {}
             if tool == "get_upcoming_matches":
                 args = calendar_args(message, entities)
+            if tool == "get_recommendations":
+                section = ("casi_valor" if re.search(r"casi|cerca de tener", q) else
+                           "fiables" if re.search(r"fiables?", q) else "todas")
+                args = {"section": section}
             if tool == "get_stake_limits":
                 number = re.search(r"\d[\d.,]*", message)
                 if number:

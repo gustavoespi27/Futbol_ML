@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/gustavoespi27/Futbol_ML/actions/workflows/ci.yml/badge.svg)](https://github.com/gustavoespi27/Futbol_ML/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-3776ab)
-![Tests](https://img.shields.io/badge/tests-583%20passing-10b981)
+![Tests](https://img.shields.io/badge/tests-597%20passing-10b981)
 ![LLM](https://img.shields.io/badge/LLM-Qwen%202.5%207B%20local-7c3aed)
 ![Stack](https://img.shields.io/badge/stack-FastAPI%20%C2%B7%20SQLite%20%C2%B7%20scikit--learn-0f172a)
 
@@ -55,7 +55,7 @@ se habla y vuelve a consultar en vez de repetir cifras de memoria.</sub></p>
 | **181.114** partidos en la base (2012-2026) | **1,98 millones** de cuotas históricas y pre-partido |
 | **53** competiciones visibles, incluidas 8 de selecciones | **1.749** equipos enlazados entre fuentes de datos |
 | **8.608** partidos de examen fuera de muestra (temporada 2026) | **498** partidos auditados en vivo con pronóstico previo |
-| **14** herramientas del agente (10 de consulta, 4 de acción) | **583** pruebas automáticas; CI en Python 3.11 y 3.12 |
+| **15** herramientas del agente (11 de consulta, 4 de acción) | **597** pruebas automáticas; CI en Python 3.11 y 3.12 |
 
 ---
 
@@ -90,7 +90,7 @@ Un chatbot responde con lo que sabe. Este agente **percibe su entorno, decide, a
 | **Acción** | Herramientas de escritura: crear, listar y cancelar vigilancias, y agregar favoritos. Solo sobre tablas propias del agente |
 | **Autonomía** | Un vigía corre solo después de cada actualización de datos, sin LLM: percibe cambios, decide con reglas, emite alertas y registra hasta las decisiones descartadas |
 | **Trazabilidad** | Registro interno de cada turno del chat y de cada ejecución del vigía: herramientas, observaciones, desvíos, reparaciones y motivos. No se muestra en el chat; queda en `/api/agent/runs`, `/api/agent/watch-log` y en la salida de `scripts/agent_watch.py` |
-| **Memoria personalizada** | Aprende del usuario sin LLM: lo que dice («soy hincha de Colo Colo», «ya no sigo a…»), los equipos y ligas que consulta y los temas que más pregunta. Vuelve al prompt como contexto y el usuario puede verla y borrarla |
+| **Memoria personalizada** | Aprende del usuario sin LLM: su nombre («me llamo…»), lo que dice («soy hincha de Colo Colo», «ya no sigo a…»), los equipos y ligas que consulta y los temas que más pregunta. Vuelve al prompt como contexto y el usuario puede verla y borrarla |
 | **Historial** | Conversaciones guardadas como en los asistentes grandes: se retoman con su propio contexto o se borran |
 
 ### Cómo piensa: un turno del chat
@@ -115,11 +115,11 @@ flowchart TD
   FB --> OK
 ```
 
-**Herramientas.** Las 14 herramientas envuelven al motor sin modificarlo y validan sus argumentos con Pydantic:
+**Herramientas.** Las 15 herramientas envuelven al motor sin modificarlo y validan sus argumentos con Pydantic:
 
 | Consulta | Acción |
 |---|---|
-| `find_team` (nombres y apodos: «la roja», «el cacique») · `analyze_match` · `get_team_form` · `simulate_match` · `get_upcoming_matches` · `get_league_standings` · `get_value_bets` · `get_coverage` · `get_system_performance` · `get_stake_limits` | `create_watch` · `list_watches` · `cancel_watch` · `add_favorite` |
+| `find_team` (nombres y apodos: «la roja», «el cacique») · `analyze_match` · `get_team_form` · `simulate_match` · `get_upcoming_matches` · `get_league_standings` · `get_value_bets` · `get_recommendations` (las tres pestañas de Apuestas) · `get_coverage` · `get_system_performance` · `get_stake_limits` | `create_watch` · `list_watches` · `cancel_watch` · `add_favorite` |
 
 **Protecciones** (*guardrails*):
 
@@ -341,7 +341,7 @@ los datos no cambiaron. `scripts/automation.py` permite pausar y reanudar.
 - **Agente sin frameworks:** orquestador propio de ~450 líneas, cliente compatible con OpenAI por `requests` y
   Ollama local. Cambiar de proveedor es cambiar `base_url` y `model` en `config/settings.yaml`.
 - **Contratos estrictos:** respuestas y eventos con Pydantic v2 y `extra="forbid"`; el chat usa Server-Sent Events.
-- **Calidad:** 583 pruebas con pytest (el agente se prueba con un LLM simulado, sin red ni costo), pruebas del
+- **Calidad:** 597 pruebas con pytest (el agente se prueba con un LLM simulado, sin red ni costo), pruebas del
   frontend con `node:test`, Ruff y CI en GitHub Actions.
 - **Reproducibilidad:** fechas en UTC ISO-8601, cada pronóstico registra la versión del modelo, y las evaluaciones
   del agente guardan sus eventos completos en JSON.
@@ -436,7 +436,7 @@ src/footy_agents/    capa agéntica, desacoplada del motor
   persona.py         nombre y voz de DT del Míster; apelativo y presentación sin LLM
   observations.py    clasificación tipada de cada resultado de herramienta
   routing.py         continuidad de la conversación e intención para recuperar
-  tools.py           14 herramientas tipadas sobre el motor
+  tools.py           15 herramientas tipadas sobre el motor
   grounding.py       verificación de cifras, fechas e interpretaciones
   fallback.py        respuesta de respaldo con frases canónicas verificadas
   memory.py          memoria corta, entidades y registro interno de cada turno
@@ -448,7 +448,7 @@ src/footy_agents/    capa agéntica, desacoplada del motor
   llm.py             cliente compatible con OpenAI; ollama_runtime.py lo inicia bajo demanda
   web/router.py      /api/agent: chat y resumen por SSE, conversaciones, memoria, alertas, vigilancias, salud
 scripts/             puntos de entrada: ciclo diario, cuotas pre-partido, vigía, análisis y evaluación
-tests/               583 pruebas; tests/footy_agents usa un LLM simulado
+tests/               597 pruebas; tests/footy_agents usa un LLM simulado
 docs/                análisis 01-11, arquitectura del agente, guion de demo y registro de decisiones
 ```
 

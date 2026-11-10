@@ -4,6 +4,7 @@ from footy_agents.grounding import check_claims, verify_numbers
 from footy_agents.names import normalize_name
 from footy_agents.observations import observe
 from footy_agents.schemas import ToolCallRecord
+from footy_agents.tools import recommendations_text
 
 
 def verified_summary(records: list[ToolCallRecord], question: str = "") -> str:
@@ -44,6 +45,8 @@ def verified_summary(records: list[ToolCallRecord], question: str = "") -> str:
                 groups[i].append(data[key])
         if data.get("confirmation_text"):
             groups[3].append(data["confirmation_text"])
+        if record.tool_name == "get_recommendations" and data.get("summary_text"):
+            groups[1].append(recommendations_text(data))
         if record.tool_name == "get_coverage":
             for key in ("freshness", "rule"):
                 if data.get(key):

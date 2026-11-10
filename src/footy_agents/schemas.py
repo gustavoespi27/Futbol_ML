@@ -138,7 +138,7 @@ class NewConversation(AgentSchema):
 class MemoryItem(AgentSchema):
     """Algo que el Míster aprendió del usuario: equipo, liga o tema, con su peso y si lo dijo explícitamente."""
     id: int
-    kind: Literal["team", "league", "topic"]
+    kind: Literal["team", "league", "topic", "name"]
     label: str
     weight: float
     stated: bool
