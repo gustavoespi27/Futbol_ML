@@ -74,6 +74,9 @@ def parse_event_odds(event: dict, now: datetime | None = None, rejected: list[st
         if not isinstance(book, str) or not book.strip():
             reasons.append("Oferta sin proveedor")
             continue
+        if book.strip().casefold() == "pinnacle":
+            reasons.append("ESPN solo aporta precios ofrecidos; no publica la referencia Pinnacle")
+            continue
         base = {
             "source": "espn_odds",
             "bookmaker": book.strip(),

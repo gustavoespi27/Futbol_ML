@@ -34,7 +34,7 @@ from footy.web.services.common import _f, _probs, data_through, public
 
 PREDICTOR_TTL = 6 * 3600
 CONTEXT_TTL = 600
-DISPLAY_BOOKS = ("Bet365", "Pinnacle", "Betfair Exchange", "Betfair", "Market Avg")   # cuota que se muestra
+DISPLAY_BOOKS = ("Bet365", "Pinnacle", "Betfair Exchange", "Betfair", "Market Avg", "DraftKings")
 REFERENCE_BOOKS = ("Pinnacle", "Betfair Exchange", "Market Avg", "Bet365")             # para quitar el margen
 STALE_DAYS = 12
 HORIZON_DAYS = 5          # partidos que se muestran: hoy y 4 días más (calendario de ESPN; las cuotas llegan después)
@@ -244,7 +244,8 @@ def _stats(r: dict | None, conn=None, home_id: int | None = None, away_id: int |
 
 def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | None, odds: dict,
                    home_id: int | None = None, away_id: int | None = None,
-                   cross_probs: np.ndarray | None = None, round_name: str | None = None) -> dict:
+                   cross_probs: np.ndarray | None = None, round_name: str | None = None,
+                   offered_only_books: set[str] | None = None) -> dict:
     """`cross_probs`: probabilidades del modelo entre ligas ya calculadas (simulador entre ligas): se usan aunque la
     liga de `code` tenga modelo propio."""
     params, names = load_params(), league_names()
@@ -252,8 +253,12 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
     mlr = None if row is None or np.isnan(row.get("ml_H", np.nan)) else row
     stats = _stats(row, connect(), home_id, away_id, kickoff) if row else None
     books = _books_1x2(odds)
-    ref_book = next((b for b in REFERENCE_BOOKS if b in books), None) or next(iter(books), None)
-    p_mkt_over = _market_over(odds)
+    offered_only_books = (offered_only_books or set()) | {"DraftKings"}
+    reference_books = {b: p for b, p in books.items() if b not in offered_only_books}
+    ref_book = next((b for b in REFERENCE_BOOKS if b in reference_books), None) or next(iter(reference_books), None)
+    reference_odds = {market: {b: p for b, p in prices.items() if b not in offered_only_books}
+                      for market, prices in odds.items()}
+    p_mkt_over = _market_over(reference_odds)
     ctx = {"ref": ref, "league": code, "league_name": names.get(code, code), "home": home, "away": away,
            "kickoff": kickoff, "market_book": ref_book, "home_id": home_id, "away_id": away_id}
     cross = None
@@ -263,7 +268,7 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
 
         p_model, lam, mu, neutral = national
         # Solo Pinnacle puede sustituir la probabilidad del modelo de selecciones.
-        ref_book = "Pinnacle" if "Pinnacle" in books else None
+        ref_book = "Pinnacle" if "Pinnacle" in reference_books else None
         p_off = proportional(books[ref_book][None, :])[0] if ref_book else p_model
         M = combos.fit_matrix(lam, mu, 0, p_off, p_mkt_over) if ref_book else score_matrix(lam, mu)
         note = "Probabilidades de Pinnacle sin margen." if ref_book else "Pronóstico del modelo de selecciones."
@@ -393,9 +398,11 @@ def match_context(conn, match_id: int) -> dict:
             (match_id,)).fetchone()
         if r is None:
             raise KeyError(f"Partido {match_id} no encontrado")
+        offered_only = {row[0] for row in conn.execute(
+            "SELECT DISTINCT bookmaker FROM odds WHERE match_id=? AND source='espn_odds'", (match_id,))}
         ctx = _build_context(f"m:{match_id}", r["code"], r["home"], r["away"], r["kickoff_utc"],
                              tracking.latest_market_odds(conn, match_id), r["home_team_id"], r["away_team_id"],
-                             round_name=r["round"])
+                             round_name=r["round"], offered_only_books=offered_only)
         if r["type"] == "cup" and r["round"]:          # fase de la copa (Champions: "League Stage - 3", "Final"...)
             ctx["round"] = r["round"]
         # Forma reciente de ambos (puntos G/E/P y detalle): solo partidos que empezaron antes de este partido y de
