@@ -57,7 +57,7 @@ def compare(conn: sqlite3.Connection, match_id: int, now: datetime | None = None
         if s not in best:
             continue
         price, book = best[s]
-        fair = None if p is None else round(float(1 / p[i]), 3)
+        fair = None if p is None else float(1 / p[i])
         edge = None if p is None else float(price * p[i] - 1)
         selections.append(
             {
@@ -69,9 +69,9 @@ def compare(conn: sqlite3.Connection, match_id: int, now: datetime | None = None
                 "edge": edge,
             }
         )
-        text = f"{labels[s]}: mejor {price:.3f} en {book}"
+        text = f"{labels[s]}: mejor {price:.2f} en {book}"
         if p is not None:
-            text += f" · Pinnacle justo {fair:.3f} · ventaja {edge * 100:+.1f} %"
+            text += f" · Pinnacle justo {fair:.2f} · ventaja {edge * 100:+.1f} %"
         lines.append(text)
     text = "\n".join([*lines, note])
     return {
