@@ -2,7 +2,8 @@
 
 [![CI](https://github.com/gustavoespi27/Futbol_ML/actions/workflows/ci.yml/badge.svg)](https://github.com/gustavoespi27/Futbol_ML/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-3776ab)
-![Tests](https://img.shields.io/badge/tests-663%20passing-10b981)
+![Tests](https://img.shields.io/badge/tests-712%20passing-10b981)
+![Estado](https://img.shields.io/badge/estado-prototipo%20funcional-f59e0b)
 ![LLM](https://img.shields.io/badge/LLM-Qwen%202.5%207B%20local-7c3aed)
 ![Stack](https://img.shields.io/badge/stack-FastAPI%20%C2%B7%20SQLite%20%C2%B7%20scikit--learn-0f172a)
 
@@ -33,8 +34,28 @@ se habla y vuelve a consultar en vez de repetir cifras de memoria.</sub></p>
 
 ---
 
+## Estado del proyecto
+
+**Prototipo funcional, local y de un solo usuario** (noviembre de 2026). Proyecto universitario de INACAP: lo que
+se evalúa es la capa de agentes; el motor cuantitativo es la base sobre la que razonan.
+
+| Funciona hoy | Todavía no |
+|---|---|
+| Dashboard completo en `http://127.0.0.1:8000`, claro/oscuro y móvil | No está desplegado en internet: corre en el PC de quien lo instala |
+| El Míster conversa, consulta 16 herramientas y verifica cada cifra | Sin cuentas de usuario: todo es del usuario `default` |
+| Tres agentes (Míster, Ojeador y Vigía) cooperando sobre la misma base | La base de datos (≈ 525 MB) no viaja con el repositorio |
+| Ciclo automático de datos tres veces al día en Windows | Las apuestas son **en papel**: nada se apuesta con dinero real |
+| 712 pruebas automáticas + CI en GitHub Actions | El LLM local exige una GPU de ~8 GB para responder en 10-20 s |
+
+Si vienes del equipo, lee primero [Para el equipo](#para-el-equipo); si quieres levantarlo, ve a
+[Inicio rápido](#inicio-rápido); si quieres saber qué falta para que sea un producto, ve a
+[De prototipo a producto](#de-prototipo-a-producto).
+
+---
+
 ## Contenido
 
+- [Estado del proyecto](#estado-del-proyecto)
 - [En cifras](#en-cifras)
 - [El agente de IA](#el-agente-de-ia)
 - [El motor cuantitativo](#el-motor-cuantitativo)
@@ -42,8 +63,9 @@ se habla y vuelve a consultar en vez de repetir cifras de memoria.</sub></p>
 - [Producto: el dashboard](#producto-el-dashboard)
 - [Datos, automatización e ingeniería](#datos-automatización-e-ingeniería)
 - [Inicio rápido](#inicio-rápido)
+- [Para el equipo](#para-el-equipo)
 - [Arquitectura del código](#arquitectura-del-código)
-- [Hoja de ruta](#hoja-de-ruta)
+- [De prototipo a producto](#de-prototipo-a-producto)
 - [Documentación](#documentación)
 
 ---
@@ -55,7 +77,7 @@ se habla y vuelve a consultar en vez de repetir cifras de memoria.</sub></p>
 | **181.114** partidos en la base (2012-2026) | **1,98 millones** de cuotas históricas y pre-partido |
 | **53** competiciones visibles, incluidas 8 de selecciones | **1.749** equipos enlazados entre fuentes de datos |
 | **8.608** partidos de examen fuera de muestra (temporada 2026) | **498** partidos auditados en vivo con pronóstico previo |
-| **16** herramientas del agente (11 de consulta, 4 de acción y 1 de delegación) | **663** pruebas automáticas; CI en Python 3.11 y 3.12 |
+| **16** herramientas del agente (11 de consulta, 4 de acción y 1 de delegación) | **712** pruebas automáticas; CI en Python 3.11 y 3.12 |
 
 ---
 
@@ -101,10 +123,12 @@ Un chatbot responde con lo que sabe. Este agente **percibe su entorno, decide, a
 | **Decisión y desvío** | No hay un flujo fijo. Si el equipo no aparece, busca el nombre canónico; si falta el precio de Pinnacle, entrega el pronóstico sin hablar de ventaja; si el partido empezó, lo dice. Cada desvío se muestra en el chat con su motivo |
 | **Recuperación** | Si el modelo intenta responder sin datos del turno o pedir algo que puede consultar, el orquestador detecta la intención (`routing.py`) y lo obliga a consultar la herramienta correcta |
 | **Autocorrección** | Un borrador con cifras sin respaldo o con interpretaciones erróneas (CLV invertido, tope diario confundido con tope por apuesta, conteos de forma) se devuelve al modelo para reescribirlo antes de mostrarse |
-| **Memoria** | Decide de forma determinista si una pregunta continúa la conversación. Si continúa, recuerda *qué* partido o equipo se consultó (nunca sus cifras) y vuelve a consultar el dato actualizado |
+| **Memoria** | Decide de forma determinista si una pregunta continúa la conversación. Si continúa, recuerda *qué* partido, equipo o liga se consultó (nunca sus cifras) y vuelve a consultar el dato actualizado: «¿y los últimos?» tras una tabla, «real madrid» tras «¿cuál Real?» o «chl» tras «¿qué liga?» completan la pregunta pendiente |
+| **Respuestas sin LLM** | Lo que es mostrar datos sale tal cual del sistema, sin redacción: saludo y presentación, tablas de posiciones (por nombre, país o gentilicio: «la liga chilena»), recomendaciones de Apuestas, comparación de cuotas y rechazo de «apuesta segura» |
+| **Cruces hipotéticos** | «¿Qué pasa si se enfrenta la U de Chile con el Barcelona?» simula entre ligas con el modelo `cross_league`; si el partido existe en el calendario, analiza el real; si el nombre es ambiguo («el Real»), pregunta |
 | **Acción** | Herramientas de escritura: crear, listar y cancelar vigilancias, y agregar favoritos. Solo sobre tablas propias del agente |
 | **Autonomía** | Un vigía corre solo después de cada actualización de datos, sin LLM: percibe cambios, decide con reglas, emite alertas y registra hasta las decisiones descartadas |
-| **Trazabilidad** | Registro interno de cada turno del chat y de cada ejecución del vigía: herramientas, observaciones, desvíos, reparaciones y motivos. No se muestra en el chat; queda en `/api/agent/runs`, `/api/agent/watch-log` y en la salida de `scripts/agent_watch.py` |
+| **Trazabilidad** | Registro interno de cada turno del chat y de cada ejecución del vigía: herramientas, observaciones, desvíos, reparaciones y motivos. En el chat normal no se muestra; con `?demo` en la URL (o Ctrl+Shift+D) cada respuesta trae «Cómo lo resolvió» con los pasos reales. También queda en `/api/agent/runs`, `/api/agent/watch-log` y en la salida de `scripts/agent_watch.py` |
 | **Memoria personalizada** | Aprende del usuario sin LLM: su nombre («me llamo…»), lo que dice («soy hincha de Colo Colo», «ya no sigo a…»), los equipos y ligas que consulta y los temas que más pregunta. Vuelve al prompt como contexto y el usuario puede verla y borrarla |
 | **Historial** | Conversaciones guardadas como en los asistentes grandes: se retoman con su propio contexto o se borran |
 
@@ -192,6 +216,8 @@ Se evaluó con Qwen 2.5 7B real, consultas secuenciales y revisión manual de ca
 | Batería final de 15 turnos (conversación, vigilancias y seguimientos) | **14/15** herramientas y caminos correctos; acciones **3/3** |
 | Revisión manual de interpretación | **11** correctas, **3** parciales, **1** sin respuesta |
 | Seguimientos con memoria tras el último ajuste | **3/3** correctos, una sola inferencia cada uno |
+| Evaluación del pulido final ([12 – Pulido](docs/analisis/12_pulido.md)) | Caminos **8/8**; respuestas **7/8** |
+| Continuidad entre turnos (aclaración, tabla y cruce hipotético) | **3/3** secuencias correctas en vivo con Qwen |
 | Latencia por turno | p50 **10,9 s** · p95 **18,8 s** (GPU de 8 GB) |
 | Pruebas automáticas de la capa agéntica | FakeLLM sin red ni tokens; cobertura **96 %** |
 
@@ -354,10 +380,10 @@ los datos no cambiaron. `scripts/automation.py` permite pausar y reanudar.
 **Ingeniería.**
 
 - **Backend:** Python 3.11+, pandas, NumPy, SciPy, scikit-learn, SQLite (WAL), FastAPI y Uvicorn.
-- **Agente sin frameworks:** orquestador propio de ~450 líneas, cliente compatible con OpenAI por `requests` y
+- **Agente sin frameworks:** orquestador propio de ~700 líneas, cliente compatible con OpenAI por `requests` y
   Ollama local. Cambiar de proveedor es cambiar `base_url` y `model` en `config/settings.yaml`.
 - **Contratos estrictos:** respuestas y eventos con Pydantic v2 y `extra="forbid"`; el chat usa Server-Sent Events.
-- **Calidad:** 663 pruebas con pytest (el agente se prueba con un LLM simulado, sin red ni costo), pruebas del
+- **Calidad:** 712 pruebas con pytest (el agente se prueba con un LLM simulado, sin red ni costo), pruebas del
   frontend con `node:test`, Ruff y CI en GitHub Actions.
 - **Reproducibilidad:** fechas en UTC ISO-8601, cada pronóstico registra la versión del modelo, y las evaluaciones
   del agente guardan sus eventos completos en JSON.
@@ -366,19 +392,59 @@ los datos no cambiaron. `scripts/automation.py` permite pausar y reanudar.
 
 ## Inicio rápido
 
-**Requisitos:** Python ≥ 3.11, una clave gratuita de [API-Football](https://www.api-football.com/) y, para el
-asistente, [Ollama](https://ollama.com/) con una GPU de 8 GB o más.
+> **Importante:** clonar el repositorio trae el código, **no los datos**. La base `data/db/football.sqlite`
+> (≈ 525 MB), los CSV de `data/raw/` y la caché de `data/processed/` están en `.gitignore`. Sin ellos el
+> dashboard arranca vacío. Tampoco viajan `.venv/` (hay que recrearla en cada PC) ni `.env` (la clave es personal).
+
+**Requisitos**
+
+| Necesitas | Para qué | ¿Obligatorio? |
+|---|---|---|
+| Windows 10/11 y [Python](https://www.python.org/downloads/) ≥ 3.11 (marcar «Add to PATH») | Todo el sistema | Sí |
+| Git | Clonar y trabajar en ramas | Sí |
+| Conexión a internet | Calendario ESPN, cuotas y escudos | Sí, para datos frescos |
+| [Ollama](https://ollama.com/download) + modelo `qwen2.5:7b` (≈ 4,7 GB) | Que el Míster converse | Solo para el chat |
+| GPU de ~8 GB (o paciencia) | Respuestas del chat en 10-20 s; solo con CPU tarda bastante más | Recomendado |
+| Clave gratuita de [API-Football](https://dashboard.api-football.com/register) | Cuotas de ~10 casas, incluida Pinnacle | Solo para actualizar cuotas |
+
+**1. Código y entorno** (5-10 minutos):
 
 ```bash
+git clone https://github.com/gustavoespi27/Futbol_ML.git
+cd Futbol_ML
 python -m venv .venv
 .venv\Scripts\activate              # Windows
 pip install -r requirements.txt
 pip install -e .
-copy .env.example .env              # completar API_FOOTBALL_KEY
+copy .env.example .env              # completar API_FOOTBALL_KEY (opcional para solo mirar)
 ollama pull qwen2.5:7b              # una vez, para el asistente
 ```
 
-**Primera carga de datos y modelos** (una sola vez):
+**2. Datos.** Hay dos caminos:
+
+- **A. Base compartida (recomendado para el equipo).** Pide a Gustavo `football.sqlite` y la carpeta
+  `data/processed/` y cópialas en `data/db/` y `data/processed/`. Con eso el dashboard funciona al instante y el
+  ciclo diario la mantiene al día.
+- **B. Desde cero** (horas y parte de la cuota diaria de la API). Los pasos están abajo.
+
+**3. Abrir el dashboard:** `python scripts/serve.py` o doble clic en `dashboard.bat`, y entrar a
+`http://127.0.0.1:8000`. Agrega `?demo` a la URL para ver cómo razona el Míster.
+
+<details>
+<summary><b>Problemas frecuentes</b></summary>
+
+| Síntoma | Causa y solución |
+|---|---|
+| `dashboard.bat` se cierra al instante | La `.venv` no existe o se copió de otro PC (apunta a su Python). Bórrala y repite el paso 1 |
+| El dashboard abre pero sin partidos | Falta la base de datos: paso 2 |
+| El Míster dice que la IA local no está disponible | Ollama no está instalado o falta `ollama pull qwen2.5:7b`. Lo demás sigue funcionando |
+| El Míster responde «atendiendo otra consulta» | Ollama atiende una pregunta a la vez: esperar a que termine la anterior |
+| Cambié código Python y no se nota | Reiniciar `serve.py`. Si solo cambió el frontend, basta Ctrl+F5 |
+| No aparecen cuotas de Pinnacle | Falta `API_FOOTBALL_KEY` o se agotaron las 100 peticiones diarias del plan gratuito |
+
+</details>
+
+**Primera carga de datos y modelos desde cero** (camino B, una sola vez):
 
 ```bash
 python scripts/update_football_data.py          # resultados, estadísticas y cuotas desde 2012
@@ -429,8 +495,61 @@ La clave de API vive solo en `.env`, que no se versiona.
 | `scripts/train_ml.py [--eval \| --production]` | Entrena y evalúa los modelos de ML |
 | `scripts/eval_international.py` | Evaluación del modelo de selecciones |
 | `scripts/pro_backtest.py` | El apostador profesional en el histórico |
+| `scripts/prepare_mascot.py` · `scripts/rig_mascot.py` | Recortar las poses del zorro y cortarlas en capas animables |
 
 </details>
+
+---
+
+## Para el equipo
+
+**Qué es, en una frase:** un dashboard de pronósticos de fútbol con un asistente de IA («El Míster») que responde
+preguntas consultando un motor estadístico, sin inventar cifras, más dos agentes automáticos que buscan cuotas y
+avisan de cambios.
+
+**Reglas de trabajo**
+
+- **Nunca se sube directo a `main`.** Cada tarea va en una rama `feature/...` y entra a `main` por Pull Request con
+  *squash merge*. La rama de la presentación es `feature/agent-ui-redesign`.
+- **Un commit por tarea** con [Conventional Commits](https://www.conventionalcommits.org/es/):
+  `feat(agents): …`, `fix(web): …`, `test(agents): …`, `docs: …`.
+- **Antes de cada commit**, las cuatro verificaciones deben pasar:
+  ```bash
+  pytest -q
+  ruff check src scripts tests
+  node --check src/footy/web/static/app.js        # y cada .js que hayas tocado
+  node --test tests/web/*.cjs
+  ```
+- **`.env` jamás se sube** (tiene la clave de la API). Tampoco los datos de `data/`.
+
+**Qué se puede tocar y qué no**
+
+| Zona | Regla |
+|---|---|
+| `src/footy/` (models, markets, betting, prediction, features, ingest) | **Solo lectura.** Es el motor validado; cambiarlo invalida las evaluaciones |
+| `src/footy/web/` (servicios, `schemas.py`, `static/`) | Se puede cambiar. Si un servicio devuelve una clave nueva, hay que declararla en `schemas.py` o falla `tests/test_api_schemas.py` |
+| `src/footy_agents/` | Capa del agente: aquí se trabaja. Sus tablas se crean con DDL propio, sin tocar `src/footy/db/schema.sql` |
+| `tests/` | Toda corrección lleva su prueba. El agente se prueba con un LLM simulado (`FakeLLM`), sin red ni Ollama |
+
+**Principios que no se negocian**
+
+1. **El LLM no calcula.** Toda cifra sale de una herramienta y pasa por `grounding.py`.
+2. **Sin filtración de datos.** Solo información anterior al inicio de cada partido.
+3. **Pinnacle sin margen es la única referencia de precio justo.** DraftKings u otras casas son precio ofrecido.
+4. **Riesgo:** ¼ de Kelly, tope de 2 % por apuesta y 10 % diario.
+5. **Fechas en UTC ISO-8601** en datos; la hora de Chile solo al mostrar.
+
+**Dónde mirar según la tarea**
+
+| Quiero… | Archivo |
+|---|---|
+| Que el Míster entienda una forma nueva de preguntar | `src/footy_agents/routing.py` (+ prueba en `tests/footy_agents/`) |
+| Agregar o cambiar una herramienta | `src/footy_agents/tools.py` y sus argumentos en `tool_args.py` |
+| Cambiar la voz o la presentación del Míster | `src/footy_agents/persona.py` |
+| Cambiar el chat, avisos o la mascota en pantalla | `src/footy/web/static/agent.js`, `alerts.js`, `mascot.js` |
+| Agregar un apodo de equipo («la U», «el cacique») | `NICKNAMES` en `src/footy_agents/tools.py` |
+| Agregar una liga | `config/settings.yaml` |
+| Limpiar los datos de demo antes de presentar | `python scripts/reset_agent_demo.py --yes` |
 
 ---
 
@@ -452,7 +571,7 @@ src/footy_agents/    capa agéntica, desacoplada del motor
   orchestrator.py    bucle de decisión con herramientas, recuperación, reparación y respaldo
   persona.py         nombre y voz de DT del Míster; apelativo y presentación sin LLM
   observations.py    clasificación tipada de cada resultado de herramienta
-  routing.py         continuidad de la conversación e intención para recuperar
+  routing.py         continuidad de la conversación, intención y cruces hipotéticos
   tools.py           16 herramientas tipadas; request_odds delega en el Ojeador
   grounding.py       verificación de cifras, fechas e interpretaciones
   fallback.py        respuesta de respaldo con frases canónicas verificadas
@@ -468,23 +587,61 @@ src/footy_agents/    capa agéntica, desacoplada del motor
   llm.py             cliente compatible con OpenAI; ollama_runtime.py lo inicia bajo demanda
   web/router.py      /api/agent: chat y resumen por SSE, conversaciones, memoria, alertas, vigilancias, scout-log, salud
 scripts/             puntos de entrada: ciclo diario, cuotas pre-partido, vigía, análisis y evaluación
-tests/               663 pruebas; tests/footy_agents usa un LLM simulado
-docs/                análisis 01-11, arquitectura del agente, guion de demo y registro de decisiones
+tests/               712 pruebas; tests/footy_agents usa un LLM simulado; tests/web/*.cjs prueba el frontend
+assets/mascot/       poses fuente del zorro (las capas publicadas viven en web/static/img/)
+docs/                análisis 01-12, arquitectura del agente, guion de demo y registro de decisiones
 ```
 
 El detalle de la capa agéntica está en [arquitectura_agente.md](docs/arquitectura_agente.md).
 
 ---
 
-## Hoja de ruta
+## De prototipo a producto
 
-- **Muestra de apuestas reales en vivo.** La regla aún no se activa en vivo; hace falta acumular apuestas para
-  confirmar el CLV positivo del histórico.
-- **Agente:** evaluar un modelo de lenguaje más grande cuando el hardware lo permita, ampliar la batería de
-  evaluación para medir exactitud con significancia y sumar notificaciones fuera del dashboard para las alertas.
+El prototipo demuestra que la idea funciona. Para que alguien lo use sin ayuda falta lo siguiente, ordenado por
+prioridad:
+
+### 1. Que funcione fuera de este PC
+
+| Falta | Por qué importa | Cómo resolverlo |
+|---|---|---|
+| **Instalación en un paso** | Hoy hay que instalar Python, recrear `.venv`, conseguir la base e instalar Ollama a mano | Un `setup.bat` que cree el entorno y verifique Ollama; a mediano plazo, una imagen Docker |
+| **Distribución de los datos** | La base no está en el repositorio | Publicar una base inicial descargable (GitHub Releases o almacenamiento en la nube) y dejar que el ciclo diario la actualice |
+| **Despliegue en un servidor** | Hoy solo existe en `127.0.0.1` | Servidor con el ciclo diario como tarea programada, HTTPS y dominio. SQLite alcanza para pocos usuarios; con más, PostgreSQL |
+| **LLM sin GPU local** | Qwen 7B exige una GPU de ~8 GB | El cliente ya es compatible con OpenAI: basta cambiar `base_url` y `model` para usar un proveedor en la nube, con costo por uso |
+
+### 2. Que lo use más de una persona
+
+- **Cuentas de usuario e inicio de sesión.** Hoy todo pertenece a `default`: preferencias, memoria, historial y avisos.
+- **Atender consultas en paralelo.** Ollama local responde una a la vez; un producto necesita cola o un proveedor que
+  escale.
+- **Avisos fuera del dashboard** (correo, Telegram o notificaciones push) para que el Vigía sirva aunque la página
+  esté cerrada.
+
+### 3. Que el agente sea más robusto
+
+- **Entender preguntas nuevas sin parches.** La intención se detecta con reglas deterministas, y cada forma nueva de
+  preguntar («se enfrenta», «hipotético caso») ha requerido una regla. Es fiable para lo probado, pero frágil ante
+  lo no visto. El paso siguiente es un clasificador de intención entrenado con las conversaciones registradas.
+- **Evaluación con significancia estadística.** Las baterías actuales (15 y 8 preguntas) prueban que funciona, no
+  miden con qué exactitud. Hace falta un conjunto de cientos de preguntas reales.
+- **Un modelo de lenguaje más grande** cuando el hardware o el presupuesto lo permitan (`config/settings.yaml`
+  ya sugiere Qwen 14B; cambiarlo es una línea).
+
+### 4. Que los datos alcancen
+
+- **Más cobertura de Pinnacle.** El plan gratuito de API-Football (100 peticiones al día) deja la mayoría de los
+  partidos sin precio justo, y sin él el sistema no recomienda apostar. El Ojeador ya trae precios de DraftKings vía
+  ESPN, pero solo como precio ofrecido. Un plan pagado o una segunda fuente de Pinnacle cambiaría esto.
+- **Alineaciones y bajas.** Es la información que el mercado incorpora y el modelo no.
 - **Selecciones contra el mercado:** compararlas con Pinnacle cuando haya cuotas suficientes de partidos
   internacionales.
-- **Alineaciones y bajas.** Es la información que el mercado incorpora y el modelo no.
+
+### 5. Validar la estrategia con dinero real
+
+La regla del apostador profesional supera la cuota de cierre 3 de cada 4 veces en el histórico, pero la ganancia
+aún no es estadísticamente concluyente. Hace falta acumular apuestas en papel en vivo antes de recomendar montos
+reales, y revisar el marco legal de las apuestas en Chile antes de ofrecerlo como servicio.
 
 ---
 
@@ -505,6 +662,7 @@ El detalle de la capa agéntica está en [arquitectura_agente.md](docs/arquitect
 | [09 – Consumo](docs/analisis/09_consumo.md) | Uso de recursos del PC, Ollama bajo demanda y automatización |
 | [10 – Riesgo unificado](docs/analisis/10_riesgo_unificado.md) | Tope de 2 % por apuesta en ambas reglas |
 | [11 – Selecciones](docs/analisis/11_selecciones.md) | Modelo de selecciones y su evaluación |
+| [12 – Pulido](docs/analisis/12_pulido.md) | Modo demo, precios ofrecidos vs Pinnacle, nombres en español y móvil |
 | [Decisiones](docs/decisiones.md) | Registro fechado de cada decisión, su evidencia y sus correcciones |
 
 ---
