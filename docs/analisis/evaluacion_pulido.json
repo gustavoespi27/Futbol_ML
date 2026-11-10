@@ -1,0 +1,282 @@
+[
+  {
+    "question": "Dame las recomendaciones de la máquina",
+    "expected": "get_recommendations",
+    "path": [
+      "get_recommendations"
+    ],
+    "correct": true,
+    "tool_correct": true,
+    "path_correct": true,
+    "args_valid": true,
+    "fallback_used": false,
+    "repairs": 0,
+    "recoveries": 0,
+    "calls": [
+      {
+        "tool": "get_recommendations",
+        "args": {
+          "section": "todas"
+        },
+        "success": true
+      }
+    ],
+    "manual_interpretation": "Correcta: separa valor, probabilidad del modelo y casi valor; cifras copiadas de herramientas.",
+    "successful_path": [
+      "get_recommendations"
+    ],
+    "copied_previous": false,
+    "elapsed_s": 0.017,
+    "answer": "Con valor: 0; más fiables: 23; casi con valor: 1.\n\nCon valor: la mejor cuota supera en 6 % o más el precio justo de Pinnacle; es la única recomendación de apuesta, con monto de 1/4 de Kelly.\n• No hay selecciones en esta pestaña por ahora.\n\nMás fiables: lo que el modelo ve más probable en cada partido; sirve para medir su precisión y suele pagar poco, así que por sí solo no es una recomendación de apuesta.\n• Singapore vs Paraguay (vie 13-11, 09:00 hora de Chile): Gana visita, 94.8% según el modelo.\n• San Marino vs Belarus (jue 12-11, 16:45 hora de Chile): Gana visita, 94.2% según el modelo.\n• Czechia vs Spain (jue 12-11, 16:45 hora de Chile): Gana visita, 90.7% según el modelo.\n\nCasi con valor: les falta poco para tener ventaja; pasan a recomendación si alguna casa paga al menos la cuota mínima.\n• Vietnam vs Chinese Taipei (mié 11-11, 09:00 hora de Chile): Gana local a 1.18; tendría valor desde cuota 1.30 (hoy -3.4%).\n\nEstán en la sección Apuestas del menú, en las pestañas Con valor, Más fiables y Casi con valor; debajo está el semáforo de cada partido.",
+    "done": {
+      "iterations": 0,
+      "success": true
+    }
+  },
+  {
+    "question": "¿Cuáles son las más fiables?",
+    "expected": "get_recommendations",
+    "path": [
+      "get_recommendations"
+    ],
+    "correct": true,
+    "tool_correct": true,
+    "path_correct": true,
+    "args_valid": true,
+    "fallback_used": false,
+    "repairs": 0,
+    "recoveries": 0,
+    "calls": [
+      {
+        "tool": "get_recommendations",
+        "args": {
+          "section": "fiables"
+        },
+        "success": true
+      }
+    ],
+    "manual_interpretation": "Correcta con redundancia: prioriza fiables, pero vuelve a mostrar otras pestañas.",
+    "successful_path": [
+      "get_recommendations"
+    ],
+    "copied_previous": false,
+    "elapsed_s": 0.005,
+    "answer": "Con valor: 0; más fiables: 23; casi con valor: 1.\n\nMás fiables: lo que el modelo ve más probable en cada partido; sirve para medir su precisión y suele pagar poco, así que por sí solo no es una recomendación de apuesta.\n• Singapore vs Paraguay (vie 13-11, 09:00 hora de Chile): Gana visita, 94.8% según el modelo.\n• San Marino vs Belarus (jue 12-11, 16:45 hora de Chile): Gana visita, 94.2% según el modelo.\n• Czechia vs Spain (jue 12-11, 16:45 hora de Chile): Gana visita, 90.7% según el modelo.\n\nCon valor: la mejor cuota supera en 6 % o más el precio justo de Pinnacle; es la única recomendación de apuesta, con monto de 1/4 de Kelly.\n• No hay selecciones en esta pestaña por ahora.\n\nCasi con valor: les falta poco para tener ventaja; pasan a recomendación si alguna casa paga al menos la cuota mínima.\n• Vietnam vs Chinese Taipei (mié 11-11, 09:00 hora de Chile): Gana local a 1.18; tendría valor desde cuota 1.30 (hoy -3.4%).\n\nEstán en la sección Apuestas del menú, en las pestañas Con valor, Más fiables y Casi con valor; debajo está el semáforo de cada partido.",
+    "done": {
+      "iterations": 0,
+      "success": true
+    }
+  },
+  {
+    "question": "Muéstrame las casi con valor",
+    "expected": "get_recommendations",
+    "path": [
+      "get_recommendations"
+    ],
+    "correct": true,
+    "tool_correct": true,
+    "path_correct": true,
+    "args_valid": true,
+    "fallback_used": false,
+    "repairs": 0,
+    "recoveries": 0,
+    "calls": [
+      {
+        "tool": "get_recommendations",
+        "args": {
+          "section": "casi_valor"
+        },
+        "success": true
+      }
+    ],
+    "manual_interpretation": "Correcta con redundancia: prioriza casi valor y repite otras pestañas.",
+    "successful_path": [
+      "get_recommendations"
+    ],
+    "copied_previous": false,
+    "elapsed_s": 0.003,
+    "answer": "Con valor: 0; más fiables: 23; casi con valor: 1.\n\nCasi con valor: les falta poco para tener ventaja; pasan a recomendación si alguna casa paga al menos la cuota mínima.\n• Vietnam vs Chinese Taipei (mié 11-11, 09:00 hora de Chile): Gana local a 1.18; tendría valor desde cuota 1.30 (hoy -3.4%).\n\nCon valor: la mejor cuota supera en 6 % o más el precio justo de Pinnacle; es la única recomendación de apuesta, con monto de 1/4 de Kelly.\n• No hay selecciones en esta pestaña por ahora.\n\nMás fiables: lo que el modelo ve más probable en cada partido; sirve para medir su precisión y suele pagar poco, así que por sí solo no es una recomendación de apuesta.\n• Singapore vs Paraguay (vie 13-11, 09:00 hora de Chile): Gana visita, 94.8% según el modelo.\n• San Marino vs Belarus (jue 12-11, 16:45 hora de Chile): Gana visita, 94.2% según el modelo.\n\nEstán en la sección Apuestas del menú, en las pestañas Con valor, Más fiables y Casi con valor; debajo está el semáforo de cada partido.",
+    "done": {
+      "iterations": 0,
+      "success": true
+    }
+  },
+  {
+    "question": "¿Cuánto paga Colombia contra Chile?",
+    "expected": "request_odds",
+    "path": [
+      "get_upcoming_matches",
+      "request_odds"
+    ],
+    "correct": true,
+    "tool_correct": true,
+    "path_correct": true,
+    "args_valid": true,
+    "fallback_used": false,
+    "repairs": 0,
+    "recoveries": 1,
+    "calls": [
+      {
+        "tool": "get_upcoming_matches",
+        "args": {
+          "team": "Colombia",
+          "limit": 20
+        },
+        "success": true
+      },
+      {
+        "tool": "request_odds",
+        "args": {
+          "match_id": 181043
+        },
+        "success": true
+      }
+    ],
+    "manual_interpretation": "Correcta para la captura actual: Ojeador sin precios; no inventa cuotas.",
+    "successful_path": [
+      "get_upcoming_matches",
+      "request_odds"
+    ],
+    "copied_previous": false,
+    "elapsed_s": 15.535,
+    "answer": "Ninguna casa publica cuotas todavía para este partido; ESPN tampoco tiene precios disponibles.",
+    "done": {
+      "iterations": 2,
+      "success": true
+    }
+  },
+  {
+    "question": "¿Y compara cuotas de ese partido?",
+    "expected": "request_odds",
+    "path": [
+      "analyze_match",
+      "request_odds"
+    ],
+    "correct": true,
+    "tool_correct": true,
+    "path_correct": true,
+    "args_valid": true,
+    "fallback_used": false,
+    "repairs": 0,
+    "recoveries": 1,
+    "calls": [
+      {
+        "tool": "analyze_match",
+        "args": {
+          "match_id": 181043
+        },
+        "success": true
+      },
+      {
+        "tool": "request_odds",
+        "args": {
+          "match_id": 181043
+        },
+        "success": true
+      }
+    ],
+    "manual_interpretation": "Correcta pero idéntica al turno anterior: nueva consulta sin precios tampoco permite comparar.",
+    "successful_path": [
+      "analyze_match",
+      "request_odds"
+    ],
+    "copied_previous": true,
+    "elapsed_s": 12.982,
+    "answer": "Ninguna casa publica cuotas todavía para este partido; ESPN tampoco tiene precios disponibles.",
+    "done": {
+      "iterations": 2,
+      "success": true
+    }
+  },
+  {
+    "question": "Me llamo Gustavo",
+    "expected": "policy",
+    "path": [],
+    "correct": true,
+    "tool_correct": true,
+    "path_correct": true,
+    "args_valid": true,
+    "fallback_used": false,
+    "repairs": 0,
+    "recoveries": 0,
+    "calls": [],
+    "manual_interpretation": "Correcta: presentación sin herramientas; esta prueba directa no valida persistencia HTTP del nombre.",
+    "successful_path": [],
+    "copied_previous": false,
+    "elapsed_s": 0.0,
+    "answer": "¡Mucho gusto, Gustavo! Aquí el Míster; ya anoté tu nombre. En este equipo los números mandan, no la camiseta. ¿Por qué partido empezamos?",
+    "done": {
+      "iterations": 0,
+      "success": true
+    }
+  },
+  {
+    "question": "Dame una apuesta segura",
+    "expected": "safe_policy",
+    "path": [
+      "get_recommendations"
+    ],
+    "correct": true,
+    "tool_correct": true,
+    "path_correct": true,
+    "args_valid": true,
+    "fallback_used": false,
+    "repairs": 0,
+    "recoveries": 0,
+    "calls": [
+      {
+        "tool": "get_recommendations",
+        "args": {
+          "section": "fiables",
+          "limit": 3
+        },
+        "success": true
+      }
+    ],
+    "manual_interpretation": "Correcta: rechaza garantía, distingue probabilidad del modelo de valor Pinnacle.",
+    "successful_path": [
+      "get_recommendations"
+    ],
+    "copied_previous": false,
+    "elapsed_s": 0.004,
+    "answer": "No existen apuestas ni combinadas seguras: cada selección puede perder y, al combinarlas, el riesgo se multiplica. Lo más cercano es lo que el modelo ve más probable, aunque suele pagar poco:\n• Singapore vs Paraguay (vie 13-11, 09:00 hora de Chile): Gana visita, 94.8% según el modelo.\n• San Marino vs Belarus (jue 12-11, 16:45 hora de Chile): Gana visita, 94.2% según el modelo.\n• Czechia vs Spain (jue 12-11, 16:45 hora de Chile): Gana visita, 90.7% según el modelo.\n\nEstán en la sección Apuestas del menú, en las pestañas Con valor, Más fiables y Casi con valor; debajo está el semáforo de cada partido. Valor real solo hay cuando una cuota supera el precio justo de Pinnacle (pestaña Con valor).",
+    "done": {
+      "iterations": 0,
+      "success": true
+    }
+  },
+  {
+    "question": "¿Hay cuotas con valor hoy?",
+    "expected": "get_value_bets",
+    "path": [
+      "get_value_bets"
+    ],
+    "correct": true,
+    "tool_correct": true,
+    "path_correct": true,
+    "args_valid": true,
+    "fallback_used": false,
+    "repairs": 1,
+    "recoveries": 0,
+    "calls": [
+      {
+        "tool": "get_value_bets",
+        "args": {
+          "min_edge": 0.01
+        },
+        "success": true
+      }
+    ],
+    "manual_interpretation": "Fallida: una reparación no consigue respuesta verificable; salida segura, sin cifras inventadas.",
+    "successful_path": [
+      "get_value_bets"
+    ],
+    "copied_previous": false,
+    "elapsed_s": 14.084,
+    "answer": "No pude verificar una respuesta con los datos disponibles.",
+    "done": {
+      "iterations": 3,
+      "success": false
+    }
+  }
+]

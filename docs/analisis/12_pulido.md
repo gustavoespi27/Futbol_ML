@@ -45,3 +45,37 @@ check_claims exige get_coverage exitoso en el turno para afirmar frescura; una c
 Detecta porcentajes presentados como cuotas, preservando cuota decimal y probabilidad/ventaja correctamente
 identificadas. Pruebas positivas, negativas y reparación con FakeLLM que consulta cobertura.
 Validación: **688 pytest** y Ruff. No cambia el motor ni los contratos SSE.
+
+## P0-4 — Evaluación real del pulido
+
+Modo reproducible `--mode pulido`: ocho turnos secuenciales con memoria SQLite aislada, Qwen 2.5 7B
+local y herramientas reales. Cinco turnos son deliberadamente deterministas y no llaman al LLM;
+por eso el percentil global no representa la velocidad de inferencia. No se modificó el agente para pasar.
+Evidencia revisada: [evaluacion_pulido.json](evaluacion_pulido.json).
+
+| Turno | Herramienta/política | Camino | Interpretación manual | Reparaciones / recuperaciones | Segundos |
+|---|---|---|---|---|---|
+| Recomendaciones | ✓ | ✓ | Correcta | 0 / 0 | 0,017 |
+| Más fiables | ✓ | ✓ | Correcta, repite otras pestañas | 0 / 0 | 0,005 |
+| Casi con valor | ✓ | ✓ | Correcta, repite otras pestañas | 0 / 0 | 0,003 |
+| Cuánto paga Colombia–Chile | ✓ | ✓ | Ausencia actual de precios, sin inventar | 0 / 1 | 15,535 |
+| Comparar con contexto | ✓ | ✓ | Mismo resultado sin precios; texto idéntico | 0 / 1 | 12,982 |
+| Me llamo Gustavo | ✓ | ✓ | Correcta; no prueba persistencia HTTP | 0 / 0 | 0,000 |
+| Apuesta segura | ✓ | ✓ | Rechaza garantía y distingue probabilidad/valor | 0 / 0 | 0,004 |
+| Cuotas con valor hoy | ✓ | ✓ | Fallida: mensaje seguro tras reparación | 1 / 0 | 14,084 |
+
+**8/8 herramientas y caminos; 7/8 respuestas verificadas; 1 reparación fallida; 2 recuperaciones;
+0 respaldos canónicos; 1 salida segura sin datos útiles; p50 0,011 s y p95 15,027 s.**
+Los tres turnos con inferencia tuvieron p50 14,084 s y p95 15,390 s.
+La repetición entre turnos 4/5 es real: ambos consultan el mismo partido sin cuotas; no es evidencia de
+contaminación, pero tampoco se presenta como ausencia de repeticiones. No se vio ninguna cifra inventada
+en el texto finalmente entregado. La salida segura cuenta como fallo, no como interpretación correcta.
+
+Comparación: la batería de cierre anterior (§Pieza 5 de `08_capa_agentica.md`) tuvo 14/15 herramientas,
+14/15 respuestas y p50 10,897 s / p95 18,784 s. Son conjuntos y proporciones deterministas diferentes;
+no permiten afirmar mejora global de exactitud o velocidad. El sondeo C7 de tres consultas de cuotas
+(§C7 del mismo documento) tuvo 3/3, cero reparaciones y latencias 9,068–14,011 s; el pulido mantiene
+dos delegaciones correctas, con datos actuales sin precios y 12,982–15,535 s.
+
+Validación: **689 pytest** y Ruff. Límite conocido: una herramienta correcta no garantiza que el LLM
+logre redactar una respuesta verificable; con lista de valor vacía puede terminar en salida segura.

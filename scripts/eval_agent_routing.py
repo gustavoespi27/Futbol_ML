@@ -37,6 +37,16 @@ GUSTAVO_CONVERSATION = [
     ("que partidos importantes hay el jueves?", "get_upcoming_matches"),
 ]
 FALLBACK_STEP = "Se entrega el resumen verificado de los datos consultados"
+PULIDO_CONVERSATION = [
+    ("Dame las recomendaciones de la máquina", "get_recommendations"),
+    ("¿Cuáles son las más fiables?", "get_recommendations"),
+    ("Muéstrame las casi con valor", "get_recommendations"),
+    ("¿Cuánto paga Colombia contra Chile?", "request_odds"),
+    ("¿Y compara cuotas de ese partido?", "request_odds"),
+    ("Me llamo Gustavo", "policy"),
+    ("Dame una apuesta segura", "safe_policy"),
+    ("¿Hay cuotas con valor hoy?", "get_value_bets"),
+]
 
 
 def call_records(events: list) -> list[dict]:
@@ -55,6 +65,8 @@ def path_correct(expected: str, calls: list[dict], entity: dict, cancel_id: int 
     """Camino ejecutado con éxito y argumentos del objetivo; no basta con anunciar una herramienta."""
     if expected == "policy":
         return not calls
+    if expected == "safe_policy":
+        return bool(calls) and all(c["tool"] == "get_recommendations" and c["success"] for c in calls)
     successful = [call for call in calls if call["success"]]
     if expected not in [call["tool"] for call in successful]:
         return False
@@ -68,6 +80,7 @@ def path_correct(expected: str, calls: list[dict], entity: dict, cancel_id: int 
         "get_coverage": {"get_coverage", "get_upcoming_matches", "get_value_bets"},
         "get_system_performance": {"get_system_performance"},
         "get_stake_limits": {"get_stake_limits"},
+        "request_odds": prerequisites | {"request_odds"},
         "create_watch": prerequisites | {"create_watch"},
         "list_watches": {"list_watches"},
         "cancel_watch": {"list_watches", "cancel_watch"},
@@ -105,8 +118,9 @@ def turn_metrics(events: list, expected: str, entity: dict, cancel_id: int | Non
             valid = False
     policy = any(step["kind"] == "policy" for step in steps)
     return {
-        "tool_correct": expected in [c["tool"] for c in calls] if expected != "policy" else policy,
-        "path_correct": path_correct(expected, calls, entity, cancel_id) and (expected != "policy" or policy),
+        "tool_correct": policy if expected in {"policy", "safe_policy"} else expected in [c["tool"] for c in calls],
+        "path_correct": path_correct(expected, calls, entity, cancel_id)
+        and (expected not in {"policy", "safe_policy"} or policy),
         "args_valid": valid,
         "fallback_used": any(s["text"] == FALLBACK_STEP for s in steps),
         "repairs": sum(s["kind"] == "repair" and s["text"] != FALLBACK_STEP for s in steps),
@@ -209,7 +223,7 @@ def conversation(
                 created_ids = [int(id_) for id_ in re.findall(r"Vigilancia (\d+):", answer)]
             correct = (
                 expected in path
-                if expected != "policy"
+                if expected not in {"policy", "safe_policy"}
                 else any(e.event == "step" and e.data["kind"] == "policy" for e in events)
             )
             if expected in {"create_watch", "cancel_watch", "list_watches"}:
@@ -310,7 +324,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--mode",
-                        choices=["ruteo", "conversacion", "respaldo", "acciones", "cierre", "gustavo"], default="ruteo")
+                        choices=["ruteo", "conversacion", "respaldo", "acciones", "cierre", "gustavo", "pulido"],
+                        default="ruteo")
     args = parser.parse_args()
     if args.mode == "respaldo":
         results = []
@@ -319,6 +334,10 @@ if __name__ == "__main__":
             results.extend(
                 {**row, "repeat": repeat} for row in conversation(output, [CONVERSATION[i] for i in (0, 1, 4)])
             )
+    elif args.mode == "pulido":
+        results = conversation(args.output, PULIDO_CONVERSATION)
+        args.output.with_suffix(".metrics.json").write_text(
+            json.dumps(aggregate(results), ensure_ascii=False, indent=2), encoding="utf-8")
     elif args.mode == "gustavo":
         results = conversation(args.output, GUSTAVO_CONVERSATION)
     elif args.mode == "acciones":

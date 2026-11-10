@@ -5,6 +5,16 @@ from scripts.eval_agent_routing import FALLBACK_STEP, aggregate, path_correct, p
 from footy_agents.schemas import ChatEvent
 
 
+def test_pulido_paths_distinguish_quote_delegation_and_safe_policy():
+    quote = [{"tool": "get_upcoming_matches", "args": {}, "success": True},
+             {"tool": "request_odds", "args": {"match_id": 181043}, "success": True}]
+    assert path_correct("request_odds", quote, {}, None)
+    assert not path_correct("request_odds", quote[:1], {}, None)
+    recommendation = [{"tool": "get_recommendations", "args": {"section": "fiables"}, "success": True}]
+    assert path_correct("safe_policy", recommendation, {}, None)
+    assert not path_correct("safe_policy", [], {}, None)
+    assert not path_correct("policy", recommendation, {}, None)
+
 def test_action_path_needs_resolver_both_conditions_and_real_target():
     calls = [
         {"tool": "find_team", "args": {"name": "Chile"}, "success": True},
