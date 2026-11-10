@@ -245,6 +245,15 @@ code { font: 500 var(--fs-xs) var(--font-mono); background: var(--surface-2); pa
 .alerts-status:empty { display: none; }
 .alerts-empty { display: grid; gap: 6px; padding: 28px 20px; text-align: center; font-size: var(--fs-sm); color: var(--text-2); }
 .alerts-empty b { color: var(--text); font-size: var(--fs-base); }
+/* Estado vacío: campana con visto (el Míster ya está en la cabecera, no se repite) */
+.alerts-empty-ico { width: 64px; height: 64px; margin: 0 auto 6px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent); }
+.alerts-empty-ico svg { width: 30px; height: 30px; transform-origin: 50% 15%; }
+@media (prefers-reduced-motion: no-preference) {
+  .alerts-empty-ico svg { animation: bell-ring .9s ease-in-out .3s 1; }
+  .alerts-empty-ico .bell-check { stroke-dasharray: 9; stroke-dashoffset: 9; animation: check-draw .45s ease-out .9s forwards; }
+}
+@keyframes check-draw { to { stroke-dashoffset: 0; } }
 .alert-item { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 10px; padding: 12px 40px 12px 16px; position: relative;
   border-top: 1px solid var(--grid); transition: background-color .2s ease; }
 .alert-item:first-child { border-top: 0; }
@@ -1744,7 +1753,6 @@ section.view > .trust-hidden { display: none; }
 .brief-text { flex: 1; min-width: 0; }
 /* Avisos: los da el Míster */
 .alerts-mister { flex: none; margin: -8px 0 -6px -4px; }
-.alerts-empty .mister-rig { margin: 0 auto 4px; }
 .mister-quote { flex: 1 1 100%; display: flex; align-items: center; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--grid); }
 .mister-quote p { margin: 0; font-size: var(--fs-sm); font-style: italic; color: var(--text-2); }
 
