@@ -90,6 +90,8 @@ function drawCurrent(d) {
     // Sin ventaja: el semáforo ya está en esta misma vista, más abajo; no hace falta un botón para llegar.
     trustEmpty($("#sg-singles"), kind, { count: d.n_matches_sharp, total: matches.length,
       action: kind === "no_value" ? false : () => { location.hash = "#partidos"; } });
+    if (kind === "no_value") $("#sg-singles .empty-state").insertAdjacentHTML("beforeend",
+      misterQuote("«Hoy no hay jugada clara. Prefiero esperar en la banca que apostar sin ventaja.»"));
   }
 }
 

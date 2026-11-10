@@ -119,6 +119,7 @@ async function sendChat(message) {
   message = message.trim();
   if (!message || chat.busy) return;
   chat.busy = true;
+  misterThinking(true);
   const form = chatEl("form"), ta = chatEl("textarea");
   form.classList.add("busy");
   ta.value = "";
@@ -161,6 +162,7 @@ async function sendChat(message) {
   } finally {
     out.classList.remove("typing");
     chat.busy = false;
+    misterThinking(false);
     form.classList.remove("busy");
     ta.focus();
     loadAgentActivity();
