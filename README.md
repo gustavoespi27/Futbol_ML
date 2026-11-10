@@ -67,7 +67,8 @@ Colo Colo?»): el apelativo se quita antes de decidir la consulta. La personalid
 (`footy_agents/persona.py`) y cambia solo el tono: las reglas de cifras, valor y riesgo mandan sobre el estilo. El
 saludo o «¿quién eres?» recibe una presentación fija, sin LLM.
 
-Su mascota es un zorro DT, «el zorro del banco»: silbato al cuello y pizarra táctica en la mano. Es un SVG propio
+Su mascota es un zorro DT, «el zorro del banco»: orejas enormes, cejas decididas, silbato con cordón verde, tablet
+táctica bajo la pata y cinta verde en la cola. Es un SVG propio
 (`static/mascot.js`) con dos variantes, la cabeza para tamaños chicos (botón del chat, avatar, resumen del día, avisos)
 y el cuerpo entero para el saludo. Parpadea, mira a los lados mientras piensa la respuesta y respeta «reducir
 movimiento».

@@ -1647,12 +1647,14 @@ section.view > .trust-hidden { display: none; }
 .mister .fx-ink { fill: #2b1d16; }
 .mister .fx-blush { fill: #ff8fa0; opacity: .45; }
 .mister .fx-tip { fill: #3a2620; }
+.mister .fx-sclera { fill: #ffffff; stroke-width: 1.3; }
+.mister .fx-band { fill: #1f9d55; stroke-width: 1.6; }
+.mister .fx-shadow { fill: #000; opacity: .18; }
 .mister .fx-paw { fill: #3a2620; stroke: #2b1d16; stroke-width: 2; }
 .mister .fx-line { stroke: #2b1d16; stroke-width: 2.3; stroke-linejoin: round; stroke-linecap: round; }
 .mister .fx-brow, .mister .fx-smile { fill: none; stroke: #2b1d16; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
 .mister .fx-smile { stroke-width: 1.8; }
 .mister .fx-cord { fill: none; stroke: var(--accent); stroke-width: 2.6; stroke-linecap: round; }
-.mister-full .fx-cord { stroke: #fffaf3; stroke-width: 2.2; }
 .mister .fx-metal { fill: #d5dde7; stroke: #2b1d16; stroke-width: 1.4; }
 .mister .fx-jacket { fill: var(--accent-fill); }
 .mister .fx-seam { fill: none; stroke: #2b1d16; stroke-width: 1.6; stroke-linejoin: round; opacity: .55; }
@@ -1668,6 +1670,10 @@ section.view > .trust-hidden { display: none; }
 .msg-intro { display: flex; align-items: flex-end; gap: 10px; }
 .msg-intro .intro-mister { flex: none; }
 .msg-intro .msg-text { flex: 1; }
+@media (max-width: 560px) {
+  .msg-intro { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .msg-intro .intro-mister .mister { width: 92px; height: auto; }
+}
 .brief-mister { display: inline-grid; place-items: center; width: 34px; height: 34px; margin-right: 8px; border-radius: 50%;
   background: var(--accent-soft); vertical-align: middle; overflow: hidden; padding-top: 3px; }
 #brief-title { display: flex; align-items: center; }
