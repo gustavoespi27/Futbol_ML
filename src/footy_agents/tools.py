@@ -365,6 +365,9 @@ def tool_analyze_match(match_id: int) -> dict[str, Any]:
         "probabilities_1x2": labeled_1x2(m.get("home", ""), m.get("away", ""), p),
         "expected_goals": {"home": xg[0], "away": xg[1]},
         "over_2_5": _pct(m.get("over25")), "both_teams_score": _pct(m.get("btts")),
+        # Texto rotulado para copiar: el modelo de lenguaje no debe deducir el complemento ni invertir la línea.
+        **({"goals_text": f"Más de 2.5 goles: {_pct(m['over25'])} · menos de 2.5 goles: {_pct(1 - m['over25'])}"}
+           if m.get("over25") is not None else {}),
         "top_scores": [{"score": s, "probability": _pct(q)} for s, q in (m.get("top_scores") or [])[:3]],
         "has_pinnacle_price": bool(m.get("pro")), "value_status": _value_status(m), "value_selections": value,
     }

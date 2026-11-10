@@ -119,12 +119,12 @@ function paintSystemStatus() {
   const short = state === "fresh" ? `Datos · ${when}` : full;
   const resting = h && !h.llm_available && h.autostart && !h.startup_failed;
   const assistant = !h ? "No se pudo comprobar el estado del asistente" : h.llm_available
-    ? "Pizarra disponible" : resting ? "Pizarra en reposo (se activa al usarlo)"
-    : "Pizarra no disponible (el resto funciona)";
+    ? "El Míster disponible" : resting ? "El Míster en reposo (se activa al usarlo)"
+    : "El Míster no disponible (el resto funciona)";
   const mode = h && h.briefing_mode === "template" ? "Resumen por plantilla" : "";
-  const smallAssistant = !h ? "Pizarra: sin verificar" : resting ? "Pizarra en reposo"
-    : !h.llm_available ? "Pizarra: no disponible"
-    : mode || "Pizarra disponible";
+  const smallAssistant = !h ? "El Míster: sin verificar" : resting ? "El Míster en reposo"
+    : !h.llm_available ? "El Míster: no disponible"
+    : mode || "El Míster disponible";
   box.classList.toggle("status-strip--warn", state !== "fresh");
   box.dataset.state = state;
   $("#more-assistant-state").textContent = [assistant, mode].filter(Boolean).join(" · ");

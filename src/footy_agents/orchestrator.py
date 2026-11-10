@@ -19,7 +19,7 @@ from footy_agents.llm import LLMBusy, LLMClient, LLMUnavailable, TextDelta, Tool
 from footy_agents.memory import entities_from
 from footy_agents.names import normalize_name
 from footy_agents.observations import RECOVERABLE, Observation, observe
-from footy_agents.persona import INTRO_TEXT, NAME, PERSONA, is_intro
+from footy_agents.persona import INTRO_TEXT, NAME, PERSONA, is_intro, without_vocative
 from footy_agents.routing import intent_route, is_follow_up
 from footy_agents.schemas import ChatEvent, ToolCallRecord, UserPreferences
 from footy_agents.tools import OPENAI_TOOLS_SPEC, TOOL_MODELS, WRITE_TOOLS, execute_tool, upcoming_focus
@@ -278,6 +278,7 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
     Si el modelo se rinde ante un «no encontrado» sin probar la vía sugerida, se le pide una vez que la evalúe
     (recuperación); si cita cifras sin respaldo, reescribe una vez sin ellas (reparación) antes de mostrar nada.
     """
+    message = without_vocative(message) or message       # «míster, …»: el apelativo no es parte de la consulta
     if SAFE_BET.search(message):
         yield _step("policy", "Premisa rechazada: no existen apuestas seguras; responde la regla de riesgo.")
         yield ChatEvent(event="token", data={"delta": SAFE_BET_TEXT})

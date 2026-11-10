@@ -155,6 +155,22 @@ def check_claims(answer: str, records: list[ToolCallRecord]) -> GroundingReport:
             for match in re.finditer(r"\b" + pattern + r"\s+(\d+)\b", q):
                 if int(match[1]) != counts[key]:
                     findings.append(f"Conteo de forma incorrecto para {key}; copia form_text.")
+    # over_2_5 es la probabilidad de MÁS de 2.5 goles: atribuirla a «menos de 2.5» (o al revés) invierte el mercado.
+    overs = [_numbers(r.result["over_2_5"])[0][1] for r in records if r.success and isinstance(r.result, dict)
+             and isinstance(r.result.get("over_2_5"), str) and _numbers(r.result["over_2_5"])]
+    if overs:
+        over = overs[-1]
+        under = round(1 - over, 4)                       # _numbers devuelve los porcentajes como fracción
+        for sentence in sentences:
+            q = normalize_name(sentence)
+            values = [value for raw, value, _ in _numbers(sentence) if raw.endswith("%")]
+            says_under = re.search(r"\b(?:menos de|bajo|under) 2 5\b", q)
+            says_over = re.search(r"\b(?:mas de|sobre|over) 2 5\b", q)
+            near = lambda target: any(abs(v - target) < 5e-4 for v in values)  # noqa: E731
+            if abs(over - under) > 1e-3 and (says_under and not says_over and near(over)
+                                              or says_over and not says_under and near(under)):
+                findings.append("Línea de goles invertida: over_2_5 es la probabilidad de más de 2.5; "
+                                "copia goals_text.")
     clv_records = [r for r in records if r.success and r.tool_name == "get_system_performance"
                    and isinstance(r.result, dict) and (r.result.get("tracking") or {}).get("bets_clv") is not None]
     if clv_records:

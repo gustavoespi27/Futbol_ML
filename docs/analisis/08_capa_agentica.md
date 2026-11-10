@@ -624,10 +624,13 @@ ningún aviso de precio: el umbral de 3 pp las descarta correctamente.
 Validación: 11 pruebas nuevas (tipos, partidos distintos, expiración, deduplicación, reaviso, preferencias,
 migración y API) y **553 pytest** en total.
 
-## Identidad: Pizarra
+## Identidad: El Míster
 
-El asistente se llama **Pizarra**, un analista de fútbol veterano: tutea, es directo, usa como máximo una
-expresión futbolera por respuesta y desconfía de las corazonadas. Nombre, rol y personalidad viven en
+El asistente se llama **El Míster** y habla como director técnico en la charla o en conferencia de prensa: frases
+cortas, autoridad y calma, como máximo una frase de DT por respuesta («partido a partido», «los números mandan, no la
+camiseta») y desconfianza de las corazonadas. El apelativo «míster» se quita del mensaje antes de rutear
+(`without_vocative`): «míster, ¿cómo llega Colo Colo?» es una consulta normal y «hola míster» es un saludo.
+Nombre, rol y personalidad viven en
 `footy_agents/persona.py`; el prompt del chat y el del resumen la anteponen, y declaran que **las reglas mandan sobre
 la personalidad**: no se inventan historia, títulos ni anécdotas, y las cifras siguen saliendo solo de herramientas.
 

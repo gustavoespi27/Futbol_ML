@@ -157,7 +157,7 @@ async function sendChat(message) {
     } });
   } catch (e) {
     if (!text) out.textContent = "";
-    out.insertAdjacentHTML("beforeend", `<p class="msg-err">No se pudo contactar a Pizarra (${esc(e.message)}).</p>`);
+    out.insertAdjacentHTML("beforeend", `<p class="msg-err">No se pudo contactar al Míster (${esc(e.message)}).</p>`);
   } finally {
     out.classList.remove("typing");
     chat.busy = false;

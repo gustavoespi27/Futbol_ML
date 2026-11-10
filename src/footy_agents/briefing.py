@@ -11,13 +11,14 @@ from datetime import datetime, timedelta, timezone
 
 from footy.web.services.context import LOCAL_TZ
 from footy_agents.llm import LLMClient, LLMUnavailable, TextDelta
-from footy_agents.persona import NAME, ROLE
+from footy_agents.persona import NAME_MID, ROLE
 from footy_agents.schemas import ChatEvent, FeedItem, PersonalizedFeedResponse, UserPreferences
 
 HORIZON_HOURS = 24
 MAX_ITEMS = 5
 
-BRIEFING_PROMPT = f"Eres {NAME}, el {ROLE} de Futbol_ML: tono cercano y futbolero, sin emojis ni exageraciones. " + """
+BRIEFING_PROMPT = (f"Eres {NAME_MID}, el {ROLE} de Futbol_ML: hablas como DT, firme y cercano, "
+                   "sin emojis ni exageraciones. ") + """
 Escribe en español un resumen breve (3 a 5 oraciones, un solo
 párrafo, sin listas ni títulos) de lo que le interesa hoy al usuario, usando SOLO la ficha de hechos en JSON.
 Reglas estrictas:
