@@ -87,10 +87,9 @@ function drawCurrent(d) {
   syncAddButtons();
   if (!d.singles.length) {
     const kind = FootyTrust.emptyKind(systemState.kind, matches.length, d.singles.length, d.n_matches_sharp);
-    trustEmpty($("#sg-singles"), kind, { count: d.n_matches_sharp, total: matches.length, action: () => {
-      if (kind === "no_value") $("#semaforo").scrollIntoView({ behavior: "auto", block: "start" });
-      else location.hash = "#partidos";
-    } });
+    // Sin ventaja: el semáforo ya está en esta misma vista, más abajo; no hace falta un botón para llegar.
+    trustEmpty($("#sg-singles"), kind, { count: d.n_matches_sharp, total: matches.length,
+      action: kind === "no_value" ? false : () => { location.hash = "#partidos"; } });
   }
 }
 

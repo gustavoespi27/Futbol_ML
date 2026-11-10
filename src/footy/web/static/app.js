@@ -147,13 +147,16 @@ function trustEmpty(box, kind, { count = 0, total = count, action = null } = {})
     unknown: ["Recomendaciones en pausa", "Falta verificar la actualización.", "Ver últimos resultados"],
     error: ["No se pudo cargar", "Reintenta la consulta.", "Reintentar"],
     no_matches: ["Sin partidos próximos", "No hay partidos para esta selección.", "Ver todos los partidos"],
-    no_value: ["Sin ventaja detectada", `${count} de ${total} con Pinnacle.`, "Ver el semáforo"],
+    no_value: ["Sin ventaja detectada", `${count} de ${total} con Pinnacle; ninguno supera el 6 % sobre el precio justo.`, "Ver el semáforo"],
     no_reference: ["Sin referencia de precio", `0 de ${total} con Pinnacle.`, "Ver los partidos"],
   };
   const [title, text, label] = messages[kind] || messages.error;
-  box.innerHTML = emptyState({ title, text, action: label });
+  // action === false: sin botón (p. ej. el semáforo ya está en la misma vista, más abajo).
+  box.innerHTML = emptyState({ title, text, action: action === false ? "" : label });
   box.querySelector(".empty-state").classList.add("empty-state--trust");
-  box.querySelector(".empty-action").onclick = action || (kind === "error" ? retryCurrentView : () => { location.hash = "#resultados"; });
+  if (action === false) return;
+  box.querySelector(".empty-action").onclick = action || (kind === "error" ? retryCurrentView
+    : () => { location.hash = kind === "no_value" ? "#apuestas" : "#resultados"; });
 }
 
 function gateView(view, kind = null) {
