@@ -2,35 +2,34 @@
 
 [![CI](https://github.com/gustavoespi27/Futbol_ML/actions/workflows/ci.yml/badge.svg)](https://github.com/gustavoespi27/Futbol_ML/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-3776ab)
-![Tests](https://img.shields.io/badge/tests-712%20passing-10b981)
+![Tests](https://img.shields.io/badge/tests-718%20passing-10b981)
 ![Estado](https://img.shields.io/badge/estado-prototipo%20funcional-f59e0b)
 ![LLM](https://img.shields.io/badge/LLM-Qwen%202.5%207B%20local-7c3aed)
 ![Stack](https://img.shields.io/badge/stack-FastAPI%20%C2%B7%20SQLite%20%C2%B7%20scikit--learn-0f172a)
 
-**Un agente de IA que razona sobre fútbol con datos reales, y un motor estadístico que se audita a sí mismo todos
-los días.**
+**Tres agentes de IA que cooperan sobre un motor estadístico de fútbol: uno conversa, otro sale a buscar cuotas y
+otro vigila el calendario y avisa sin que nadie pregunte.**
 
-El proyecto tiene dos capas de inteligencia artificial que trabajan juntas:
+| | Agente | Qué hace | Cómo decide |
+|---|---|---|---|
+| 🧢 | **El Míster** | Conversa en español como un DT, entiende la pregunta, consulta 16 herramientas y explica el resultado | LLM local (Qwen 2.5 7B) + reglas deterministas + verificadores |
+| 🔭 | **El Ojeador** | Sale a buscar las cuotas de mercado de un partido (DraftKings vía ESPN) cuando el Míster se lo pide | Reglas y presupuesto de peticiones, sin LLM |
+| 🛡️ | **El Vigía** | Tras cada actualización de datos detecta cambios y publica avisos: juega tu equipo, aparece valor, se mueve la línea | Reglas, sin LLM: funciona aunque la IA esté apagada |
 
-1. **Un motor cuantitativo** (Elo, Dixon-Coles, *gradient boosting* con pérdida Poisson y un modelo de selecciones)
-   que estima la probabilidad de cada resultado en 53 competiciones. Compara esas probabilidades con el mercado
-   de apuestas y **registra cada pronóstico antes del partido** para medirlo después contra el resultado real.
-2. **Un agente con modelo de lenguaje local** (Qwen 2.5 7B en Ollama) que conversa en español, decide qué consultar,
-   cambia de camino según lo que observa, se corrige, recuerda la conversación, crea vigilancias y tiene un vigía
-   autónomo que actúa sin que nadie pregunte.
+Debajo hay un **motor cuantitativo** (Elo, Dixon-Coles, *gradient boosting* con pérdida Poisson y un modelo de
+selecciones) que estima la probabilidad de cada resultado en 53 competiciones, la compara con el precio justo de
+Pinnacle y **registra cada pronóstico antes del partido** para medirlo después contra el resultado real.
 
-La regla de diseño que une ambas capas: **el LLM decide qué consultar y cómo explicarlo; el motor calcula; los
-verificadores controlan.** El modelo de lenguaje nunca inventa una cifra: toda probabilidad, cuota o monto que
-muestra sale de una herramienta y pasa por un verificador antes de llegar al usuario.
+La regla que une todo: **el LLM decide qué consultar y cómo explicarlo; el motor calcula; los verificadores
+controlan.** El modelo de lenguaje nunca inventa una cifra ni confirma una acción que no ocurrió.
 
 <p align="center">
-  <img src="docs/img/readme/agente-chat.png" width="380" alt="El agente resuelve un apodo, cambia de camino al no
-  encontrar precio de Pinnacle y recuerda el partido en la pregunta siguiente">
+  <img src="docs/img/readme/agente-chat.png" width="400" alt="El Míster simula un cruce entre la U de Chile y el
+  Barcelona y muestra cómo lo resolvió">
 </p>
 
-<p align="center"><sub>Corrida real con Qwen 2.5 7B. «La roja» se resuelve como Chile; al no haber precio de
-Pinnacle el agente cambia de camino hacia el análisis del partido; en la pregunta siguiente recuerda de qué partido
-se habla y vuelve a consultar en vez de repetir cifras de memoria.</sub></p>
+<p align="center"><sub>Corrida real con Qwen 2.5 7B en modo presentación (<code>?demo</code>). Un partido que no
+existe se simula con el modelo entre ligas; «Cómo lo resolvió» muestra la herramienta real que usó.</sub></p>
 
 ---
 
@@ -45,7 +44,7 @@ se evalúa es la capa de agentes; el motor cuantitativo es la base sobre la que 
 | El Míster conversa, consulta 16 herramientas y verifica cada cifra | Sin cuentas de usuario: todo es del usuario `default` |
 | Tres agentes (Míster, Ojeador y Vigía) cooperando sobre la misma base | La base de datos (≈ 525 MB) no viaja con el repositorio |
 | Ciclo automático de datos tres veces al día en Windows | Las apuestas son **en papel**: nada se apuesta con dinero real |
-| 712 pruebas automáticas + CI en GitHub Actions | El LLM local exige una GPU de ~8 GB para responder en 10-20 s |
+| 718 pruebas automáticas + CI en GitHub Actions | El LLM local exige una GPU de ~8 GB para responder en 10-20 s |
 
 Si vienes del equipo, lee primero [Para el equipo](#para-el-equipo); si quieres levantarlo, ve a
 [Inicio rápido](#inicio-rápido); si quieres saber qué falta para que sea un producto, ve a
@@ -57,7 +56,8 @@ Si vienes del equipo, lee primero [Para el equipo](#para-el-equipo); si quieres 
 
 - [Estado del proyecto](#estado-del-proyecto)
 - [En cifras](#en-cifras)
-- [El agente de IA](#el-agente-de-ia)
+- [Los tres agentes](#los-tres-agentes)
+- [Cómo usar a los agentes](#cómo-usar-a-los-agentes)
 - [El motor cuantitativo](#el-motor-cuantitativo)
 - [Resultados medidos](#resultados-medidos)
 - [Producto: el dashboard](#producto-el-dashboard)
@@ -77,41 +77,147 @@ Si vienes del equipo, lee primero [Para el equipo](#para-el-equipo); si quieres 
 | **181.114** partidos en la base (2012-2026) | **1,98 millones** de cuotas históricas y pre-partido |
 | **53** competiciones visibles, incluidas 8 de selecciones | **1.749** equipos enlazados entre fuentes de datos |
 | **8.608** partidos de examen fuera de muestra (temporada 2026) | **498** partidos auditados en vivo con pronóstico previo |
-| **16** herramientas del agente (11 de consulta, 4 de acción y 1 de delegación) | **712** pruebas automáticas; CI en Python 3.11 y 3.12 |
+| **16** herramientas del agente (11 de consulta, 4 de acción y 1 de delegación) | **718** pruebas automáticas; CI en Python 3.11 y 3.12 |
 
 ---
 
-## El agente de IA
+## Los tres agentes
 
-El asistente se llama **El Míster** y habla como director técnico: frases cortas, con autoridad y calma, y la
-convicción de que los números mandan, no la camiseta. Entiende cuando le dicen «míster» («míster, ¿cómo llega
-Colo Colo?»): el apelativo se quita antes de decidir la consulta. La personalidad vive en un solo módulo
-(`footy_agents/persona.py`) y cambia solo el tono: las reglas de cifras, valor y riesgo mandan sobre el estilo. El
-saludo o «¿quién eres?» recibe una presentación fija, sin LLM.
+Los tres comparten la misma base SQLite (el «tablero»): uno escribe cuotas, otro escribe avisos y el Míster lee todo.
+Ninguno escribe en las tablas del motor; cada uno tiene sus propias tablas (`agent_*`) y deja registro de lo que
+decidió y por qué.
 
-Su mascota es un zorro DT, «el zorro del banco», animado como títere de recortes: cada pose está cortada en capas
-(cabeza, cuerpo, brazo y cola) que se mueven desde sus articulaciones, con párpados en SVG para parpadear. En el chat
-lee la tablet y levanta la vista hacia el usuario (mientras piensa la respuesta sigue leyendo); en el resumen del día
-explica con lentes y el dedo en alto; en los avisos toca el silbato y saluda con la pata, y salta cuando llega uno
-nuevo. Las capas se generan con `scripts/prepare_mascot.py` y `scripts/rig_mascot.py` desde `assets/mascot/`, y todo
-respeta «reducir movimiento».
+```mermaid
+flowchart LR
+  U((Usuario)) -- pregunta --> M[🧢 El Míster<br/>LLM + reglas]
+  M -- 16 herramientas --> MOT[(Motor cuantitativo<br/>y base SQLite)]
+  M -- «¿cuánto paga?» --> O[🔭 El Ojeador<br/>sin LLM]
+  O -- precios ESPN/DraftKings --> MOT
+  M -- crea vigilancias y favoritos --> MOT
+  C[[Ciclo de datos<br/>3 veces al día]] --> V[🛡️ El Vigía<br/>sin LLM]
+  MOT --> V
+  V -- avisos --> B[🔔 Campana<br/>Avisos del Míster]
+  B --> U
+```
 
-![El Míster: cuerpo entero y cabeza en distintos tamaños](docs/img/readme/el-mister.png)
+### 🧢 El Míster: el que conversa
 
-### Tres agentes sobre un tablero compartido
+El asistente habla como director técnico: frases cortas, con autoridad y calma, y la convicción de que los números
+mandan, no la camiseta. Entiende cuando le dicen «míster». La personalidad vive en `footy_agents/persona.py` y solo
+cambia el tono: las reglas de cifras, valor y riesgo mandan sobre el estilo.
 
-| Agente | Qué decide y hace | Usa LLM |
+**Ciclo de un turno:** entiende la intención → decide si la pregunta continúa la conversación → consulta
+herramientas → observa cada resultado (`ok`, `no_pinnacle`, `ambiguous`, `not_found`…) → cambia de camino si hace
+falta → redacta → los verificadores revisan cifras e interpretaciones → responde o se corrige.
+
+| Lo que hace | Ejemplo real |
+|---|---|
+| **Analiza partidos** con la probabilidad oficial del motor y explica quién es favorito | «¿Cómo llega Inglaterra contra Croacia?» |
+| **Simula cruces hipotéticos** entre ligas y países con el modelo `cross_league` | «¿Qué pasa si se enfrenta la U de Chile con el Barcelona?» |
+| **Recuerda el contexto** (qué partido, equipo o liga), nunca las cifras: las vuelve a consultar | Tabla de La Liga → «¿y cuáles son los últimos?» |
+| **Pregunta cuando hay ambigüedad** y retoma la pregunta pendiente con la respuesta | «¿Colo Colo contra el Real?» → «¿cuál Real?» → «real madrid» |
+| **Actúa:** guarda favoritos y crea vigilancias que luego cumple el Vigía | «Agrega a Vietnam a mis favoritos» |
+| **Delega en el Ojeador** cuando la pregunta es de cuotas | «¿Cuánto paga Italia contra Francia?» |
+| **Muestra datos sin redactarlos** (sin LLM): tablas, recomendaciones de Apuestas, saludo | «¿Cómo va la tabla de la liga chilena?» |
+| **Rechaza premisas peligrosas** | «Dame una apuesta segura» → no existe; muestra lo más probable y dónde verlo |
+| **Aprende del usuario** sin LLM: nombre, equipos y ligas que sigue, temas que pregunta (visible y borrable) | «Me llamo Gustavo», «soy hincha de Colo Colo» |
+
+| Memoria entre turnos | Aclaración pendiente | Historial y «Lo que sé de ti» |
 |---|---|---|
-| **El Míster** | Resuelve la pregunta, consulta herramientas y delega `request_odds` si necesita comparar cuotas | Sí, Qwen local |
-| **El Ojeador** | Percibe cobertura, agrupa peticiones ESPN por liga y fecha, captura precios y registra descartes | No |
-| **El Vigía** | Detecta cambios en el tablero y publica avisos con plantillas verificadas | No |
+| ![El Míster recuerda la liga de la tabla y muestra los últimos](docs/img/readme/agente-memoria.png) | ![El Míster pregunta cuál Real y retoma la simulación](docs/img/readme/agente-aclaracion.png) | ![Historial de conversaciones y memoria personalizada](docs/img/readme/historial.png) |
 
-**DraftKings es precio ofrecido; Pinnacle sin margen es la única referencia de precio justo.**
-Sin Pinnacle, el comparador muestra precios y casas, sin calcular ventaja. La delegación reutiliza las
-capturas ESPN de menos de una hora; el ciclo general usa una ventana de seis horas, o una si el inicio está a menos de seis.
-El presupuesto máximo es de 40 scoreboards por corrida, no una llamada por partido. La bitácora pública queda en
-`/api/agent/scout-log`; la decisión de delegar del Míster, en `/api/agent/runs`.
-Tras una consulta de cuotas exitosa, el texto calculado se verifica y entrega directamente, sin otra inferencia.
+**Herramientas.** 16, todas con argumentos validados por Pydantic:
+
+| Consulta (11) | Acción (4) | Delegación (1) |
+|---|---|---|
+| `find_team` (nombres, apodos y selecciones en español: «la roja», «el cacique», «Italia») · `analyze_match` · `get_team_form` · `simulate_match` · `get_upcoming_matches` · `get_league_standings` · `get_value_bets` · `get_recommendations` · `get_coverage` · `get_system_performance` · `get_stake_limits` | `create_watch` · `list_watches` · `cancel_watch` · `add_favorite` | `request_odds` → El Ojeador |
+
+### 🔭 El Ojeador: el que sale a buscar cuotas
+
+La API de cuotas con Pinnacle (API-Football, plan gratuito) da 100 peticiones al día, y la mayoría de los partidos se
+queda sin precios. El Ojeador resuelve eso con una segunda fuente: los precios de DraftKings que publica ESPN.
+
+**Ciclo:** percibe qué partidos no tienen precios frescos → planifica con un presupuesto (máximo 40 consultas por
+corrida, agrupadas por liga y fecha, no una por partido) → captura y guarda → registra cada decisión, también los
+descartes, en `/api/agent/scout-log`.
+
+**Cuándo trabaja:** en el ciclo automático de datos y **cuando el Míster le delega** una pregunta de cuotas
+(`request_odds`). Si la captura tiene menos de una hora, no vuelve a pedir: compara con lo que ya tiene.
+
+**La regla que no rompe:** DraftKings es *precio ofrecido*; **Pinnacle sin margen es la única referencia de precio
+justo**. Sin Pinnacle muestra las cuotas y dice que no hay valor medible; con Pinnacle calcula la ventaja de cada
+casa. El texto de la comparación lo arma el sistema y se entrega verificado, sin pasar por el LLM.
+
+| Pregunta de cuotas con delegación visible | Resultado |
+|---|---|
+| ![El Míster consulta al Ojeador por Italia contra Francia](docs/img/readme/ojeador.png) | En «Cómo lo resolvió» se ve el camino real: el calendario no tenía Pinnacle → **recuperación** → **desvío al Ojeador** → captura de DraftKings en 6 ms → respuesta «Sin Pinnacle no hay valor medible; son precios ofrecidos». Cobertura del panel: de 3 a 69 de 90 partidos con precios visibles |
+
+### 🛡️ El Vigía: el que avisa sin que le pregunten
+
+Corre solo al final de cada ciclo de datos (tres veces al día y cada 30 minutos antes de los partidos). No usa LLM:
+sus textos salen de plantillas verificadas, así que funciona aunque Ollama esté apagado.
+
+**Ciclo:** **percibe** el calendario (precio de Pinnacle, ventaja, probabilidad, hora) → **compara** con su memoria de
+la corrida anterior → **decide** con reglas globales y con las vigilancias que el usuario creó en el chat → **actúa**
+publicando avisos deduplicados que expiran al inicio del partido → **registra** cada decisión, también las
+descartadas, con su motivo (`/api/agent/watch-log`, `scripts/agent_watch.py`).
+
+| El usuario le encarga algo al Míster… | …y el Vigía avisa en la campana |
+|---|---|
+| ![El Míster guarda un favorito y crea una vigilancia](docs/img/readme/vigia-chat.png) | ![Aviso «Juega tu equipo» en la campana](docs/img/readme/vigia-avisos.png) |
+
+| Aviso | Cuándo aparece |
+|---|---|
+| Juega tu equipo | Un equipo o liga favoritos juega en menos de 24 h, con recordatorio a menos de 2 h |
+| Cuota con valor | Una casa paga al menos 6 % sobre el precio justo de Pinnacle (seguimiento en papel, tope 2 %) |
+| Cerca de tener valor | Le faltan menos de 3 puntos; indica desde qué cuota valdría la pena, sin monto sugerido |
+| Combinada con valor | Dos selecciones con valor de partidos distintos; la ventaja se multiplica pierna a pierna |
+| Vigilancias del chat | Lo que el usuario pidió: «avísame si aparece valor», «cuando falte poco», «si aparece precio de Pinnacle» |
+
+Ejemplo de registro de una corrida sin novedades (cada descarte lleva su motivo):
+
+```text
+DESCARTAR · partido 180805 · line_move: Faltan dos líneas completas de Pinnacle para comparar
+DESCARTAR · partido 180614 · coverage_lost: Pérdida de cobertura fuera de las últimas 12 h
+DESCARTAR · partido 180887 · value_appears: Sin cambio que cumpla la regla
+```
+
+### La mascota
+
+El Míster tiene un zorro DT animado como títere de recortes: cada pose está cortada en capas (cabeza, cuerpo, brazo y
+cola) que se mueven desde sus articulaciones. En el chat lee la tablet y levanta la vista; en el resumen del día
+explica con lentes y el dedo en alto; en los avisos toca el silbato y salta cuando llega uno nuevo. Las capas se
+generan con `scripts/prepare_mascot.py` y `scripts/rig_mascot.py`, y todo respeta «reducir movimiento».
+
+![Resumen del día del Míster](docs/img/readme/resumen.png)
+
+---
+
+## Cómo usar a los agentes
+
+1. Abre el dashboard (`python scripts/serve.py` → `http://127.0.0.1:8000`) y toca el zorro de la esquina inferior
+   derecha para hablar con el Míster.
+2. Para ver **cómo razona** cada respuesta, abre `http://127.0.0.1:8000/?demo` (o Ctrl+Shift+D): bajo cada respuesta
+   aparece «Cómo lo resolvió» con las herramientas, observaciones, desvíos y reparaciones reales.
+3. Los avisos del Vigía aparecen en la **campana** de la barra superior. Para forzar una corrida:
+   `python scripts/agent_watch.py`.
+4. Antes de una demostración: `python scripts/reset_agent_demo.py --yes` deja el historial, la memoria y los avisos
+   en blanco.
+
+**Guion de prueba** (todas probadas en vivo con Qwen 2.5 7B):
+
+| Pregunta | Agente | Qué demuestra |
+|---|---|---|
+| «Hola, ¿quién eres?» | Míster | Presentación fija, sin LLM |
+| «¿Cómo va la tabla de la liga chilena?» → «¿y cuáles son los últimos?» | Míster | Liga por gentilicio, tabla sin LLM y memoria de contexto |
+| «¿Cómo llega Inglaterra contra Croacia?» | Míster | Selecciones en español, análisis del partido programado |
+| «¿Qué pasa si juega Colo Colo contra el Real?» → «real madrid» | Míster | Ambigüedad, pregunta y retoma la simulación entre ligas |
+| «¿Cuánto paga Italia contra Francia?» | Míster → Ojeador | Delegación, captura en vivo y regla de Pinnacle |
+| «Agrega a Vietnam a mis favoritos» → «Avísame si aparece valor en Vietnam contra Taiwán» | Míster → Vigía | Acciones reales y vigilancia que cumple el Vigía |
+| «Dame una apuesta segura» | Míster | Rechaza la premisa sin LLM |
+| «¿Cómo le ha ido al sistema?» | Míster | Rendimiento medido en vivo, sin maquillaje |
+
+## Cómo funciona por dentro
 
 ### Qué lo hace un agente y no un chatbot
 
@@ -154,19 +260,15 @@ flowchart TD
   FB --> OK
 ```
 
-**Herramientas.** Las 16 herramientas validan sus argumentos con Pydantic. `request_odds(match_id)` delega la
-captura de precios en el Ojeador y devuelve `comparison_text`, sin convertir DraftKings en referencia:
-
-| Consulta | Acción | Delegación |
-|---|---|---|
-| `find_team` (nombres y apodos: «la roja», «el cacique») · `analyze_match` · `get_team_form` · `simulate_match` · `get_upcoming_matches` · `get_league_standings` · `get_value_bets` · `get_recommendations` (las tres pestañas de Apuestas) · `get_coverage` · `get_system_performance` · `get_stake_limits` | `create_watch` · `list_watches` · `cancel_watch` · `add_favorite` | `request_odds` (Ojeador y comparador) |
-
 **Protecciones** (*guardrails*):
 
 - **Cifras verificadas.** `verify_numbers` exige que cada número, porcentaje y fecha del texto aparezca en los
   resultados de las herramientas del turno. `check_claims` revisa interpretaciones concretas que el modelo confundía.
 - **Frases canónicas.** Las herramientas entregan textos ya interpretados (`summary`, `favorite`, `form_text`,
   `limits_text`, `assessment`, `kickoff_local`) para que el modelo no tenga que convertir horas ni calcular.
+- **Escrituras verificadas.** Si el usuario pide una acción (favorito, vigilancia) y la herramienta no se ejecutó
+  con éxito, el texto del modelo se descarta y se responde que no se guardó nada. Una acción con el nombre ya
+  identificado («agrega a Chile a mis favoritos») se ejecuta directamente, sin LLM.
 - **Respaldo verificado.** Si la redacción falla dos veces, la respuesta se arma solo con esas frases. El chat
   nunca queda en blanco si hubo datos útiles.
 - **Límites de costo.** Máximo 4 rondas de herramientas y 384 tokens por inferencia; una sola consulta al LLM a la
@@ -174,37 +276,15 @@ captura de precios en el Ojeador y devuelve `comparison_text`, sin convertir Dra
 - **Degradación elegante.** Si el LLM no está disponible, el dashboard, el resumen por plantilla y el vigía siguen
   funcionando.
 
-### El vigía autónomo
+### Reglas del Vigía
 
-El vigía (`watcher.py`) se ejecuta al final de cada ciclo de datos (tres veces al día y cada 30 minutos antes de
-los partidos) y sigue un ciclo **percibir → comparar → decidir → actuar → registrar**:
-
-- **Percibe** el calendario: precio de Pinnacle, ventaja, probabilidad oficial y hora de inicio.
-- **Compara** con su memoria de la ejecución anterior. En la primera percepción solo guarda la línea base, sin
-  inventar una transición.
-- **Decide** con reglas globales (aparece o desaparece una ventaja, la línea de Pinnacle se mueve ≥ 5 %, un
-  partido a menos de 12 h pierde cobertura) y con las vigilancias que el usuario creó desde el chat.
-- **Actúa** con avisos deduplicados que expiran al inicio del partido. Solo vuelve a avisar si la ventaja mejora
-  al menos 2 puntos.
-- **Registra** cada decisión, también las descartadas, con su motivo.
-
-**Avisos en la campana de la barra superior**, fuera del chat:
-
-| Aviso | Cuándo aparece |
-|---|---|
-| Juega tu equipo | Un equipo o liga favoritos juega en menos de 24 h, con recordatorio a menos de 2 h |
-| Cuota con valor | Una casa paga al menos 6 % sobre el precio justo de Pinnacle (seguimiento en papel, tope 2 %) |
-| Cerca de tener valor | Le faltan menos de 3 puntos; indica desde qué cuota valdría la pena, sin monto sugerido |
-| Combinada con valor | Dos selecciones con valor de partidos distintos; la ventaja se multiplica pierna a pierna |
-| Combinada cercana | Dos selecciones con precio de Pinnacle de partidos distintos, ventaja combinada entre 0 y 6 % (informativa, desactivada por defecto) |
-
-Cada tipo se activa o desactiva en Preferencias, con la opción de limitar los avisos de precio a tus equipos y
-ligas y de recibir notificaciones del navegador. No usa el LLM: sus textos salen de plantillas verificadas, así que
-funciona aunque Ollama esté apagado.
-
-| Avisos (escritorio) | Avisos (móvil) |
-|---|---|
-| ![Panel de avisos](docs/img/avisos/avisos-1440-dark.png) | ![Hoja de avisos en móvil](docs/img/avisos/avisos-390-light.png) |
+- En la primera percepción solo guarda la línea base, sin inventar una transición.
+- Reglas globales: aparece o desaparece una ventaja, la línea de Pinnacle se mueve ≥ 5 %, un partido a menos de 12 h
+  pierde cobertura. Además, las vigilancias que el usuario creó desde el chat.
+- Avisos deduplicados que expiran al inicio del partido; solo vuelve a avisar si la ventaja mejora al menos 2 puntos.
+- Cada tipo de aviso se activa o desactiva en Preferencias, con la opción de limitar los avisos de precio a tus
+  equipos y ligas y de recibir notificaciones del navegador. La «combinada cercana» (ventaja entre 0 y 6 %) es
+  informativa y viene desactivada.
 
 ### Evaluación del agente
 
@@ -218,12 +298,20 @@ Se evaluó con Qwen 2.5 7B real, consultas secuenciales y revisión manual de ca
 | Seguimientos con memoria tras el último ajuste | **3/3** correctos, una sola inferencia cada uno |
 | Evaluación del pulido final ([12 – Pulido](docs/analisis/12_pulido.md)) | Caminos **8/8**; respuestas **7/8** |
 | Continuidad entre turnos (aclaración, tabla y cruce hipotético) | **3/3** secuencias correctas en vivo con Qwen |
+| Guion de prueba de los tres agentes (capturas de este README) | Todas las preguntas correctas tras corregir tres fallos encontrados al grabarlas (ver abajo) |
 | Latencia por turno | p50 **10,9 s** · p95 **18,8 s** (GPU de 8 GB) |
 | Pruebas automáticas de la capa agéntica | FakeLLM sin red ni tokens; cobertura **96 %** |
 
 **Límites conocidos.** Un modelo de 7B varía entre corridas: puede elegir otra herramienta o redactar una
 conclusión imprecisa. Los verificadores controlan cifras e interpretaciones concretas, no el significado general
 de cada frase. Por eso el núcleo autónomo (el vigía) es determinista y el chat siempre deja visible qué consultó.
+
+**Fallos encontrados al grabar el guion de este README, y corregidos:** «¿cuánto paga Italia contra Francia?» no
+encontraba el partido (los nombres en español de las selecciones solo se usaban para mostrar); «¿cómo llega
+Inglaterra contra Croacia?» respondía sobre Colo Colo (el modelo rellenaba el equipo con el ejemplo de la
+descripción); y «agrega a Vietnam a mis favoritos» se confirmaba sin haberse guardado. Los tres tienen ahora una
+prueba automática. Es la evidencia más honesta del límite principal: **cada forma nueva de preguntar puede encontrar
+un camino no probado**.
 Quince preguntas sirven como evidencia de funcionamiento, no como medida estadística de exactitud.
 
 ---
@@ -356,9 +444,13 @@ a mano.
 
 | Partidos | Detalle de un partido |
 |---|---|
-| ![Calendario con probabilidades y mejor opción](docs/img/readme/partidos-1440.png) | ![Colombia vs Chile con el modelo de selecciones y sin precio de Pinnacle](docs/img/readme/partido-1440.png) |
+| ![Calendario con probabilidades y mejor opción](docs/img/readme/partidos-1440.png) | ![Inglaterra vs Croacia con el modelo de selecciones y precio de DraftKings sin referencia Pinnacle](docs/img/readme/partido-1440.png) |
 
 ![Fiabilidad: precisión en vivo, ajuste automático y respaldo histórico](docs/img/readme/fiabilidad-1440.png)
+
+| Móvil: Hoy | Móvil: el Míster |
+|---|---|
+| <img src="docs/img/readme/movil-hoy.png" width="300" alt="Pantalla Hoy en móvil, tema oscuro"> | <img src="docs/img/readme/movil-chat.png" width="300" alt="Chat del Míster en móvil analizando Inglaterra contra Croacia"> |
 
 ---
 
@@ -383,7 +475,7 @@ los datos no cambiaron. `scripts/automation.py` permite pausar y reanudar.
 - **Agente sin frameworks:** orquestador propio de ~700 líneas, cliente compatible con OpenAI por `requests` y
   Ollama local. Cambiar de proveedor es cambiar `base_url` y `model` en `config/settings.yaml`.
 - **Contratos estrictos:** respuestas y eventos con Pydantic v2 y `extra="forbid"`; el chat usa Server-Sent Events.
-- **Calidad:** 712 pruebas con pytest (el agente se prueba con un LLM simulado, sin red ni costo), pruebas del
+- **Calidad:** 718 pruebas con pytest (el agente se prueba con un LLM simulado, sin red ni costo), pruebas del
   frontend con `node:test`, Ruff y CI en GitHub Actions.
 - **Reproducibilidad:** fechas en UTC ISO-8601, cada pronóstico registra la versión del modelo, y las evaluaciones
   del agente guardan sus eventos completos en JSON.
@@ -587,7 +679,7 @@ src/footy_agents/    capa agéntica, desacoplada del motor
   llm.py             cliente compatible con OpenAI; ollama_runtime.py lo inicia bajo demanda
   web/router.py      /api/agent: chat y resumen por SSE, conversaciones, memoria, alertas, vigilancias, scout-log, salud
 scripts/             puntos de entrada: ciclo diario, cuotas pre-partido, vigía, análisis y evaluación
-tests/               712 pruebas; tests/footy_agents usa un LLM simulado; tests/web/*.cjs prueba el frontend
+tests/               718 pruebas; tests/footy_agents usa un LLM simulado; tests/web/*.cjs prueba el frontend
 assets/mascot/       poses fuente del zorro (las capas publicadas viven en web/static/img/)
 docs/                análisis 01-12, arquitectura del agente, guion de demo y registro de decisiones
 ```
@@ -601,7 +693,21 @@ El detalle de la capa agéntica está en [arquitectura_agente.md](docs/arquitect
 El prototipo demuestra que la idea funciona. Para que alguien lo use sin ayuda falta lo siguiente, ordenado por
 prioridad:
 
-### 1. Que funcione fuera de este PC
+### 1. Lo que falta en los agentes
+
+| Agente | Pendiente | Por qué importa |
+|---|---|---|
+| Míster | **Clasificador de intención entrenado** con las conversaciones registradas en `agent_runs`, en lugar de reglas de texto | Hoy cada forma nueva de preguntar requiere una regla; es el punto más frágil (ver los fallos de la evaluación) |
+| Míster | **Evaluación grande y automática**: cientos de preguntas reales con respuesta esperada, corridas con `scripts/eval_agent_routing.py` | Las baterías actuales (15 y 8 preguntas) prueban que funciona, no miden con qué exactitud |
+| Míster | **Evento `grounding` en el chat**: mostrar qué cifra no se pudo verificar en vez de un error genérico | Quedó diferido para no cambiar el contrato del frontend antes de la presentación |
+| Míster | **Resumen del día redactado por IA** activado por defecto (`briefing.use_llm`) | Hoy usa plantilla para no ocupar la GPU; la redacción con IA ya existe pero está apagada |
+| Míster | **Un modelo más grande** (Qwen 14B ya está sugerido en `config/settings.yaml`) o un proveedor en la nube | Menos errores de interpretación y respuestas más rápidas |
+| Ojeador | **Más fuentes y mercados**: otras casas, una segunda fuente de Pinnacle y cuotas de más/menos goles | Hoy solo trae 1X2 de DraftKings vía ESPN; hoy Pinnacle cubre 1 de los 90 partidos del calendario |
+| Vigía | **Avisos fuera del dashboard** (Telegram, correo o push) | Hoy avisa en la campana y, con la página abierta, por notificación del navegador |
+| Vigía | **Bajas y alineaciones** como señal (ingesta de API-Football y ajuste acotado de ±15 %, rama `feature/scout-and-testing`) | Es la información que el mercado incorpora y el modelo no |
+| Todos | **Cuentas de usuario**: hoy preferencias, memoria, vigilancias y avisos son del usuario `default` | Requisito para que lo use más de una persona |
+
+### 2. Que funcione fuera de este PC
 
 | Falta | Por qué importa | Cómo resolverlo |
 |---|---|---|
@@ -610,23 +716,13 @@ prioridad:
 | **Despliegue en un servidor** | Hoy solo existe en `127.0.0.1` | Servidor con el ciclo diario como tarea programada, HTTPS y dominio. SQLite alcanza para pocos usuarios; con más, PostgreSQL |
 | **LLM sin GPU local** | Qwen 7B exige una GPU de ~8 GB | El cliente ya es compatible con OpenAI: basta cambiar `base_url` y `model` para usar un proveedor en la nube, con costo por uso |
 
-### 2. Que lo use más de una persona
+### 3. Que lo use más de una persona
 
 - **Cuentas de usuario e inicio de sesión.** Hoy todo pertenece a `default`: preferencias, memoria, historial y avisos.
 - **Atender consultas en paralelo.** Ollama local responde una a la vez; un producto necesita cola o un proveedor que
   escale.
 - **Avisos fuera del dashboard** (correo, Telegram o notificaciones push) para que el Vigía sirva aunque la página
   esté cerrada.
-
-### 3. Que el agente sea más robusto
-
-- **Entender preguntas nuevas sin parches.** La intención se detecta con reglas deterministas, y cada forma nueva de
-  preguntar («se enfrenta», «hipotético caso») ha requerido una regla. Es fiable para lo probado, pero frágil ante
-  lo no visto. El paso siguiente es un clasificador de intención entrenado con las conversaciones registradas.
-- **Evaluación con significancia estadística.** Las baterías actuales (15 y 8 preguntas) prueban que funciona, no
-  miden con qué exactitud. Hace falta un conjunto de cientos de preguntas reales.
-- **Un modelo de lenguaje más grande** cuando el hardware o el presupuesto lo permitan (`config/settings.yaml`
-  ya sugiere Qwen 14B; cambiarlo es una línea).
 
 ### 4. Que los datos alcancen
 
