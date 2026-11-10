@@ -132,13 +132,13 @@ function paintSystemStatus() {
     <span class="status-full" aria-hidden="true">${esc(label)}</span><span class="status-short" aria-hidden="true">${esc(small)}</span></span>`;
   const markup = unit(full, short, full) + unit([assistant, mode].filter(Boolean).join(" · "), smallAssistant, [assistant, mode].filter(Boolean).join(" · "))
     + unit(`Modelo: ${o.model_version || "sin verificar"}`, o.model_version || "Modelo: —", `Modelo: ${o.model_version || "sin verificar"}`)
-    + '<button type="button" class="status-refresh" aria-label="Volver a comprobar datos y asistente">Actualizar</button>';
+    + `<button type="button" class="status-refresh" aria-label="Volver a comprobar datos y asistente">${REFRESH_ICON}Actualizar</button>`;
   if (box.innerHTML !== markup) {
     const focused = box.contains(document.activeElement);
     box.innerHTML = markup;
     if (focused) $(".status-refresh", box).focus();
   }
-  $(".status-refresh", box).onclick = retryCurrentView;
+  $(".status-refresh", box).onclick = (event) => spinWhile(event.currentTarget, retryCurrentView);
 }
 
 function trustEmpty(box, kind, { count = 0, total = count, action = null } = {}) {
@@ -177,6 +177,23 @@ function gateView(view, kind = null) {
     tiles.after(message);
   }
   trustEmpty(message, kind, { action: kind === "no_matches" ? () => { location.hash = "#partidos"; } : null });
+}
+
+// Ícono de recarga para los botones «Actualizar»: gira al pasar el cursor y mientras la acción trabaja.
+const REFRESH_ICON = '<svg class="ico refresh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+  + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/>'
+  + '<path d="M21 3v5h-5"/></svg>';
+
+// Marca el botón como ocupado durante la acción; un mínimo de 600 ms evita un parpadeo si responde al instante.
+async function spinWhile(btn, action) {
+  if (!btn || btn.classList.contains("is-busy")) return;
+  btn.classList.add("is-busy");
+  btn.setAttribute("aria-busy", "true");
+  const start = performance.now();
+  try { await action(); } finally {
+    setTimeout(() => { btn.classList.remove("is-busy"); btn.removeAttribute("aria-busy"); },
+      Math.max(0, 600 - (performance.now() - start)));
+  }
 }
 
 async function retryCurrentView() {

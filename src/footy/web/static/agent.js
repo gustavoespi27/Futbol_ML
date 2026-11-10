@@ -233,11 +233,11 @@ async function loadAgentActivity() {
 function initAgentActivity() {
   $("#agent-fab").insertAdjacentHTML("beforeend", `<span id="agent-alert-badge" class="agent-alert-badge" hidden aria-hidden="true"></span>`);
   chatEl(".chat-head").insertAdjacentHTML("afterend", `<section class="agent-activity" aria-label="Alertas y bitácora del agente">
-    <div class="agent-activity-actions"><button type="button" id="agent-activity-refresh">Actualizar actividad</button>
+    <div class="agent-activity-actions"><button type="button" id="agent-activity-refresh">${REFRESH_ICON}Actualizar actividad</button>
     <span id="agent-activity-status" role="status"></span></div>
     <details id="agent-alerts"><summary>Alertas sin leer</summary><div id="agent-alerts-body"></div></details>
     <details id="agent-runs"><summary>Bitácora del agente</summary><div id="agent-runs-body"></div></details></section>`);
-  $("#agent-activity-refresh").addEventListener("click", loadAgentActivity);
+  $("#agent-activity-refresh").addEventListener("click", (event) => spinWhile(event.currentTarget, loadAgentActivity));
   $("#agent-alerts-body").addEventListener("click", async (event) => {
     const button = event.target.closest("[data-read-alert]");
     if (!button) return;
@@ -316,7 +316,7 @@ function initAgent() {
     if (b) sendChat(b.textContent);
   });
 
-  $("#brief-refresh").addEventListener("click", loadBriefing);
+  $("#brief-refresh").addEventListener("click", (event) => spinWhile(event.currentTarget, loadBriefing));
   $("#brief-prefs").addEventListener("click", () => openPrefs().catch((e) => {
     $("#agent-brief .brief-foot").textContent = `No se pudieron abrir las preferencias (${e.message}).`;
   }));
