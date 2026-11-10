@@ -112,6 +112,37 @@ class AgentRun(AgentSchema):
 class ChatRequest(AgentSchema):
     message: str = Field(min_length=1, max_length=2000)
     user_id: str = "default"
+    conversation_id: int | None = Field(default=None, description="Conversación del historial; sin ella no se guarda")
+
+
+class Conversation(AgentSchema):
+    """Una conversación del historial del chat (título = primera pregunta)."""
+    id: int
+    title: str
+    created_at: str
+    updated_at: str
+    messages: int
+
+
+class ConversationMessage(AgentSchema):
+    role: Literal["user", "assistant"]
+    content: str
+    verified: bool
+    created_at: str
+
+
+class NewConversation(AgentSchema):
+    user_id: str = Field(default="default", min_length=1, max_length=100)
+
+
+class MemoryItem(AgentSchema):
+    """Algo que el Míster aprendió del usuario: equipo, liga o tema, con su peso y si lo dijo explícitamente."""
+    id: int
+    kind: Literal["team", "league", "topic"]
+    label: str
+    weight: float
+    stated: bool
+    updated_at: str
 
 
 class ChatEvent(AgentSchema):

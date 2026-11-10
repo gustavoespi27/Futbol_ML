@@ -16,12 +16,16 @@ const ALERT_ICONS = {
   layers: '<path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/>',
   eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
 };
+// Vigilancias creadas desde el chat («avísame si…»): su tipo se muestra con este nombre.
+const WATCH_LABELS = { kickoff_soon: "Inicio cercano", pinnacle_available: "Precio Pinnacle disponible",
+  value_appears: "Aparece ventaja", value_disappears: "Desaparece ventaja", line_move: "Movimiento de línea",
+  probability_shift: "Cambio de probabilidad", coverage_lost: "Cobertura perdida" };
 const alertsState = { items: [], open: false, busy: false, known: null, browser: false };
 
 const alertIcon = (kind) => `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ALERT_ICONS[(ALERT_KINDS[kind] || {}).icon || "eye"]}</svg>`;
 const alertLabel = (kind) => (ALERT_KINDS[kind] || {}).label
-  || `Vigilancia · ${(typeof WATCH_LABELS !== "undefined" && WATCH_LABELS[kind]) || kind}`;
+  || `Vigilancia · ${WATCH_LABELS[kind] || kind}`;
 
 const alertClock = new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", weekday: "short", day: "2-digit",
   month: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });

@@ -641,3 +641,25 @@ Al probar la personalidad aparecieron dos falsos positivos de la verificación, 
 leía como el día 21, y la línea «2.5 goles» (que viene en el campo `over_2_5`) contaba como cifra sin respaldo. Con la
 corrección, el análisis de Colombia–Chile pasó de 3/3 respuestas reparadas a 4/4 limpias; una hora inventada
 («17:00») se sigue detectando. Validación: **566 pytest**.
+
+## Chat limpio, historial y memoria personalizada
+
+El chat muestra solo la respuesta del Míster: herramientas, observaciones, desvíos y reparaciones siguen ocurriendo
+y quedan en el registro interno (`agent_runs`, `/api/agent/runs`), pero no en pantalla. Mientras responde se ve
+«El Míster está revisando la pizarra…» y la mascota de la cabecera lee la tablet. La mascota quedó fija en la
+cabecera para que no desaparezca al avanzar la conversación, junto a los botones de historial y nueva conversación.
+
+**Historial** (`conversations.py`): cada conversación guarda lo que vio el usuario (pregunta y respuesta o aviso de
+error) y toma como título la primera pregunta. Al retomarla, el contexto del modelo son sus últimos tres turnos
+verificados y las entidades del último turno; las respuestas no verificadas se muestran pero no vuelven al modelo.
+
+**Memoria personalizada** (`user_memory.py`), sin LLM: lo que el usuario dice de sí mismo («soy hincha de…»,
+«mi equipo es…», «ya no sigo a…») se resuelve con `find_team` solo si hay una coincidencia exacta y única, y pesa
+cinco veces más que una consulta. También suma los equipos y ligas consultados y los temas por herramienta. Al prompt
+llega una línea («dijo que sigue a Colo Colo; consulta seguido a Colombia; suele preguntar por análisis de
+partidos») solo con lo que supera el umbral, sin cifras. El usuario la ve en «Lo que sé de ti» y puede borrar cada
+recuerdo o todo; `scripts/reset_agent_demo.py` también la vacía.
+
+Al probarlo apareció un error semántico: con la forma reciente de Colo Colo, el modelo presentó el último partido
+(8 de noviembre) como «el próximo». `check_claims` ahora rechaza una fecha pasada en una oración que habla de un
+partido próximo o programado, y la respuesta se repara.

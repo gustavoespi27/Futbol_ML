@@ -137,6 +137,17 @@ def check_claims(answer: str, records: list[ToolCallRecord]) -> GroundingReport:
             findings.append(f"Fecha narrada sin respaldo local: {match[0]}.")
     # No separar decimales ni miles al dividir oraciones; los dos topes correctos pueden coexistir en un párrafo.
     sentences = re.split(r"(?<!\d)[.!?;\n]+|[.!?;\n]+(?!\d)", answer)
+    # Un partido ya jugado (p. ej. el último de la forma reciente) no puede presentarse como el próximo.
+    today = datetime.now(LOCAL_TZ).date()
+    for sentence in sentences:
+        q = normalize_name(sentence)
+        if re.search(r"\b(?:proxim[oa]s?|programad[oa]s?|se jugara|jugara|juega el)\b", q):
+            for d in local_dates:
+                said = (re.search(rf"\b0?{d.day} de {months[d.month - 1]}\b", q)
+                        or re.search(rf"\b0?{d.day} {d.month:02d}\b", q))
+                if d < today and said:
+                    findings.append(f"Fecha pasada como próxima: el partido del {d.day}/{d.month} ya se jugó; "
+                                    "para el próximo usa el calendario o next_match.")
     for sentence in sentences:
         q = normalize_name(sentence)
         percentages = [value for raw, value, _ in _numbers(sentence) if raw.endswith("%")]

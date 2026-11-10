@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/gustavoespi27/Futbol_ML/actions/workflows/ci.yml/badge.svg)](https://github.com/gustavoespi27/Futbol_ML/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-3776ab)
-![Tests](https://img.shields.io/badge/tests-570%20passing-10b981)
+![Tests](https://img.shields.io/badge/tests-582%20passing-10b981)
 ![LLM](https://img.shields.io/badge/LLM-Qwen%202.5%207B%20local-7c3aed)
 ![Stack](https://img.shields.io/badge/stack-FastAPI%20%C2%B7%20SQLite%20%C2%B7%20scikit--learn-0f172a)
 
@@ -55,7 +55,7 @@ se habla y vuelve a consultar en vez de repetir cifras de memoria.</sub></p>
 | **181.114** partidos en la base (2012-2026) | **1,98 millones** de cuotas históricas y pre-partido |
 | **53** competiciones visibles, incluidas 8 de selecciones | **1.749** equipos enlazados entre fuentes de datos |
 | **8.608** partidos de examen fuera de muestra (temporada 2026) | **498** partidos auditados en vivo con pronóstico previo |
-| **14** herramientas del agente (10 de consulta, 4 de acción) | **570** pruebas automáticas; CI en Python 3.11 y 3.12 |
+| **14** herramientas del agente (10 de consulta, 4 de acción) | **582** pruebas automáticas; CI en Python 3.11 y 3.12 |
 
 ---
 
@@ -89,7 +89,9 @@ Un chatbot responde con lo que sabe. Este agente **percibe su entorno, decide, a
 | **Memoria** | Decide de forma determinista si una pregunta continúa la conversación. Si continúa, recuerda *qué* partido o equipo se consultó (nunca sus cifras) y vuelve a consultar el dato actualizado |
 | **Acción** | Herramientas de escritura: crear, listar y cancelar vigilancias, y agregar favoritos. Solo sobre tablas propias del agente |
 | **Autonomía** | Un vigía corre solo después de cada actualización de datos, sin LLM: percibe cambios, decide con reglas, emite alertas y registra hasta las decisiones descartadas |
-| **Trazabilidad** | Bitácora de cada turno del chat y de cada ejecución del vigía: herramientas, observaciones, desvíos, reparaciones y motivos |
+| **Trazabilidad** | Registro interno de cada turno del chat y de cada ejecución del vigía: herramientas, observaciones, desvíos, reparaciones y motivos. No se muestra en el chat; queda en `/api/agent/runs`, `/api/agent/watch-log` y en la salida de `scripts/agent_watch.py` |
+| **Memoria personalizada** | Aprende del usuario sin LLM: lo que dice («soy hincha de Colo Colo», «ya no sigo a…»), los equipos y ligas que consulta y los temas que más pregunta. Vuelve al prompt como contexto y el usuario puede verla y borrarla |
+| **Historial** | Conversaciones guardadas como en los asistentes grandes: se retoman con su propio contexto o se borran |
 
 ### Cómo piensa: un turno del chat
 
@@ -109,7 +111,7 @@ flowchart TD
   V -- falla --> RP[Reparar o reconsultar<br/>una vez]
   RP --> V
   V -- falla de nuevo --> FB[Respaldo armado con<br/>frases canónicas verificadas]
-  V -- pasa --> OK[Respuesta + pasos visibles<br/>+ bitácora]
+  V -- pasa --> OK[Respuesta<br/>+ registro interno]
   FB --> OK
 ```
 
@@ -160,9 +162,9 @@ Cada tipo se activa o desactiva en Preferencias, con la opción de limitar los a
 ligas y de recibir notificaciones del navegador. No usa el LLM: sus textos salen de plantillas verificadas, así que
 funciona aunque Ollama esté apagado.
 
-| Avisos (escritorio) | Avisos (móvil) | Bitácora del agente |
-|---|---|---|
-| ![Panel de avisos](docs/img/avisos/avisos-1440-dark.png) | ![Hoja de avisos en móvil](docs/img/avisos/avisos-390-light.png) | ![Bitácora con decisiones descartadas](docs/img/agente/final-bitacora-1440-dark.png) |
+| Avisos (escritorio) | Avisos (móvil) |
+|---|---|
+| ![Panel de avisos](docs/img/avisos/avisos-1440-dark.png) | ![Hoja de avisos en móvil](docs/img/avisos/avisos-390-light.png) |
 
 ### Evaluación del agente
 
@@ -339,7 +341,7 @@ los datos no cambiaron. `scripts/automation.py` permite pausar y reanudar.
 - **Agente sin frameworks:** orquestador propio de ~450 líneas, cliente compatible con OpenAI por `requests` y
   Ollama local. Cambiar de proveedor es cambiar `base_url` y `model` en `config/settings.yaml`.
 - **Contratos estrictos:** respuestas y eventos con Pydantic v2 y `extra="forbid"`; el chat usa Server-Sent Events.
-- **Calidad:** 570 pruebas con pytest (el agente se prueba con un LLM simulado, sin red ni costo), pruebas del
+- **Calidad:** 582 pruebas con pytest (el agente se prueba con un LLM simulado, sin red ni costo), pruebas del
   frontend con `node:test`, Ruff y CI en GitHub Actions.
 - **Reproducibilidad:** fechas en UTC ISO-8601, cada pronóstico registra la versión del modelo, y las evaluaciones
   del agente guardan sus eventos completos en JSON.
@@ -437,14 +439,16 @@ src/footy_agents/    capa agéntica, desacoplada del motor
   tools.py           14 herramientas tipadas sobre el motor
   grounding.py       verificación de cifras, fechas e interpretaciones
   fallback.py        respuesta de respaldo con frases canónicas verificadas
-  memory.py          memoria corta, entidades y bitácora del chat
+  memory.py          memoria corta, entidades y registro interno de cada turno
+  conversations.py   historial de conversaciones: retomar con su contexto o borrar
+  user_memory.py     memoria personalizada: equipos, ligas y temas aprendidos del usuario
   watcher.py         vigía autónomo: percibir, comparar, decidir, actuar, registrar
   watches.py         vigilancias y alertas
   notifications.py   avisos: favoritos, cuotas con valor o cerca, combinadas
   llm.py             cliente compatible con OpenAI; ollama_runtime.py lo inicia bajo demanda
-  web/router.py      /api/agent: chat y resumen por SSE, alertas, vigilancias, bitácora, salud
+  web/router.py      /api/agent: chat y resumen por SSE, conversaciones, memoria, alertas, vigilancias, salud
 scripts/             puntos de entrada: ciclo diario, cuotas pre-partido, vigía, análisis y evaluación
-tests/               570 pruebas; tests/footy_agents usa un LLM simulado
+tests/               582 pruebas; tests/footy_agents usa un LLM simulado
 docs/                análisis 01-11, arquitectura del agente, guion de demo y registro de decisiones
 ```
 

@@ -131,13 +131,18 @@ Hoy es {today} (hora de Chile).
 Preferencias del usuario: equipos favoritos {teams}; ligas favoritas {leagues}; perfil de riesgo {risk}."""
 
 
-def system_prompt(prefs: UserPreferences) -> str:
-    return SYSTEM_PROMPT.format(
+def system_prompt(prefs: UserPreferences, user_memory: str = "") -> str:
+    """Prompt de sistema; `user_memory` es lo aprendido del usuario (user_memory.prompt_summary), sin cifras."""
+    prompt = SYSTEM_PROMPT.format(
         today=datetime.now(LOCAL_TZ).strftime("%Y-%m-%d"),
         teams=", ".join(prefs.favorite_teams) or "ninguno",
         leagues=", ".join(prefs.favorite_leagues) or "ninguna",
         risk=prefs.risk_profile,
     )
+    if user_memory:
+        prompt += (f"\nLo que sabes del usuario por conversaciones anteriores: {user_memory}. Úsalo para priorizar "
+                   "y personalizar el tono (por ejemplo, mencionar primero a su equipo), sin inventar datos.")
+    return prompt
 
 
 def summarize(record: ToolCallRecord) -> str:
@@ -271,7 +276,7 @@ class _Turn:
 
 def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
              history: list[dict] | None = None, entities: dict | None = None,
-             consulted_entities: dict | None = None) -> Iterator[ChatEvent]:
+             consulted_entities: dict | None = None, user_memory: str = "") -> Iterator[ChatEvent]:
     """Un turno del usuario. Emite eventos step, tool_start, tool_result, token, done y error (contrato SSE).
 
     El camino no es fijo: cada resultado se clasifica (observations.observe) y el modelo decide con esa observación.
@@ -314,7 +319,7 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
                     "llama directamente a analyze_match con el match_id indicado. No vuelvas a buscar el equipo "
                     "con find_team ni el calendario: ya está identificado. Si el usuario cambia de equipo, "
                     "resuelve la nueva entidad.")
-    turn = _Turn([{"role": "system", "content": system_prompt(prefs) + context}, *(history or []),
+    turn = _Turn([{"role": "system", "content": system_prompt(prefs, user_memory) + context}, *(history or []),
                   {"role": "user", "content": message}], user_id=prefs.user_id)
     route = intent_route(message, entities)
     turn.calendar_filters = calendar_args(message, entities)

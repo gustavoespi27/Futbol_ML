@@ -1,4 +1,5 @@
-"""Vacía solo seis tablas de demo del agente; sin --yes muestra los conteos, sin borrar filas."""
+"""Vacía las tablas de demo del agente (avisos, vigilancias, bitácora, conversaciones y lo aprendido del
+usuario); las preferencias se conservan. Sin --yes muestra los conteos, sin borrar filas."""
 
 import argparse
 import sqlite3
@@ -14,6 +15,9 @@ DEMO_TABLES = (
     "agent_watch_log",
     "agent_runs",
     "agent_chat_memory",
+    "agent_conversation_messages",
+    "agent_conversations",
+    "agent_user_memory",
 )
 
 
@@ -45,7 +49,7 @@ def reset(conn: sqlite3.Connection, confirmed: bool = False) -> dict[str, int]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--yes", action="store_true", help="Confirmar el borrado de filas de las seis tablas indicadas")
+    parser.add_argument("--yes", action="store_true", help="Confirmar el borrado de filas de las tablas de demo")
     parser.add_argument("--database", type=Path, help="Base existente; por defecto, la configurada en la aplicación")
     args = parser.parse_args(argv)
     path = args.database or config.path("database")
