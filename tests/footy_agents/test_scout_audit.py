@@ -113,3 +113,15 @@ def test_comparison_context_cannot_add_claims_or_omit_lines(monkeypatch, bad):
     assert events[-1].data["success"]
     assert "".join(e.data["delta"] for e in events if e.event == "token") == COMPARISON
     assert any(e.event == "step" and e.data["kind"] == "repair" for e in events)
+
+
+
+@pytest.mark.parametrize("message, tool", [
+    ("¿hay cuotas con valor hoy?", "get_value_bets"),
+    ("¿qué cuotas tienen ventaja?", "get_value_bets"),
+    ("¿cuánto paga Argentina contra Uruguay?", "request_odds"),
+    ("¿y las cuotas?", "request_odds"),
+])
+def test_value_questions_do_not_go_to_the_odds_comparator(message, tool):
+    from footy_agents.routing import intent_route
+    assert intent_route(message, None)[0] == tool

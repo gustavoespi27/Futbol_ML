@@ -68,7 +68,8 @@ def intent_route(message: str, entities: dict | None = None) -> tuple[str, dict]
                 if id_:
                     args["id"] = int(id_[0])
             return tool, args
-    if ODDS_INTENT.search(q):
+    # «Cuotas con valor» o «recomendaciones» son otra intención: no se comparan casas de un partido.
+    if ODDS_INTENT.search(q) and not re.search(r"valor|ventaja|recomend|fiables?|semaforo", q):
         return "request_odds", {"match_id": entities["match_id"]} if entities and entities.get("match_id") else {}
     for pattern, tool in (
         (r"recomendacion|mas fiables?|casi con valor|cerca de tener valor|"
