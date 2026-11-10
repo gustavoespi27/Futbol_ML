@@ -315,5 +315,166 @@
     "C1 y C2 reales usaron reparación y respaldo; no se presentan como redacción autónoma impecable.",
     "C2 intentó además request_odds(123456): la herramienta lo rechazó; el respaldo usa 181042.",
     "La introducción sin cifras más todas las líneas canónicas pasa sin reparación con FakeLLM."
-  ]
+  ],
+  "audit_c7": {
+    "base_commit": "bd5c217",
+    "pytest": 663,
+    "ruff": "ok",
+    "node_tests": 8,
+    "agent_coverage_pct": 95.39,
+    "cases": [
+      {
+        "case": "C1",
+        "question": "¿Cuánto paga Colombia contra Chile?",
+        "answer": "Ninguna casa publica cuotas todavía para este partido; ESPN tampoco tiene precios disponibles.",
+        "elapsed_s": 13.211,
+        "path": [
+          {
+            "tool": "get_upcoming_matches",
+            "args": {
+              "team": "Colombia",
+              "limit": 20
+            }
+          },
+          {
+            "tool": "request_odds",
+            "args": {
+              "match_id": 181043
+            }
+          }
+        ],
+        "done": {
+          "iterations": 2,
+          "success": true
+        },
+        "repairs": 0,
+        "recoveries": 1,
+        "run_ids": [
+          236
+        ],
+        "fallback_used": false,
+        "steps": [
+          {
+            "kind": "observation",
+            "text": "Ningún partido listado tiene precio de Pinnacle: no se puede evaluar ventaja."
+          },
+          {
+            "kind": "recovery",
+            "text": "El agente decide consultar cuotas consultadas por el Ojeador"
+          },
+          {
+            "kind": "deviation",
+            "text": "Cambio de camino: cuotas consultadas por el Ojeador, porque no hay precio de Pinnacle."
+          },
+          {
+            "kind": "observation",
+            "text": "Ninguna casa publica cuotas todavía para este partido; ESPN tampoco tiene precios disponibles."
+          }
+        ]
+      },
+      {
+        "case": "seguimiento",
+        "question": "Compara cuotas de ese partido",
+        "answer": "Ninguna casa publica cuotas todavía para este partido; ESPN tampoco tiene precios disponibles.",
+        "elapsed_s": 14.011,
+        "path": [
+          {
+            "tool": "analyze_match",
+            "args": {
+              "match_id": 181043
+            }
+          },
+          {
+            "tool": "request_odds",
+            "args": {
+              "match_id": 181043
+            }
+          }
+        ],
+        "done": {
+          "iterations": 2,
+          "success": true
+        },
+        "repairs": 0,
+        "recoveries": 1,
+        "run_ids": [
+          237
+        ],
+        "fallback_used": false,
+        "steps": [
+          {
+            "kind": "observation",
+            "text": "Continúa con Colombia vs Chile: se consulta el análisis actualizado",
+            "memory": "continued"
+          },
+          {
+            "kind": "observation",
+            "text": "Sin precio de Pinnacle: entrega probabilidades del modelo, sin hablar de ventaja."
+          },
+          {
+            "kind": "recovery",
+            "text": "El agente decide consultar cuotas consultadas por el Ojeador"
+          },
+          {
+            "kind": "deviation",
+            "text": "Cambio de camino: cuotas consultadas por el Ojeador, porque no hay precio de Pinnacle."
+          },
+          {
+            "kind": "observation",
+            "text": "Ninguna casa publica cuotas todavía para este partido; ESPN tampoco tiene precios disponibles."
+          }
+        ]
+      },
+      {
+        "case": "C2",
+        "question": "¿cuánto paga Argentina contra Uruguay?",
+        "answer": "Gana Argentina: mejor 1.53 en DraftKings\nEmpate: mejor 3.90 en DraftKings\nGana Uruguay: mejor 5.75 en DraftKings\nSin Pinnacle no hay valor medible; son precios ofrecidos.",
+        "elapsed_s": 9.068,
+        "path": [
+          {
+            "tool": "get_upcoming_matches",
+            "args": {
+              "team": "Argentina",
+              "limit": 20
+            }
+          },
+          {
+            "tool": "request_odds",
+            "args": {
+              "match_id": 181042
+            }
+          }
+        ],
+        "done": {
+          "iterations": 2,
+          "success": true
+        },
+        "repairs": 0,
+        "recoveries": 1,
+        "run_ids": [
+          238
+        ],
+        "fallback_used": false,
+        "steps": [
+          {
+            "kind": "observation",
+            "text": "Ningún partido listado tiene precio de Pinnacle: no se puede evaluar ventaja."
+          },
+          {
+            "kind": "recovery",
+            "text": "El agente decide consultar cuotas consultadas por el Ojeador"
+          },
+          {
+            "kind": "deviation",
+            "text": "Cambio de camino: cuotas consultadas por el Ojeador, porque no hay precio de Pinnacle."
+          },
+          {
+            "kind": "observation",
+            "text": "Sin Pinnacle no hay valor medible; son precios ofrecidos."
+          }
+        ]
+      }
+    ],
+    "manual_review": "Tres respuestas verificadas, cero reparaciones, sin ids inventados; sin otra inferencia tras request_odds."
+  }
 }

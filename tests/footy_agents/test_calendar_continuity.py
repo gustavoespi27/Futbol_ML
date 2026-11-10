@@ -213,7 +213,7 @@ def test_repeated_answer_repaired_specific_question():
     events = list(
         orchestrator.run_chat(
             client,
-            "y no tienes datos de las posibles cuotas?",
+            "¿Y ese partido?",
             UserPreferences(),
             history=[{"role": "assistant", "content": answer}],
             entities=ENTITY,
@@ -231,7 +231,7 @@ def test_duplicate_repair_failure_uses_odds_fallback():
         orchestrator.run_chat(
             FakeLLM([ToolCall("r", "request_odds", {"match_id": 181043})],
                     [TextDelta(answer)], [TextDelta(answer)]),
-            "y no tienes datos de las posibles cuotas?",
+            "¿Y ese partido?",
             UserPreferences(),
             history=[{"role": "assistant", "content": answer}],
             entities=ENTITY,
@@ -377,7 +377,7 @@ def test_odds_question_requires_canonical_odds_status():
     events = list(
         orchestrator.run_chat(
             FakeLLM([ToolCall("r", "request_odds", {"match_id": 181043})],
-                    [TextDelta(wrong)], [TextDelta(wrong)]), "¿Y las cuotas?", UserPreferences(), entities=ENTITY
+                    [TextDelta(wrong)], [TextDelta(wrong)]), "¿Y ese partido?", UserPreferences(), entities=ENTITY
         )
     )
     emitted = "".join(e.data["delta"] for e in events if e.event == "token")

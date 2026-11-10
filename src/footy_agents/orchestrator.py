@@ -390,6 +390,7 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
                   {"role": "user", "content": message}], user_id=prefs.user_id)
     route = intent_route(message, entities)
     turn.calendar_filters = calendar_args(message, entities)
+    odds_request = bool(route and route[0] == "request_odds")
     if follows and re.match(r"^(?:sí|si|dale|ok)\b", message.lower().strip()) and entities:
         turn.calendar_filters = {**entities.get("calendar_filters", {}), **turn.calendar_filters}
         if route and route[0] == "get_upcoming_matches":
@@ -485,6 +486,15 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
                 if consulted_entities is not None and turn.entities:
                     consulted_entities.clear()
                     consulted_entities.update(turn.entities)
+                record = turn.records[-1]
+                if (odds_request and record.tool_name == "request_odds" and record.success
+                        and isinstance(record.result, dict) and record.result.get("comparison_text")):
+                    comparison = record.result["comparison_text"]
+                    if (verify_numbers(comparison, turn.records, user_message=message).verified
+                            and check_claims(comparison, turn.records).verified):
+                        yield ChatEvent(event="token", data={"delta": comparison})
+                        yield ChatEvent(event="done", data={"iterations": iteration, "success": True})
+                        return
             tool_rounds += 1
             successful = [r for r in turn.records if r.success and route and r.tool_name == route[0]
                           and r.tool_name in WRITE_TOOLS

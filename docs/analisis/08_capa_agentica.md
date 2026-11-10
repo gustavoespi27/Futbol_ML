@@ -904,3 +904,66 @@ las decisiones actuales sin red ni inserciones:
 El archivo compacto conserva las mediciones históricas 3/90 → 69/90, las salidas de ambos ciclos,
 ejemplos de decisiones y las respuestas. No mezcla los 634 tests originales con los 651 del cierre de
 auditoría. CLAUDE.md §7 se actualizó solo localmente. Se publica la rama y se detiene para revisión.
+
+## C7: respuesta directa tras la delegación (2026-11-10)
+
+Se implementó la sección 7 del plan sobre `bd5c217`, conservando la corrección de Claude: «cuotas con valor»,
+ventaja y recomendaciones mantienen sus rutas; no activan el cierre directo del comparador.
+
+Cuando la intención original es consultar cuotas y `request_odds` devuelve un `comparison_text` útil,
+`run_chat` comprueba `verify_numbers` y `check_claims`, emite el texto y termina con `done.success=true`.
+No pide otra inferencia de redacción ni ejecuta llamadas posteriores del mismo lote del LLM. Las entidades
+se actualizan antes del cierre. Los pasos ya emitidos —precarga/análisis, ausencia de Pinnacle, recuperación,
+desvío y resultado de la herramienta— permanecen en `agent_runs` y en los eventos SSE.
+
+Si la herramienta falla, falta un texto útil o el texto no pasa los verificadores, no hay cierre exitoso
+automático: continúa el tratamiento existente. Si la comparación era una consulta auxiliar para otra intención,
+se mantienen la redacción y sus verificadores. No se cambian el motor, los límites ni los contratos API/SSE.
+
+### Pruebas
+
+Un FakeLLM falla expresamente si recibe una inferencia después de una comparación exitosa. Se prueban
+`no_odds`, `no_pinnacle` y `ok`, conservación de entidades/pasos, interrupción de un lote antes de un segundo
+id inventado, resultados fallidos o semánticamente incorrectos y ausencia de cierre directo para rendimiento
+y cuotas con valor. Los tests anteriores de redacción, contexto, repetición y reparación se conservan en el
+caso de una consulta **auxiliar** durante un análisis; las preguntas de cuotas ahora prueban la salida directa.
+No se quitaron las comprobaciones de cifras, reparación ni respaldo de esas pruebas.
+
+**663 pytest**, Ruff y **8 pruebas Node** en verde; sintaxis de app.js/agent.js correcta. Cobertura agéntica
+**95,39 %** (3103 sentencias, 143 sin cubrir). No se añadieron dependencias.
+
+### Qwen real: C1, seguimiento y C2
+
+| Caso | Run | Camino | Inferencias | Reparaciones | Recuperaciones | Latencia |
+|---|---:|---|---:|---:|---:|---:|
+| C1, nueva conversación | 236 | upcoming(Colombia) → request_odds(181043) → salida directa | 2 | 0 | 1 | 13,211 s |
+| Seguimiento de C1 | 237 | analyze_match(181043) → no_pinnacle → desvío → request_odds(181043) → salida directa | 2 | 0 | 1 | 14,011 s |
+| C2, nueva conversación | 238 | upcoming(Argentina) → request_odds(181042) → salida directa | 2 | 0 | 1 | 9,068 s |
+
+**3/3 respuestas verificadas, cero reparaciones, cero respaldos y ningún id inventado** en esta muestra.
+Las recuperaciones previas a la delegación siguen siendo necesarias en estos tres turnos: se mantiene al LLM
+como decisor de la consulta. Una vez completado `request_odds`, no hubo otra inferencia.
+
+C1 y su seguimiento respondieron:
+
+```text
+Ninguna casa publica cuotas todavía para este partido; ESPN tampoco tiene precios disponibles.
+```
+
+C2 respondió:
+
+```text
+Gana Argentina: mejor 1.53 en DraftKings
+Empate: mejor 3.90 en DraftKings
+Gana Uruguay: mejor 5.75 en DraftKings
+Sin Pinnacle no hay valor medible; son precios ofrecidos.
+```
+
+Frente a los runs 234–235 de la auditoría anterior (23,473 y 23,842 s), estos dos casos bajaron a 13,211 y
+9,068 s. Son observaciones de conversaciones concretas; no garantizan esa latencia ni eliminan la variabilidad
+de las decisiones anteriores a la herramienta. El texto final del comparador deja de depender de otra
+redacción del modelo.
+
+Evidencia compacta añadida a `validacion_ojeador.json` bajo `audit_c7`; eventos y bitácoras completos locales
+en `reports/ojeador/auditoria-c7.json`. Se entrega un único commit `fix(agents)` para C7 y se publica la rama,
+sin integrar a main ni a la rama de presentación. La integración corresponde a Claude según el plan.

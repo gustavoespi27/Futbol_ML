@@ -55,7 +55,7 @@ se habla y vuelve a consultar en vez de repetir cifras de memoria.</sub></p>
 | **181.114** partidos en la base (2012-2026) | **1,98 millones** de cuotas históricas y pre-partido |
 | **53** competiciones visibles, incluidas 8 de selecciones | **1.749** equipos enlazados entre fuentes de datos |
 | **8.608** partidos de examen fuera de muestra (temporada 2026) | **498** partidos auditados en vivo con pronóstico previo |
-| **16** herramientas del agente (11 de consulta, 4 de acción y 1 de delegación) | **651** pruebas automáticas; CI en Python 3.11 y 3.12 |
+| **16** herramientas del agente (11 de consulta, 4 de acción y 1 de delegación) | **663** pruebas automáticas; CI en Python 3.11 y 3.12 |
 
 ---
 
@@ -89,6 +89,7 @@ Sin Pinnacle, el comparador muestra precios y casas, sin calcular ventaja. La de
 capturas ESPN de menos de una hora; el ciclo general usa una ventana de seis horas, o una si el inicio está a menos de seis.
 El presupuesto máximo es de 40 scoreboards por corrida, no una llamada por partido. La bitácora pública queda en
 `/api/agent/scout-log`; la decisión de delegar del Míster, en `/api/agent/runs`.
+Tras una consulta de cuotas exitosa, el texto calculado se verifica y entrega directamente, sin otra inferencia.
 
 ### Qué lo hace un agente y no un chatbot
 
@@ -356,7 +357,7 @@ los datos no cambiaron. `scripts/automation.py` permite pausar y reanudar.
 - **Agente sin frameworks:** orquestador propio de ~450 líneas, cliente compatible con OpenAI por `requests` y
   Ollama local. Cambiar de proveedor es cambiar `base_url` y `model` en `config/settings.yaml`.
 - **Contratos estrictos:** respuestas y eventos con Pydantic v2 y `extra="forbid"`; el chat usa Server-Sent Events.
-- **Calidad:** 651 pruebas con pytest (el agente se prueba con un LLM simulado, sin red ni costo), pruebas del
+- **Calidad:** 663 pruebas con pytest (el agente se prueba con un LLM simulado, sin red ni costo), pruebas del
   frontend con `node:test`, Ruff y CI en GitHub Actions.
 - **Reproducibilidad:** fechas en UTC ISO-8601, cada pronóstico registra la versión del modelo, y las evaluaciones
   del agente guardan sus eventos completos en JSON.
@@ -467,7 +468,7 @@ src/footy_agents/    capa agéntica, desacoplada del motor
   llm.py             cliente compatible con OpenAI; ollama_runtime.py lo inicia bajo demanda
   web/router.py      /api/agent: chat y resumen por SSE, conversaciones, memoria, alertas, vigilancias, scout-log, salud
 scripts/             puntos de entrada: ciclo diario, cuotas pre-partido, vigía, análisis y evaluación
-tests/               651 pruebas; tests/footy_agents usa un LLM simulado
+tests/               663 pruebas; tests/footy_agents usa un LLM simulado
 docs/                análisis 01-11, arquitectura del agente, guion de demo y registro de decisiones
 ```
 

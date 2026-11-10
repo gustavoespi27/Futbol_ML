@@ -139,7 +139,7 @@ def test_comparison_canonical_text_prevents_false_absence_of_value(monkeypatch):
     events = list(
         orchestrator.run_chat(
             FakeLLM(),
-            "compara cuotas",
+            "Analiza ese partido",
             UserPreferences(),
             entities={"match_id": 1, "home": "Armenia", "away": "Cyprus"},
         )
