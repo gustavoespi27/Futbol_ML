@@ -76,23 +76,32 @@ TOOL_MODELS = {
 }
 
 DESCRIPTIONS = {
-    "get_upcoming_matches": "Próximos partidos: horario, equipos y probabilidades 1X2 oficiales. Filtra por equipo.",
-    "get_value_bets": "Apuestas con ventaja frente al precio justo sin margen de Pinnacle.",
-    "simulate_match": "Simula dos equipos de una liga: goles esperados, probabilidades 1X2 y marcadores.",
-    "get_league_standings": "Tabla de posiciones y racha reciente de una liga.",
-    "get_system_performance": "Rendimiento real del sistema, CLV, yield y versión del motor.",
-    "get_stake_limits": "Calcula topes de exposición en pesos para una banca; no recomienda una apuesta.",
-    "find_team": "Resuelve un nombre informal o incompleto de equipo o selección y entrega su próximo partido "
-                 "(match_id).",
-    "analyze_match": "Análisis completo de un partido por match_id: probabilidades, goles esperados, marcadores y "
-                     "ventaja frente a Pinnacle si existe.",
-    "get_team_form": "Cómo llega un equipo: posición en la tabla, últimos resultados, promedios y próximo partido.",
-    "get_coverage": "Frescura de los datos y cuántos partidos tienen precio de Pinnacle: explica por qué hay o no "
-                    "recomendaciones.",
+    'get_upcoming_matches': ('Usa para calendario: «¿Qué partidos hay hoy?». No para analizar un partido '
+        'conocido: usa analyze_match.'),
+    'get_value_bets': ('Usa para ventaja Pinnacle: «¿Hay apuestas con valor?». No para favoritos '
+        'ni explicar cobertura: usa analyze_match o get_coverage.'),
+    'simulate_match': ('Usa para encuentro hipotético: «Simula Colo Colo contra la U». No para un '
+        'partido del calendario con match_id: usa analyze_match.'),
+    'get_league_standings': ('Usa para posiciones: «¿Cómo va Colo Colo en la tabla?». No para pronóstico '
+        'ni forma detallada.'),
+    'get_system_performance': ('Usa para métricas: «¿Cuál es el rendimiento del sistema?». No para '
+        'pronosticar un partido.'),
+    'get_stake_limits': ('Usa para montos: «¿Cuánto arriesgar con banca de 100.000?». No para elegir '
+        'apuestas ni prometer ganancias.'),
+    'find_team': ('Usa para resolver nombre/apodo: «Analiza a la roja». No repitas si ya '
+        'tienes match_id; un exacto con next_match permite analyze_match directo.'),
+    'analyze_match': ('Usa para «¿Quién gana Colombia–Chile?»: requiere match_id de find_team o '
+        'get_upcoming_matches. No para encuentro hipotético ni resolver apodos.'),
+    'get_team_form': ('Usa para forma: «¿Cómo llega Colo Colo?». No sustituye analyze_match para '
+        'favorito ni get_league_standings para tabla completa.'),
+    'get_coverage': ('Usa para cobertura/frescura: «¿Por qué no hay apuestas?». No para '
+        'pronóstico ni montos; consulta analyze_match o get_stake_limits.'),
 }
 
 OPENAI_TOOLS_SPEC = [
-    {"type": "function", "function": {"name": name, "description": DESCRIPTIONS[name],
-                                      "parameters": model.model_json_schema()}}
+    {
+        "type": "function",
+        "function": {"name": name, "description": DESCRIPTIONS[name], "parameters": model.model_json_schema()},
+    }
     for name, model in TOOL_MODELS.items()
 ]

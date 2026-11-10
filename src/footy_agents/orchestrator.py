@@ -13,6 +13,7 @@ from datetime import datetime
 from footy.web.services.context import LOCAL_TZ
 from footy_agents.grounding import verify_numbers
 from footy_agents.llm import LLMBusy, LLMClient, LLMUnavailable, TextDelta, ToolCall
+from footy_agents.memory import entities_from
 from footy_agents.observations import RECOVERABLE, Observation, observe
 from footy_agents.schemas import ChatEvent, ToolCallRecord, UserPreferences
 from footy_agents.tools import OPENAI_TOOLS_SPEC, TOOL_MODELS, execute_tool, upcoming_focus
@@ -80,7 +81,7 @@ Reglas estrictas:
    Para «cuánto apostar si tengo X pesos», llama get_stake_limits con X; esa cifra YA es la banca.
    Nunca preguntes cuánto dedicar ni qué porcentaje quiere arriesgar: los límites son fijos.
    Copia los montos formateados de la herramienta (pesos es-CL); no cambies sus separadores ni hagas cálculos.
-   Para «quién gana A vs B», consulta simulate_match y explica las probabilidades sin asegurar un ganador.
+   Para un partido del calendario usa analyze_match; para un encuentro hipotético usa simulate_match.
 10. Si piden una combinada segura, responde primero: «No existen combinadas seguras» y remite a la sección
     Combinadas, de alcance educativo. No inventes una combinación ni recomiendes una apuesta individual como sustituto.
 11. CLV significa valor de la línea de cierre. No inventes otras definiciones ni justifiques métricas negativas.
@@ -94,6 +95,18 @@ Reglas estrictas:
 14. Los mensajes anteriores de la conversación son contexto: vuelve a consultar las herramientas para las cifras.
 15. Termina respondiendo la pregunta original del usuario. Los desvíos sirven para completar la respuesta, no para
     cambiar de tema: si consultaste el rendimiento, cita sus métricas aunque hayas revisado otras cosas.
+
+Ruteo (pregunta → herramienta):
+«Analiza / quién gana un partido próximo» → find_team → analyze_match.
+«¿Y quién es favorito?» → analyze_match con match_id del contexto reciente; vuelve a consultar.
+«Simula A contra B» (hipotético) → simulate_match.
+«Cómo llega el equipo» → get_team_form; apodo desconocido → find_team.
+«Qué partidos hay» → get_upcoming_matches.
+«Hay ventaja» → get_value_bets; «por qué no hay apuestas / frescura» → get_coverage.
+«Cómo va en la tabla» → get_league_standings.
+«Rendimiento / CLV» → get_system_performance; «banca / cuánto apostar» → get_stake_limits.
+Si find_team da un único exacto con next_match y pidieron análisis/pronóstico, ve directo a analyze_match;
+no repitas get_upcoming_matches ni consultes forma o cobertura antes del análisis.
 
 Hoy es {today} (hora de Chile).
 Preferencias del usuario: equipos favoritos {teams}; ligas favoritas {leagues}; perfil de riesgo {risk}."""
@@ -172,6 +185,7 @@ class _Turn:
         self.records: list[ToolCallRecord] = []
         self.suggested: dict[str, str] = {}      # herramienta sugerida -> estado que la sugirió
         self.used: set[str] = set()
+        self.entities: dict = {}
 
     def execute(self, call: ToolCall) -> Iterator[ChatEvent]:
         reason = self.suggested.pop(call.name, None)
@@ -181,6 +195,7 @@ class _Turn:
         yield ChatEvent(event="tool_start", data={"tool": call.name, "args": call.arguments})
         record = _run_call(call)
         self.records.append(record)
+        self.entities = entities_from(record) or self.entities
         self.used.add(call.name)
         obs = observe(record)
         yield ChatEvent(event="tool_result", data={
@@ -198,7 +213,8 @@ class _Turn:
 
 
 def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
-             history: list[dict] | None = None) -> Iterator[ChatEvent]:
+             history: list[dict] | None = None, entities: dict | None = None,
+             consulted_entities: dict | None = None) -> Iterator[ChatEvent]:
     """Un turno del usuario. Emite eventos step, tool_start, tool_result, token, done y error (contrato SSE).
 
     El camino no es fijo: cada resultado se clasifica (observations.observe) y el modelo decide con esa observación.
@@ -210,8 +226,24 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         yield ChatEvent(event="token", data={"delta": SAFE_BET_TEXT})
         yield ChatEvent(event="done", data={"iterations": 0, "success": True})
         return
-    turn = _Turn([{"role": "system", "content": system_prompt(prefs)}, *(history or []),
+    context = ""
+    if entities:
+        context = "\nContexto reciente (solo identidad; vuelve a consultar cifras): "
+        if entities.get("match_id"):
+            context += (f"último partido consultado match_id={entities['match_id']} "
+                        f"({entities.get('home', '?')} vs {entities.get('away', '?')}). ")
+        context += json.dumps(entities, ensure_ascii=False)
+        context += ("\nSi la pregunta continúa sobre este partido (por ejemplo «¿y quién es favorito?»), "
+                    "llama directamente a analyze_match con el match_id indicado. No vuelvas a buscar el equipo "
+                    "con find_team ni el calendario: ya está identificado. Si el usuario cambia de equipo, "
+                    "resuelve la nueva entidad.")
+    turn = _Turn([{"role": "system", "content": system_prompt(prefs) + context}, *(history or []),
                   {"role": "user", "content": message}])
+    recovery_hint = TOOL_HINT
+    if entities and entities.get("match_id"):
+        recovery_hint = (f"Consulta ahora analyze_match con match_id={entities['match_id']} si la pregunta "
+                         "sigue sobre el último partido. No respondas con cifras del historial ni repitas find_team. "
+                         "Haz una llamada real, no escribas su nombre como respuesta.")
     try:
         focus = upcoming_focus(message)
     except Exception:  # noqa: BLE001 - precarga opcional; el fallo no debe impedir el chat
@@ -251,6 +283,9 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
             turn.messages.append(_assistant_calls("".join(text), calls))
             for call in calls:
                 yield from turn.execute(call)
+                if consulted_entities is not None and turn.entities:
+                    consulted_entities.clear()
+                    consulted_entities.update(turn.entities)
             tool_rounds += 1
             continue
 
@@ -277,7 +312,8 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
             recovered = True
             yield _step("recovery", "El agente iba a responder sin consultar datos de este turno; decide "
                                     "consultarlos primero.")
-            turn.messages.extend([{"role": "assistant", "content": answer}, {"role": "user", "content": TOOL_HINT}])
+            turn.messages.extend([{"role": "assistant", "content": answer},
+                                  {"role": "user", "content": recovery_hint}])
             continue
         pending = turn.pending_recovery()
         if pending and not recovered and tool_rounds < MAX_ITERATIONS - 1:

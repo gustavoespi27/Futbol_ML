@@ -13,7 +13,7 @@ from collections.abc import Iterable
 from datetime import datetime, timedelta, timezone
 
 from footy.db.repository import utc_now
-from footy_agents.schemas import AgentRun, ChatEvent
+from footy_agents.schemas import AgentRun, ChatEvent, ToolCallRecord
 
 MEMORY_TURNS = 3               # pares pregunta/respuesta que vuelven al modelo
 MEMORY_WINDOW = timedelta(minutes=30)
@@ -44,6 +44,8 @@ CREATE INDEX IF NOT EXISTS idx_agent_runs_user ON agent_runs (user_id, started_a
 
 def init_tables(conn: sqlite3.Connection) -> None:
     conn.executescript(DDL)
+    if "entities" not in {row[1] for row in conn.execute("PRAGMA table_info(agent_chat_memory)")}:
+        conn.execute("ALTER TABLE agent_chat_memory ADD COLUMN entities TEXT NOT NULL DEFAULT '{}'")
 
 
 def history(conn: sqlite3.Connection, user_id: str, now: datetime | None = None) -> list[dict]:
@@ -59,11 +61,41 @@ def history(conn: sqlite3.Connection, user_id: str, now: datetime | None = None)
     return out
 
 
-def remember(conn: sqlite3.Connection, user_id: str, question: str, answer: str) -> None:
+def remember(conn: sqlite3.Connection, user_id: str, question: str, answer: str,
+             entities: dict | None = None) -> None:
     init_tables(conn)
-    conn.execute("INSERT INTO agent_chat_memory (user_id, question, answer, created_at) VALUES (?, ?, ?, ?)",
-                 (user_id, question, answer[:MAX_ANSWER_CHARS], utc_now()))
+    conn.execute("INSERT INTO agent_chat_memory (user_id, question, answer, created_at, entities) "
+                 "VALUES (?, ?, ?, ?, ?)",
+                 (user_id, question, answer[:MAX_ANSWER_CHARS], utc_now(),
+                  json.dumps(entities or {}, ensure_ascii=False)))
     conn.commit()
+
+
+def recent_entities(conn: sqlite3.Connection, user_id: str, now: datetime | None = None) -> dict:
+    """Última entidad consultada dentro de la misma ventana temporal y usuario."""
+    init_tables(conn)
+    since = ((now or datetime.now(timezone.utc)) - MEMORY_WINDOW).strftime("%Y-%m-%dT%H:%M:%SZ")
+    row = conn.execute("SELECT entities FROM agent_chat_memory WHERE user_id = ? AND created_at >= ? "
+                       "AND entities != '{}' ORDER BY id DESC LIMIT 1", (user_id, since)).fetchone()
+    return json.loads(row[0]) if row else {}
+
+
+def entities_from(record: ToolCallRecord) -> dict:
+    """Conserva identificadores y nombres, nunca probabilidades ni precios pasados."""
+    if not record.success or record.tool_name not in {
+        "analyze_match", "find_team", "simulate_match", "get_team_form"
+    }:
+        return {}
+    result = record.result
+    if record.tool_name == "find_team":
+        exact = [r for r in result if r.get("exact")]
+        if len(exact) != 1:
+            return {}
+        result = exact[0].get("next_match") or {"team": exact[0]["team"]}
+    if not isinstance(result, dict) or result.get("error"):
+        return {}
+    return {k: result[k] for k in ("match_id", "home", "away", "team", "league", "league_name")
+            if result.get(k) is not None}
 
 
 def forget(conn: sqlite3.Connection, user_id: str) -> None:

@@ -18,4 +18,19 @@ Las aprobaciones A1/A2 siguen vigentes. No se aprueban F3c, modificaciones de `t
 - B1: implementado y medido; descarga natural tras cinco minutos en `analisis/09_consumo.md`.
 - B2: implementado, medido y registrado en Windows; evidencia en `analisis/09_consumo.md`.
 - C (A3 selecciones): implementado y validado; métricas, limitaciones y n=0 frente a Pinnacle en `analisis/11_selecciones.md`.
-- Paso 9: siguiente tarea. Pasos 10–11: pendientes después del 9.
+- Pasos 9–11: detenidos por instrucción de Gustavo; prioridad al agente para el 12 de noviembre.
+
+## Agente: pieza 3 (2026-11-09)
+
+Alcance vigente: construir sobre `9e14a7e`, sin reescribir observaciones, reparación, memoria ni bitácora.
+Se revirtió exclusivamente el cambio pendiente de `docs/analisis/11_selecciones.md` antes de comenzar.
+Descripciones breves con uso, exclusión y ejemplo; tabla de ruteo; columna `entities` migrada con ALTER
+idempotente en `agent_chat_memory`. Se guardan identificadores, nombres y liga, sin cuotas ni probabilidades.
+La memoria respeta usuario, ventana de 30 minutos y borrado; las cifras se consultan de nuevo.
+Se mantiene el contrato SSE. Sin herramientas nuevas ni modificaciones al motor.
+
+Pruebas: 366 pytest, cobertura agéntica 95,41 %, Ruff y ocho pruebas Node en verde; sintaxis de agent.js válida.
+Sondeo reproducible: `scripts/eval_agent_routing.py --output reports/agente/pieza3-ruteo-final.json`.
+El LLM es Qwen 2.5 de 7B real, las herramientas usan una ficha sintética estable: mide ruteo,
+no calidad de pronósticos ni latencia sobre servicios reales. Evidencia y límites en `analisis/08_capa_agentica.md`.
+Tras el commit de esta pieza se detiene la ejecución para revisión; piezas 4 y 5 pendientes.

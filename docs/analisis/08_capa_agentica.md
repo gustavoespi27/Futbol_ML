@@ -77,3 +77,28 @@ Límites observados: la pregunta de tabla sigue usando solo la precarga de parti
 Cambios: texto final retenido y verificado antes del primer token; preámbulos de llamadas descartados; pseudollamadas con un reintento; cobertura Pinnacle explícita; límites y cifras del usuario admitidos; montos calculados en código y formateados en CLP; alias de catálogo y mínimo de ventaja ajustado.
 
 Validación: 230 tests completos; 93 del agente; cobertura 96 % (693/722 sentencias); Ruff y `node --check agent.js` en verde. Contrato SSE sin cambios.
+# Pieza 3: ruteo y entidades (2026-11-09)
+
+Sondeo secuencial con `qwen2.5:7b` real y ficha sintética Chile–Colombia (20/30/50 %).
+No mide pronósticos reales. Script: `scripts/eval_agent_routing.py --output reports/agente/ruteo.json`.
+La precarga está deshabilitada en este sondeo para aislar la decisión del modelo.
+
+| Consulta | Primer sondeo | Último sondeo | Latencia final |
+|---|---|---|---|
+| Analiza el partido de la roja | find_team → analyze_match | find_team → analyze_match | 13,118 s |
+| ¿Y quién es favorito? | find_team → analyze_match (búsqueda repetida) | analyze_match (match_id=42) | 13,224 s |
+
+Primer sondeo: 1/2 caminos esperados, latencias 28,992 y 22,555 s. Un intento intermedio con solo
+la instrucción reforzada en el system prompt falló el seguimiento: no consultó herramientas y la
+respuesta fue bloqueada. La versión final añade recuperación específica con el identificador reciente:
+2/2 caminos, ambas respuestas verificadas, favorito Colombia. El seguimiento final necesitó una
+recuperación y tres inferencias; el análisis inicial también tres. No se afirma que el modelo consulte
+siempre correctamente al primer intento. Una muestra por consulta no permite inferir mejora de latencia
+ni una tasa general de éxito; carga del modelo y caché influyen.
+
+Evidencia local: `reports/agente/pieza3-ruteo.json`, `pieza3-ruteo-final.json` (intermedio) y
+`pieza3-ruteo-recuperacion.json` (versión final). Los resultados incluyen eventos completos.
+La memoria guarda identidad sin probabilidades ni cuotas; respeta usuario, 30 minutos y borrado.
+La migración agrega `entities` mediante ALTER si falta, sin modificar tablas del motor.
+Validación: 366 pytest; cobertura agéntica medida 95,41 %; Ruff, sintaxis JS y ocho pruebas web correctos.
+

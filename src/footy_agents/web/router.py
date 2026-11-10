@@ -74,10 +74,13 @@ def chat(req: ChatRequest, client: LLMClient = Depends(get_llm_client)) -> Strea
     with closing(connect()) as conn:
         prefs = repo.get_preferences(conn, user_id=req.user_id)
         past = memory.history(conn, req.user_id)
-    return _sse(_recorded(req, run_chat(client, req.message, prefs, history=past)))
+        entities = memory.recent_entities(conn, req.user_id)
+    consulted: dict = {}
+    return _sse(_recorded(req, run_chat(client, req.message, prefs, history=past, entities=entities,
+                                      consulted_entities=consulted), consulted))
 
 
-def _recorded(req: ChatRequest, events: Iterator[ChatEvent]) -> Iterator[ChatEvent]:
+def _recorded(req: ChatRequest, events: Iterator[ChatEvent], entities: dict | None = None) -> Iterator[ChatEvent]:
     """Reenvía el stream y, al terminar, guarda el turno en la bitácora y la respuesta verificada en la memoria."""
     started, start = utc_now(), time.perf_counter()
     seen: list[ChatEvent] = []
@@ -90,7 +93,7 @@ def _recorded(req: ChatRequest, events: Iterator[ChatEvent]) -> Iterator[ChatEve
         with closing(connect()) as conn:
             memory.log_run(conn, req.user_id, req.message, started, seen, (time.perf_counter() - start) * 1000)
             if done.get("success") and answer.strip():
-                memory.remember(conn, req.user_id, req.message, answer)
+                memory.remember(conn, req.user_id, req.message, answer, entities)
     except sqlite3.Error as exc:       # la bitácora nunca debe romper una respuesta ya entregada
         log.warning("No se pudo registrar el turno del agente: %s", exc)
 

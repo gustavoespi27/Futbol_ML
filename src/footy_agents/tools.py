@@ -276,7 +276,8 @@ def tool_analyze_match(match_id: int) -> dict[str, Any]:
               "edge": _pct(o["edge"])} for o in m.get("pro") or [] if o.get("bet")]
     return {
         "match_id": match_id, "status": "started" if started else "ok" if m.get("pro") else "no_pinnacle",
-        "league_name": m.get("league_name"), "kickoff": m.get("kickoff"), "home": m.get("home"), "away": m.get("away"),
+        "league": m.get("league"), "league_name": m.get("league_name"), "kickoff": m.get("kickoff"),
+        "home": m.get("home"), "away": m.get("away"),
         "probability_source": m.get("source"), "model_name": m.get("model_name"),
         "probabilities_1x2": labeled_1x2(m.get("home", ""), m.get("away", ""), p),
         "expected_goals": {"home": xg[0], "away": xg[1]},
