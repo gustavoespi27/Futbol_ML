@@ -197,3 +197,56 @@ Validación: **420 pytest**, cobertura agéntica **95,36 %** (1486 sentencias, 6
 sintaxis de agent.js y ocho pruebas Node correctos. FakeLLM verifica reparación para conteos, ambos
 topes cruzados y ambas polaridades del CLV; las versiones correctas pasan sin publicar el borrador erróneo.
 Motor y contrato SSE intactos. Pieza 4 sin iniciar; este commit se entrega para revisión.
+
+## Respaldo determinista y horas locales (2026-11-09)
+
+Tras la aprobación de `cb82190`, se incorpora `fallback.py`. Si la reparación no consigue una respuesta
+verificada, compone los textos del turno en orden: summary/favorite de análisis o simulación, form_text,
+limits_text, assessment, freshness/rule y notas de observación. También puede entregar el calendario
+consultado con los nombres y kickoff_local existentes. El resumen elimina textos duplicados y debe pasar
+verify_numbers **y** check_claims antes de emitir el step «Se entrega el resumen verificado de los datos
+consultados» y done.success=true. Sin textos útiles o si falla esa comprobación conserva SAFE_TEXT y
+done.success=false. El mismo respaldo aprovecha datos útiles si el modelo devuelve texto vacío, insiste
+en pseudollamadas o agota las iteraciones; no requiere otra inferencia.
+
+El router guarda las entidades consultadas aun con done.success=false. En ese caso guarda una respuesta
+vacía que history no reenvía al LLM; el seguimiento conserva identidad sin reutilizar el texto fallido.
+Las respuestas de respaldo verificadas sí se recuerdan. No cambia el esquema de las tablas ni el SSE.
+
+get_upcoming_matches, analyze_match y find_team.next_match incluyen kickoff_local calculado con la zona
+America/Santiago. Ejemplo real: **vie 13-11, 21:00 hora de Chile**, correspondiente al kickoff UTC del 14
+de noviembre a medianoche; el día de la semana se calcula, sin depender del idioma de Windows. El prompt
+prohíbe conversiones manuales. El verificador admite la fecha/hora local de la herramienta y rechaza una
+fecha/hora canónica diferente. Esto no equivale a verificar todas las paráfrasis posibles de fechas y horas.
+
+Sondeo solicitado: dos secuencias independientes **turno 1 → turno 2 → turno 5**, cada una con memoria
+aislada y Qwen 2.5 de 7B real, una consulta a la vez. Comando reproducible:
+
+```powershell
+.venv/Scripts/python scripts/eval_agent_routing.py --mode respaldo --output reports/agente/demo-respaldo.json
+```
+
+| Repetición | Turno | Herramientas | Respaldo | Respuesta / revisión manual | Latencia (s) |
+|---|---|---|---|---|---:|
+| 1 | 1: analiza la roja | upcoming → analyze_match(181043) | Sí | Colombia 67,5 %, empate 20 %, Chile 12,5 %; favorito Colombia; sin Pinnacle | 27,083 |
+| 1 | 2: ¿y quién es favorito? | analyze_match(181043) | No | Colombia; conserva el partido y la hora local correctos | 12,125 |
+| 1 | 5: qué partidos vienen | upcoming | No | Cinco horarios de Chile correctos; conclusión final de ausencia de valor no respaldada por esta herramienta | 11,816 |
+| 2 | 1: analiza la roja | upcoming → analyze_match(181043) | Sí | Mismo resumen calculado y advertencia; ninguna cifra del borrador inválido | 27,037 |
+| 2 | 2: ¿y quién es favorito? | analyze_match(181043) | No | Colombia; no pide de nuevo identificar el partido | 11,755 |
+| 2 | 5: qué partidos vienen | upcoming | No | Horarios correctos; aclara falta de referencia Pinnacle para los últimos tres partidos | 11,880 |
+
+`upcoming` abrevia get_upcoming_matches. **6/6 herramientas esperadas y 6/6 respuestas no vacías, todas
+con done.success=true; dos respaldos efectivos.** Ningún SAFE_TEXT ni copia literal del turno previo en
+estas secuencias. El respaldo resolvió precisamente el análisis inicial que en la batería anterior quedó
+bloqueado y perdió las entidades. La cantidad de muestras es pequeña: no garantiza disponibilidad ni
+corrección general. En particular, el comentario sobre valor del primer calendario sigue fuera de las
+comprobaciones semánticas acotadas y no se considera aprobado.
+
+Evidencia completa: `reports/agente/demo-respaldo.json`, `demo-respaldo-1.json` y `demo-respaldo-2.json`
+(eventos, argumentos, respuestas y latencias). Los datos de producción pueden cambiar entre pruebas.
+
+Validación final: **431 pytest**, cobertura agéntica **95,64 %** (1560 sentencias, 68 sin cubrir), Ruff,
+sintaxis de agent.js y ocho pruebas Node correctos. El módulo de respaldo tiene cobertura del 100 %.
+FakeLLM prueba doble fallo con datos, SAFE_TEXT sin datos, fallos terminales y seguimiento después de error
+o respaldo; se comprueba el horario local en las tres tools, tanto en verano como en invierno.
+Motor intacto; ejecución detenida tras el commit para revisión, antes de la pieza 4.

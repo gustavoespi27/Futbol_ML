@@ -24,7 +24,7 @@ CONVERSATION = [
 ]
 
 
-def conversation(output: Path) -> list[dict]:
+def conversation(output: Path, cases: list[tuple[str, str]] | None = None) -> list[dict]:
     """Diez consultas secuenciales, herramientas reales de lectura y memoria SQLite aislada."""
     import sqlite3
 
@@ -35,7 +35,7 @@ def conversation(output: Path) -> list[dict]:
         raise ValueError("El sondeo requiere qwen2.5:7b")
     results: list[dict] = []
     with sqlite3.connect(":memory:") as db:
-        for question, expected in CONVERSATION:
+        for question, expected in CONVERSATION if cases is None else cases:
             consulted: dict = {}
             start = time.perf_counter()
             events = list(orchestrator.run_chat(client, question, UserPreferences(),
@@ -52,6 +52,8 @@ def conversation(output: Path) -> list[dict]:
                             "done": events[-1].data, "events": [e.model_dump() for e in events]})
             if events[-1].data.get("success"):
                 memory.remember(db, "eval", question, answer, consulted)
+            elif consulted:
+                memory.remember(db, "eval", question, "", consulted)
             output.parent.mkdir(parents=True, exist_ok=True)
             output.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
             print(json.dumps({k: v for k, v in results[-1].items() if k not in {"events", "answer"}},
@@ -97,9 +99,16 @@ def evaluate() -> list[dict]:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--mode", choices=["ruteo", "conversacion"], default="ruteo")
+    parser.add_argument("--mode", choices=["ruteo", "conversacion", "respaldo"], default="ruteo")
     args = parser.parse_args()
-    results = conversation(args.output) if args.mode == "conversacion" else evaluate()
+    if args.mode == "respaldo":
+        results = []
+        for repeat in (1, 2):
+            output = args.output.with_name(f"{args.output.stem}-{repeat}{args.output.suffix}")
+            results.extend({**row, "repeat": repeat} for row in conversation(
+                output, [CONVERSATION[i] for i in (0, 1, 4)]))
+    else:
+        results = conversation(args.output) if args.mode == "conversacion" else evaluate()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
     for result in results:

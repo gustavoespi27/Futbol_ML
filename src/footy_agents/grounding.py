@@ -68,6 +68,16 @@ def _values(value: Any) -> list[float]:
 
 
 ISO_DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}")
+LOCAL_KICKOFF = re.compile(r"\b(?:lun|mar|mié|jue|vie|sáb|dom) \d{2}-\d{2}, \d{2}:\d{2} hora de Chile", re.I)
+
+
+def _local_kickoffs(value: Any) -> set[str]:
+    if isinstance(value, dict):
+        own = {value["kickoff_local"].lower()} if isinstance(value.get("kickoff_local"), str) else set()
+        return own | {d for child in value.values() for d in _local_kickoffs(child)}
+    if isinstance(value, (list, tuple)):
+        return {d for child in value for d in _local_kickoffs(child)}
+    return set()
 
 
 def _dates(value: Any) -> set[str]:
@@ -90,7 +100,8 @@ def verify_numbers(answer: str, records: list[ToolCallRecord], user_message: str
     known.extend(value for _, value, _ in _numbers(user_message))
     missing = list(dict.fromkeys(raw for raw, value, tolerance in _numbers(answer)
                                 if not any(abs(value - candidate) <= tolerance + 1e-12 for candidate in known)))
-    missing = bad_dates + missing
+    known_local = {d for r in records if r.success for d in _local_kickoffs(r.result)}
+    missing = bad_dates + [m[0] for m in LOCAL_KICKOFF.finditer(answer) if m[0].lower() not in known_local] + missing
     return GroundingReport(verified=not missing, unverified=missing)
 
 

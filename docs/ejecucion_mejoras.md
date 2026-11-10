@@ -54,3 +54,14 @@ ocho pruebas web correctos. Batería real: 9/10 herramientas, sin copias; las tr
 La revisión manual en `analisis/08_capa_agentica.md` registra también un bloqueo, la pérdida de contexto
 subsiguiente y límites pendientes de tiempo/cobertura y omisiones. No se declara corrección semántica general.
 Se detiene tras este commit fix para revisión; pieza 4 pendiente.
+
+### Respaldo determinista previo a pieza 4
+
+`cb82190` aprobado. Se añade `fallback.py`: compone y verifica textos canónicos si la reparación falla,
+con advertencias y calendario local disponible; sin datos útiles mantiene SAFE_TEXT. Guarda entidades
+también tras error, sin recordar respuestas fallidas. Horas America/Santiago calculadas en tres tools.
+Qwen real: dos secuencias de turnos 1/2/5, seis herramientas correctas, seis respuestas no vacías y dos
+respaldos efectivos; seguimiento directo a analyze_match(181043). Permanece documentado un comentario
+no sustentado sobre valor en un calendario. Evidencia en `analisis/08_capa_agentica.md`.
+431 pytest, cobertura agéntica 95,64 %, Ruff y ocho pruebas web correctos. Motor y SSE intactos.
+Se detiene tras este commit fix para revisión. Pieza 4 todavía sin iniciar.

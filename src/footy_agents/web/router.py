@@ -94,6 +94,8 @@ def _recorded(req: ChatRequest, events: Iterator[ChatEvent], entities: dict | No
             memory.log_run(conn, req.user_id, req.message, started, seen, (time.perf_counter() - start) * 1000)
             if done.get("success") and answer.strip():
                 memory.remember(conn, req.user_id, req.message, answer, entities)
+            elif entities:
+                memory.remember(conn, req.user_id, req.message, "", entities)
     except sqlite3.Error as exc:       # la bitácora nunca debe romper una respuesta ya entregada
         log.warning("No se pudo registrar el turno del agente: %s", exc)
 

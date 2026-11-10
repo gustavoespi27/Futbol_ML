@@ -57,7 +57,8 @@ def history(conn: sqlite3.Connection, user_id: str, now: datetime | None = None)
         "ORDER BY id DESC LIMIT ?", (user_id, since, MEMORY_TURNS)).fetchall()
     out: list[dict] = []
     for question, answer in reversed(rows):
-        out += [{"role": "user", "content": question}, {"role": "assistant", "content": answer}]
+        if answer:
+            out += [{"role": "user", "content": question}, {"role": "assistant", "content": answer}]
     return out
 
 

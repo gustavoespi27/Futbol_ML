@@ -18,12 +18,26 @@ from footy.betting import pro
 from footy.db.connection import connect
 from footy.leagues import load_params
 from footy.web import service
+from footy.web.services.context import LOCAL_TZ
 from footy_agents.names import normalize_name
 from footy_agents.schemas import ToolCallRecord
 from footy_agents.tool_args import OPENAI_TOOLS_SPEC, TOOL_MODELS  # noqa: F401 - fachada pública
 
 MAX_MATCHES = 20
 MAX_TEAMS = 5
+
+
+def kickoff_local(kickoff: str | None) -> str | None:
+    """Fecha local calculada con zona IANA y días españoles independientes del locale de Windows."""
+    if not kickoff:
+        return None
+    value = datetime.fromisoformat(kickoff.replace("Z", "+00:00"))
+    if value.tzinfo is None:
+        raise ValueError("El kickoff debe incluir zona horaria")
+    local = value.astimezone(LOCAL_TZ)
+    day = ("lun", "mar", "mié", "jue", "vie", "sáb", "dom")[local.weekday()]
+    return f"{day} {local:%d-%m}, {local:%H:%M} hora de Chile"
+
 # Apodos frecuentes en Chile -> nombre canónico de la base (una consulta informal no debe terminar en «no encontrado»).
 NICKNAMES = {
     "la roja": "Chile", "roja": "Chile", "seleccion chilena": "Chile", "la seleccion": "Chile",
@@ -108,6 +122,7 @@ def tool_get_upcoming_matches(limit: int = 10, league: str | None = None,
         "league": m.get("league"),
         "league_name": m.get("league_name"),
         "kickoff": m.get("kickoff"),
+        "kickoff_local": kickoff_local(m.get("kickoff")),
         "home": m.get("home"),
         "away": m.get("away"),
         "probabilities_1x2": probs(m),
@@ -292,7 +307,8 @@ def tool_find_team(name: str) -> list[dict[str, Any]]:
         out.append({"team": team, "exact": normalize_name(team) == query,
                     "next_match": None if m is None else {
                         "match_id": _match_id(m), "league": m.get("league"), "league_name": m.get("league_name"),
-                        "kickoff": m.get("kickoff"), "home": m.get("home"), "away": m.get("away"),
+                        "kickoff": m.get("kickoff"), "kickoff_local": kickoff_local(m.get("kickoff")),
+                        "home": m.get("home"), "away": m.get("away"),
                         "probabilities_1x2": labeled_1x2(m.get("home", ""), m.get("away", ""), m.get("p_official"))}})
     return out
 
@@ -311,6 +327,7 @@ def tool_analyze_match(match_id: int) -> dict[str, Any]:
     return {
         "match_id": match_id, "status": "started" if started else "ok" if m.get("pro") else "no_pinnacle",
         "league": m.get("league"), "league_name": m.get("league_name"), "kickoff": m.get("kickoff"),
+        "kickoff_local": kickoff_local(m.get("kickoff")),
         "home": m.get("home"), "away": m.get("away"),
         "probability_source": m.get("source"), "model_name": m.get("model_name"),
         "probabilities_1x2": labeled_1x2(m.get("home", ""), m.get("away", ""), p),

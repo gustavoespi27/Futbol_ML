@@ -11,6 +11,7 @@ from collections.abc import Iterator
 from datetime import datetime
 
 from footy.web.services.context import LOCAL_TZ
+from footy_agents.fallback import verified_summary
 from footy_agents.grounding import check_claims, verify_numbers
 from footy_agents.llm import LLMBusy, LLMClient, LLMUnavailable, TextDelta, ToolCall
 from footy_agents.memory import entities_from
@@ -95,6 +96,7 @@ Reglas estrictas:
     cambiar de tema: si consultaste el rendimiento, cita sus métricas aunque hayas revisado otras cosas.
 16. Si un resultado trae *_text, assessment o summary, úsalo textual para esa idea; no lo reformules con otras cifras.
     Usa también favorite para identificar al favorito; no deduzcas un ganador garantizado.
+17. Para fechas y horas de partidos usa kickoff_local textual; nunca conviertas horas tú mismo.
 
 Ruteo (pregunta → herramienta):
 «Analiza / quién gana un partido próximo» → find_team → analyze_match.
@@ -150,6 +152,17 @@ REASONS = {
 def _step(kind: str, text: str) -> ChatEvent:
     """Paso visible del razonamiento del agente: observación, desvío, recuperación o reparación."""
     return ChatEvent(event="step", data={"kind": kind, "text": text})
+
+
+def _fallback(records: list[ToolCallRecord], iteration: int) -> Iterator[ChatEvent]:
+    text = verified_summary(records)
+    if text:
+        yield _step("repair", "Se entrega el resumen verificado de los datos consultados")
+    else:
+        text = SAFE_TEXT
+        yield ChatEvent(event="error", data={"error": SAFE_TEXT})
+    yield ChatEvent(event="token", data={"delta": text})
+    yield ChatEvent(event="done", data={"iterations": iteration, "success": text != SAFE_TEXT})
 
 
 def _tool_message(call: ToolCall, record: ToolCallRecord, obs: Observation) -> dict:
@@ -303,6 +316,9 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
 
         answer = "".join(text)
         if not answer.strip():
+            if verified_summary(turn.records):
+                yield from _fallback(turn.records, iteration)
+                return
             yield ChatEvent(event="error", data={"error": "El modelo no devolvió respuesta."})
             yield ChatEvent(event="done", data={"iterations": iteration, "success": False})
             return
@@ -315,9 +331,7 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
                     "Ejecuta una llamada real si hace falta consultar; "
                     "responde sin pseudollamadas ni nombres técnicos."}])
                 continue
-            yield ChatEvent(event="error", data={"error": SAFE_TEXT})
-            yield ChatEvent(event="token", data={"delta": SAFE_TEXT})
-            yield ChatEvent(event="done", data={"iterations": iteration, "success": False})
+            yield from _fallback(turn.records, iteration)
             return
         unsupported = ASKS_INSTEAD.search(answer) or DOMAIN_CLAIM.search(answer)
         missing_route = route and route[0] not in turn.used
@@ -351,13 +365,16 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
                 "limits_text y assessment para las ideas correspondientes, sin reinterpretarlas."}])
             continue
         if not report.verified:
-            yield ChatEvent(event="error", data={"error": SAFE_TEXT})
-            yield ChatEvent(event="token", data={"delta": SAFE_TEXT})
+            yield from _fallback(turn.records, iteration)
+            return
         else:
             for start in range(0, len(answer), 80):
                 yield ChatEvent(event="token", data={"delta": answer[start:start + 80]})
         yield ChatEvent(event="done", data={"iterations": iteration, "success": report.verified})
         return
 
+    if verified_summary(turn.records):
+        yield from _fallback(turn.records, iteration)
+        return
     yield ChatEvent(event="error", data={"error": f"Se alcanzó el límite de {MAX_ITERATIONS} iteraciones."})
     yield ChatEvent(event="done", data={"iterations": iteration, "success": False})
