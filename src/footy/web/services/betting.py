@@ -122,11 +122,17 @@ def reliable_data(matches: list[dict]) -> dict:
 def register_reliable(matches: list[dict], conn=None) -> dict:
     from footy.prediction import reliable
 
-    return reliable.register(conn or connect(), reliable.candidates(matches))
+    return reliable.register(conn or connect(), reliable.candidates(_recordable(matches)))
 
 
 def register_suggestions(matches: list[dict], conn=None) -> dict:
     """El apostador profesional coloca (en papel) sus apuestas antes del partido. Lo llama scripts/daily.py."""
     from footy.prediction import pro_ledger
 
-    return pro_ledger.place(conn or connect(), current_suggestions(matches)["singles"])
+    return pro_ledger.place(conn or connect(), current_suggestions(_recordable(matches))["singles"])
+
+
+def _recordable(matches: list[dict]) -> list[dict]:
+    """A3 permite mostrar selecciones; no incorporarlas a series prospectivas ni apuestas en papel."""
+    competitions = config.settings()["competitions"]
+    return [match for match in matches if competitions.get(match["league"], {}).get("type") != "international"]

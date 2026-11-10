@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" style="--bg:#f4f4f3;--card:#ffffff;--line:#b8bab9;--text:#202522;--muted:#555e58;--soft:#e8eae7;--active:#263a30;--on:#ffffff;--warning:#fff3d6;--warning-text:#5c3500;--value:#e1efe5;--value-text:#205333" role="img" aria-labelledby="title desc"><title id="title">Wireframe de Hoy, 1440 px, tema claro</title><desc id="desc">Propuesta de estructura para revisión. Los corchetes indican contenido del backend; no son estadísticas ni partidos reales. No es una implementación de la aplicación.</desc><style>text{font-family:Arial,sans-serif;fill:var(--text)}.box{fill:var(--card);stroke:var(--line);stroke-width:1}.soft{fill:var(--soft)}.muted{fill:var(--muted)}.active{fill:var(--active)}.on{fill:var(--on)}</style><rect width="100%" height="100%" fill="var(--bg)"/>
+<rect x="0" y="0" width="220" height="900" rx="0" class="box"/>
+<text x="24" y="44" font-size="23" font-weight="700" text-anchor="start" class="">Fútbol ML</text>
+<text x="24" y="70" font-size="14" font-weight="400" text-anchor="start" class="muted">Análisis de fútbol</text>
+<rect x="16" y="118" width="188" height="44" rx="10" class="active" stroke="none"/>
+<text x="32" y="146" font-size="15" font-weight="700" text-anchor="start" class="on">Hoy</text>
+<rect x="16" y="182" width="188" height="44" rx="10" class="box"/>
+<text x="32" y="210" font-size="15" font-weight="400" text-anchor="start" class="">Partidos</text>
+<rect x="16" y="246" width="188" height="44" rx="10" class="box"/>
+<text x="32" y="274" font-size="15" font-weight="400" text-anchor="start" class="">Seguimiento</text>
+<rect x="16" y="310" width="188" height="44" rx="10" class="box"/>
+<text x="32" y="338" font-size="15" font-weight="400" text-anchor="start" class="">Explorar</text>
+<rect x="16" y="374" width="188" height="44" rx="10" class="box"/>
+<text x="32" y="402" font-size="15" font-weight="400" text-anchor="start" class="">Más</text>
+<text x="24" y="831" font-size="13" font-weight="400" text-anchor="start" class="muted">Seguimiento en papel</text>
+<text x="24" y="855" font-size="13" font-weight="400" text-anchor="start" class="muted">Metodología en Más</text>
+<text x="252" y="49" font-size="28" font-weight="700" text-anchor="start" class="">Hoy</text>
+<text x="252" y="80" font-size="15" font-weight="400" text-anchor="start" class="muted">[Fecha local]</text>
+<rect x="1124" y="25" width="148" height="44" rx="10" class="box"/>
+<text x="1198.0" y="53" font-size="15" font-weight="400" text-anchor="middle" class="">Preferencias</text>
+<rect x="1284" y="25" width="124" height="44" rx="10" class="box"/>
+<text x="1346.0" y="53" font-size="15" font-weight="400" text-anchor="middle" class="">Asistente</text>
+<rect x="252" y="108" width="1156" height="76" rx="10" class="box"/>
+<text x="272" y="139" font-size="16" font-weight="700" text-anchor="start" class="">Datos: [estado según última actualización]</text>
+<text x="272" y="164" font-size="14" font-weight="400" text-anchor="start" class="muted">[Fecha y hora local del backend]</text>
+<text x="802" y="139" font-size="15" font-weight="400" text-anchor="start" class="">Asistente: [disponibilidad]</text>
+<text x="802" y="164" font-size="14" font-weight="400" text-anchor="start" class="muted">Resumen: [plantilla o IA]</text>
+<text x="1212" y="151" font-size="14" font-weight="400" text-anchor="start" class="muted">[Versión del modelo]</text>
+<rect x="252" y="208" width="656" height="126" rx="10" class="box"/>
+<text x="272" y="241" font-size="20" font-weight="700" text-anchor="start" class="">Tus equipos, primero</text>
+<text x="272" y="272" font-size="16" font-weight="400" text-anchor="start" class="muted">Elige favoritos para priorizar sus próximos partidos.</text>
+<rect x="662" y="281" width="226" height="44" rx="10" class="box"/>
+<text x="775.0" y="309" font-size="15" font-weight="400" text-anchor="middle" class="">Elegir mis equipos</text>
+<rect x="932" y="208" width="226" height="96" rx="10" class="box"/>
+<text x="946" y="233" font-size="14" font-weight="700" text-anchor="start" class="">Partidos de hoy</text>
+<text x="946" y="265" font-size="25" font-weight="400" text-anchor="start" class="">[total]</text>
+<text x="946" y="289" font-size="13" font-weight="400" text-anchor="start" class="muted">Todas las ligas · hoy</text>
+<rect x="1182" y="208" width="226" height="96" rx="10" class="box"/>
+<text x="1196" y="233" font-size="14" font-weight="700" text-anchor="start" class="">Con ventaja de precio</text>
+<text x="1196" y="265" font-size="25" font-weight="400" text-anchor="start" class="">[total]</text>
+<text x="1196" y="289" font-size="13" font-weight="400" text-anchor="start" class="muted">Pinnacle · hoy</text>
+<rect x="252" y="358" width="1156" height="116" rx="10" class="box"/>
+<text x="272" y="392" font-size="20" font-weight="700" text-anchor="start" class="">Tu resumen</text>
+<text x="272" y="423" font-size="16" font-weight="400" text-anchor="start" class="">[Resumen obtenido del sistema: favoritos y oportunidades, cuando existan]</text>
+<text x="272" y="452" font-size="14" font-weight="400" text-anchor="start" class="muted">[Modo de redacción: plantilla o IA]</text>
+<text x="252" y="520" font-size="22" font-weight="700" text-anchor="start" class="">Para revisar hoy</text>
+<rect x="1184" y="490" width="224" height="44" rx="10" class="box"/>
+<text x="1296.0" y="518" font-size="15" font-weight="400" text-anchor="middle" class="">Ver todos los partidos</text>
+<rect x="252" y="546" width="566" height="168" rx="10" class="box"/>
+<text x="266" y="569" font-size="14" font-weight="400" text-anchor="start" class="muted">[Liga] · [hora local] · [estado]</text>
+<text x="266" y="599" font-size="16" font-weight="700" text-anchor="start" class="">Equipo local — Equipo visitante</text>
+<text x="266" y="627" font-size="14" font-weight="400" text-anchor="start" class="">Local [dato] · Empate [dato] · Visita [dato]</text>
+<text x="266" y="654" font-size="13" font-weight="400" text-anchor="start" class="muted">Fuente: [origen]</text>
+<text x="800" y="654" font-size="18" font-weight="400" text-anchor="middle" class="">→</text>
+<rect x="266" y="668" width="456" height="30" rx="6" fill="var(--value)"/>
+<text x="276" y="688" font-size="13" font-weight="700" text-anchor="start" class="">Con ventaja [+x%] · Pinnacle</text>
+<text x="734" y="688" font-size="12" font-weight="400" text-anchor="start" class="muted">Semáforo</text>
+<rect x="842" y="546" width="566" height="168" rx="10" class="box"/>
+<text x="856" y="569" font-size="14" font-weight="400" text-anchor="start" class="muted">[Liga] · [hora local] · [estado]</text>
+<text x="856" y="599" font-size="16" font-weight="700" text-anchor="start" class="">Equipo local — Equipo visitante</text>
+<text x="856" y="627" font-size="14" font-weight="400" text-anchor="start" class="">Local [dato] · Empate [dato] · Visita [dato]</text>
+<text x="856" y="654" font-size="13" font-weight="400" text-anchor="start" class="muted">Fuente: [origen]</text>
+<text x="1390" y="654" font-size="18" font-weight="400" text-anchor="middle" class="">→</text>
+<rect x="856" y="668" width="456" height="30" rx="6" fill="var(--soft)"/>
+<text x="866" y="688" font-size="13" font-weight="700" text-anchor="start" class="">Sin ventaja</text>
+<text x="1324" y="688" font-size="12" font-weight="400" text-anchor="start" class="muted">Semáforo</text>
+<text x="266" y="752" font-size="14" font-weight="400" text-anchor="start" class="muted">(?) Qué significa tener ventaja · Ayuda contextual</text>
+</svg>

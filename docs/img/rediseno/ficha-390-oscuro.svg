@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="1122" viewBox="0 0 390 1122" style="--bg:#111613;--card:#1d2520;--line:#6b766e;--text:#f0f3ef;--muted:#b5bfb6;--soft:#303c33;--active:#dce6dd;--on:#172019;--warning:#382b15;--warning-text:#ffe0a0;--value:#213c2b;--value-text:#c1e8cd" role="img" aria-labelledby="title desc"><title id="title">Wireframe de Partido, 390 px, tema oscuro</title><desc id="desc">Propuesta de estructura para revisión. Los corchetes indican contenido del backend; no son estadísticas ni partidos reales. No es una implementación de la aplicación.</desc><style>text{font-family:Arial,sans-serif;fill:var(--text)}.box{fill:var(--card);stroke:var(--line);stroke-width:1}.soft{fill:var(--soft)}.muted{fill:var(--muted)}.active{fill:var(--active)}.on{fill:var(--on)}</style><rect width="100%" height="100%" fill="var(--bg)"/>
+<text x="16" y="20" font-size="13" font-weight="700" text-anchor="start" class="">Fútbol ML</text>
+<text x="16" y="48" font-size="25" font-weight="700" text-anchor="start" class="">Partido</text>
+<text x="16" y="73" font-size="14" font-weight="400" text-anchor="start" class="muted">Fútbol y análisis en papel</text>
+<rect x="16" y="88" width="173" height="44" rx="10" class="box"/>
+<text x="102.5" y="116" font-size="14" font-weight="400" text-anchor="middle" class="">Preferencias</text>
+<rect x="201" y="88" width="173" height="44" rx="10" class="box"/>
+<text x="287.5" y="116" font-size="14" font-weight="400" text-anchor="middle" class="">Asistente</text>
+<rect x="0" y="1034" width="390" height="88" rx="0" class="box"/>
+<text x="39" y="1066" font-size="19" font-weight="400" text-anchor="middle" class="">○</text>
+<text x="39" y="1089" font-size="11.5" font-weight="400" text-anchor="middle" class="">Hoy</text>
+<rect x="82" y="1043" width="70" height="56" rx="10" class="active" stroke="none"/>
+<text x="117" y="1066" font-size="19" font-weight="400" text-anchor="middle" class="on">▤</text>
+<text x="117" y="1089" font-size="11.5" font-weight="400" text-anchor="middle" class="on">Partidos</text>
+<text x="195" y="1066" font-size="19" font-weight="400" text-anchor="middle" class="">✓</text>
+<text x="195" y="1089" font-size="11.5" font-weight="400" text-anchor="middle" class="">Seguimiento</text>
+<text x="273" y="1066" font-size="19" font-weight="400" text-anchor="middle" class="">◇</text>
+<text x="273" y="1089" font-size="11.5" font-weight="400" text-anchor="middle" class="">Explorar</text>
+<text x="351" y="1066" font-size="19" font-weight="400" text-anchor="middle" class="">···</text>
+<text x="351" y="1089" font-size="11.5" font-weight="400" text-anchor="middle" class="">Más</text>
+<text x="195" y="1116" font-size="10" font-weight="400" text-anchor="middle" class="muted">Área segura del dispositivo</text>
+<g transform="translate(0,64)">
+<text x="20" y="113" font-size="13" font-weight="400" text-anchor="start" class="muted">Datos [fecha] · Asistente [estado] · [versión]</text>
+<rect x="16" y="180" width="244" height="44" rx="10" class="box"/>
+<text x="138.0" y="208" font-size="15" font-weight="400" text-anchor="middle" class="">← Volver a Partidos</text>
+<rect x="16" y="240" width="358" height="124" rx="10" class="box"/>
+<text x="34" y="268" font-size="15" font-weight="400" text-anchor="start" class="muted">[Competición] · [estado del partido]</text>
+<text x="34" y="302" font-size="18" font-weight="700" text-anchor="start" class="">Equipo local — Equipo visitante</text>
+<text x="34" y="339" font-size="15" font-weight="400" text-anchor="start" class="muted">[Fecha y hora local del encuentro]</text>
+<rect x="16" y="380" width="358" height="174" rx="10" class="box"/>
+<text x="32" y="410" font-size="19" font-weight="700" text-anchor="start" class="">Probabilidad de resultado (?)</text>
+<text x="75.66666666666666" y="446" font-size="15" font-weight="400" text-anchor="middle" class="">Local</text>
+<text x="75.66666666666666" y="482" font-size="24" font-weight="400" text-anchor="middle" class="">[dato]</text>
+<text x="195.0" y="446" font-size="15" font-weight="400" text-anchor="middle" class="">Empate</text>
+<text x="195.0" y="482" font-size="24" font-weight="400" text-anchor="middle" class="">[dato]</text>
+<text x="314.3333333333333" y="446" font-size="15" font-weight="400" text-anchor="middle" class="">Visita</text>
+<text x="314.3333333333333" y="482" font-size="24" font-weight="400" text-anchor="middle" class="">[dato]</text>
+<text x="32" y="523" font-size="14" font-weight="400" text-anchor="start" class="muted">[Fuente] · [vigencia de la predicción]</text>
+<rect x="16" y="570" width="358" height="276" rx="10" class="box"/>
+<text x="32" y="600" font-size="19" font-weight="700" text-anchor="start" class="">Ventaja de precio (?)</text>
+<text x="32" y="630" font-size="15" font-weight="400" text-anchor="start" class="">Selección: [mercado y resultado]</text>
+<text x="32" y="660" font-size="15" font-weight="400" text-anchor="start" class="">Cuota: [dato] · Precio justo: [dato]</text>
+<text x="32" y="690" font-size="15" font-weight="400" text-anchor="start" class="">Ventaja: [+x%] · Pinnacle</text>
+<text x="32" y="720" font-size="15" font-weight="400" text-anchor="start" class="">Monto sugerido: [dato]</text>
+<text x="32" y="750" font-size="15" font-weight="400" text-anchor="start" class="">¼ Kelly · máximo 2% por apuesta</text>
+<text x="32" y="786" font-size="15" font-weight="700" text-anchor="start" class="">Ver apuesta en Seguimiento →</text>
+<text x="32" y="815" font-size="13" font-weight="400" text-anchor="start" class="muted">Solo si existe apuesta registrada</text>
+<rect x="16" y="862" width="358" height="44" rx="10" class="box"/>
+<text x="195.0" y="890" font-size="15" font-weight="400" text-anchor="middle" class="">Forma y tabla                       +</text>
+<rect x="16" y="918" width="358" height="44" rx="10" class="box"/>
+<text x="195.0" y="946" font-size="15" font-weight="400" text-anchor="middle" class="">Cuotas y modelo                    +</text>
+</g>
+</svg>

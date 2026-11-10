@@ -3,14 +3,28 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Futbol ML</title>
+  <title>Fútbol ML</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='1.5' y='1.5' width='29' height='29' rx='7' fill='%23191e26' stroke='%23202632'/%3E%3Cpath d='M16 7.5 24.5 23h-17z' fill='none' stroke='%2310b981' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
   <script>try { document.documentElement.dataset.theme = localStorage.getItem("theme") === "light" ? "light" : "dark"; } catch (e) { document.documentElement.dataset.theme = "dark"; }</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Capas del Míster: el servidor les agrega ?v= y mascot.js usa esas mismas URL -->
+  <link rel="preload" as="image" href="/static/img/mister-face.png">
+  <link rel="preload" as="image" href="/static/img/mister-chat-tail.png">
+  <link rel="preload" as="image" href="/static/img/mister-chat-body.png">
+  <link rel="preload" as="image" href="/static/img/mister-chat-head-tablet.png">
+  <link rel="preload" as="image" href="/static/img/mister-chat-head.png">
+  <link rel="preload" as="image" href="/static/img/mister-brief-tail.png">
+  <link rel="preload" as="image" href="/static/img/mister-brief-body.png">
+  <link rel="preload" as="image" href="/static/img/mister-brief-arm.png">
+  <link rel="preload" as="image" href="/static/img/mister-brief-head.png">
+  <link rel="preload" as="image" href="/static/img/mister-alerts-tail.png">
+  <link rel="preload" as="image" href="/static/img/mister-alerts-body.png">
+  <link rel="preload" as="image" href="/static/img/mister-alerts-arm.png">
+  <link rel="preload" as="image" href="/static/img/mister-alerts-head.png">
 </head>
 <body>
 <a href="#main" class="skip-link">Saltar al contenido</a>
@@ -23,20 +37,17 @@
         <path d="M7.5 23 16 18.5l8.5 4.5M16 7.5v11" fill="none" style="stroke:var(--text-2)" stroke-width="1.2"
           stroke-linejoin="round" stroke-linecap="round" stroke-opacity=".6"/>
       </svg></span>
-      <span class="brand-name"><span class="brand-txt">Futbol<b>ML</b></span><span class="brand-tag">PRO ANALYTICS</span></span>
+      <span class="brand-name"><span class="brand-txt">Fútbol <b>ML</b></span></span>
     </a>
-    <nav id="nav">
-      <div class="nav-label">Análisis</div>
-        <a class="navlink" href="#inicio" data-title="Apostador profesional"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg><span>Panel</span></a>
-        <a class="navlink" href="#partidos" data-title="Próximos partidos"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Partidos</span></a>
-        <a class="navlink" href="#combinadas" data-title="Combinadas"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg><span>Combinadas</span><span class="badge" data-ticket-count></span></a>
-        <a class="navlink" href="#resultados" data-title="Resultados del seguimiento"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Resultados</span></a>
-        <a class="navlink" href="#rendimiento" data-title="¿Qué tan fiable es?"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg><span>Fiabilidad</span></a>
-        <a class="navlink" href="#simulador" data-title="Simulador de partido"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h2M14 10h2M8 14h2M14 14h2M8 18h8"/></svg><span>Simulador</span></a>
-        <a class="navlink" href="#como-funciona" data-title="Cómo funciona"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg><span>Cómo funciona</span></a>
-    </nav>
+    <nav id="nav" aria-label="Navegación principal">
+<a class="navlink" href="#inicio" data-nav-group="inicio"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg><span>Hoy</span></a>
+<a class="navlink" href="#partidos" data-nav-group="partidos"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Partidos</span></a>
+<a class="navlink" href="#apuestas" data-nav-group="apuestas"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="6.6" r="2.1" stroke-width="1.3"/><circle cx="12" cy="12" r="2.1" stroke-width="1.3"/><circle cx="12" cy="17.4" r="2.1" stroke-width="1.3"/></svg><span>Apuestas</span></a>
+<a class="navlink" href="#resultados" data-nav-group="resultados"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Seguimiento</span></a>
+<a class="navlink" href="#explorar" data-nav-group="explorar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6 6-2z"/></svg><span>Explorar</span></a><div class="nav-subsections" data-parent="explorar" hidden><a href="#simulador">Simulador</a><a href="#combinadas">Combinadas</a></div>
+<a class="navlink" href="#mas" data-nav-group="mas"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg><span>Más</span></a><div class="nav-subsections" data-parent="mas" hidden><a href="#rendimiento">Fiabilidad</a><a href="#como-funciona">Cómo funciona</a></div>
+</nav>
     <div class="side-foot">
-      <div class="status" id="status-line"><i class="dot"></i><span>Conectando…</span></div>
       <button class="icon-btn" id="theme" title="Cambiar tema claro/oscuro" aria-label="Cambiar tema">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
       </button>
@@ -46,35 +57,70 @@
   <div class="shell">
     <header class="topbar">
       <div class="tb-title">
-        <span class="tb-mobile-brand">Futbol<b>ML</b></span>
-        <h1 id="page-title">Apostador profesional</h1>
+        <span class="tb-mobile-brand">Fútbol <b>ML</b></span>
+        <h1 id="page-title" tabindex="-1">Hoy</h1>
         <span class="tb-date" id="tb-date"></span>
       </div>
       <div class="tb-actions">
-        <a class="tb-btn" href="#combinadas" title="Tu combinada"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg><span>Boleto</span><span class="badge" data-ticket-count></span></a>
+        <button type="button" class="tb-btn alerts-btn" id="alerts-btn" aria-controls="alerts-panel" aria-expanded="false" aria-label="Avisos"><svg class="ico bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Avisos</span><span class="badge" id="alerts-count" hidden></span></button>
+        <section class="alerts-panel" id="alerts-panel" role="dialog" aria-labelledby="alerts-title" hidden>
+          <header class="alerts-head"><span class="alerts-mister" data-mister="alerts" data-size="52"></span><div class="alerts-title"><h2 id="alerts-title">Avisos del Míster</h2><span class="alerts-summary" id="alerts-summary"></span></div>
+            <button type="button" class="alerts-read-all" id="alerts-read-all">Marcar todas</button>
+            <button type="button" class="td-close" id="alerts-close" aria-label="Cerrar avisos">×</button></header>
+          <p class="alerts-note">Te aviso cuando juegan tus equipos, cuando hay cuotas con valor frente a Pinnacle y combinadas. Seguimiento en papel.</p>
+          <div class="alerts-list" id="alerts-list" aria-live="polite"></div>
+          <p class="alerts-status" id="alerts-status" role="status"></p>
+        </section>
+        <a class="tb-btn ticket-btn" href="#combinadas" title="Tu combinada"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg><span>Boleto</span><span class="badge" data-ticket-count></span></a>
       </div>
     </header>
-<main id="main">
+<main id="main" tabindex="-1">
+  <div id="system-status" class="status-strip" role="status" aria-live="polite">
+    Comprobando actualización de datos y disponibilidad del asistente…
+  </div>
   <!-- INICIO: PANEL PRINCIPAL -->
   <section class="view" id="v-inicio">
-    <div class="view-head">
-      <h1>Apostador profesional</h1>
-    </div>
-    <div class="quant-ticker" id="quant-ticker" aria-label="Estado del motor"></div>
-    <section class="card brief-card" id="agent-brief" aria-labelledby="brief-title">
+  <div class="view-head home-head"><div><h1 tabindex="-1">Hoy</h1><p id="home-date"></p></div><button type="button" class="chip" id="brief-prefs">Preferencias</button></div>
+  <section class="card home-favorites" id="home-favorites" aria-labelledby="favorites-title">
+    <h2 id="favorites-title">Tus equipos, primero</h2><div id="home-favorites-body"></div>
+  </section>
+  <div class="grid g2" id="home-tiles" data-skel="kpi:2"></div>
+  <section class="card brief-card" id="agent-brief" aria-labelledby="brief-title">
       <div class="brief-head">
-        <h2 id="brief-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6.3 6.3 4.9 4.9M19.1 19.1l-1.4-1.4M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg>Tu resumen de hoy</h2>
+        <h2 id="brief-title">Tu resumen del Míster</h2>
         <div class="brief-actions">
-          <button type="button" class="chip" id="brief-prefs">Preferencias</button>
+
           <button type="button" class="chip" id="brief-refresh" aria-label="Actualizar resumen" title="Actualizar resumen"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg></button>
         </div>
       </div>
-      <p class="brief-body" aria-live="polite"></p>
-      <div class="brief-foot"></div>
+      <div class="brief-main"><span class="brief-pose" data-mister="brief" data-size="96"></span>
+        <div class="brief-text"><div class="brief-body" aria-live="polite"></div>
+        <div class="brief-foot"></div></div></div>
     </section>
-    <div class="grid g4" id="home-tiles" data-skel="kpi:4"></div>
 
-    <div class="card reco-card" style="margin-top:16px">
+  <section class="home-review" aria-labelledby="review-title">
+    <div class="reco-head"><h2 id="review-title">Para revisar hoy</h2><span class="reco-links"><a href="#apuestas">Ver apuestas y semáforo</a><a href="#partidos">Ver todos los partidos</a></span></div>
+    <div id="home-review" class="home-review-grid" data-skel="cards:3"></div>
+  </section>
+</section>
+
+  <!-- PRÓXIMOS PARTIDOS -->
+  <section class="view" id="v-partidos">
+    <div class="view-head">
+      <h1 tabindex="-1">Partidos</h1><p>Partidos, probabilidades y precio justo</p>
+    </div>
+    <div class="match-filter-actions"><button type="button" class="chip" id="match-filter-open" aria-haspopup="dialog" aria-controls="match-filters">Filtrar partidos</button><span id="match-selection" role="status"></span><button type="button" class="chip" id="match-clear">Limpiar</button></div><div id="match-filter-slot"><div class="toolbar" id="match-toolbar"><div class="filters" id="league-filter"></div><div id="match-date"></div></div></div>
+    <div class="qchips" id="match-chips"></div>
+    <a class="bets-link" href="#apuestas"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="6.6" r="2.1" stroke-width="1.3"/><circle cx="12" cy="12" r="2.1" stroke-width="1.3"/><circle cx="12" cy="17.4" r="2.1" stroke-width="1.3"/></svg><span><b>Apuestas y semáforo</b><small>Qué tiene valor frente a Pinnacle y el veredicto de cada mercado.</small></span><span class="bets-link-go" aria-hidden="true">→</span></a>
+    <div id="matches" data-skel="rows:6"></div>
+  </section>
+
+  <!-- APUESTAS: RECOMENDACIONES Y SEMÁFORO -->
+  <section class="view" id="v-apuestas">
+    <div class="view-head">
+      <h1 tabindex="-1">Apuestas</h1><p>Recomendaciones con valor frente a Pinnacle, las más fiables y el semáforo de cada partido</p>
+    </div>
+    <div class="card reco-card">
       <div class="reco-head">
         <div><h2>Recomendaciones de la máquina</h2>
           <p class="sub" style="margin:2px 0 0">Lo que el sistema encontró para los próximos partidos y por qué.</p></div>
@@ -113,10 +159,61 @@
         <span class="vchip yellow"><b>Neutral</b> precio cercano al justo o paga muy poco</span>
         <span class="vchip red"><b>No apostar</b> probabilidad muy baja, cuota muy alta o paga mucho menos de lo que vale</span>
       </div></div>
+  </section>
 
-    <h2 class="sec">Bitácora de la máquina</h2>
-    <div class="log-layout">
+  <!-- COMBINADAS -->
+  <section class="view" id="v-combinadas">
+    <div class="view-head">
+      <h1 tabindex="-1">Combinadas</h1><p>Exploración educativa: ninguna combinada es segura ni demuestra una ventaja para apostar.</p>
+    </div>
+    <div class="grid g4" id="cb-tiles" data-skel="kpi:4"></div>
+    <div class="combo-layout" style="margin-top:16px">
+      <div>
+        <div class="toolbar"><div class="filters" id="cb-filter"></div><div id="cb-date"></div></div>
+        <div class="qchips" id="cb-chips"></div>
+        <div class="stack" id="cb-matches" data-skel="cards:4"></div>
+      </div>
+      <aside class="card ticket" id="ticket"></aside>
+    </div>
+    <div class="view-head" style="margin:36px 0 16px">
+      <h2 class="section-head">Lo que dice la historia</h2>
+      <p id="cb-hist-intro">Combinadas simuladas con todos los partidos de 2026 que el modelo no vio al entrenar.</p>
+    </div>
+    <div class="grid g2">
       <div class="card">
+        <h2>¿El porcentaje que muestra se cumple?</h2>
+        <p class="sub">Probabilidad que dio el sistema a cada combinada vs. cuántas se acertaron de verdad.</p>
+        <div class="chart tall"><canvas id="ch-combo-calib"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>¿Combinar paga?</h2>
+        <p class="sub">Rendimiento por unidad apostada según el número de partidos (cuotas de cierre Bet365).</p>
+        <div class="chart tall"><canvas id="ch-combo-yield"></canvas></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Estrategias simuladas</h2>
+      <div class="table-wrap" id="cb-strategies"></div>
+      <div id="cb-reading" class="stack" style="font-size:var(--fs-base);color:var(--text-2);margin-top:14px"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:end">
+        <div><h2>Combinaciones de un mismo partido que más se cumplen</h2>
+          <p class="sub" style="margin-bottom:0">Frecuencia real en 2026 y probabilidad media que les dio el sistema.</p></div>
+        <label style="min-width:220px">Liga<select id="cb-pattern-league"></select></label>
+      </div>
+      <div class="table-wrap" id="cb-patterns" style="margin-top:12px"></div>
+    </div>
+  </section>
+
+  <!-- RESULTADOS -->
+  <section class="view" id="v-resultados">
+    <div class="view-head">
+      <h1 tabindex="-1">Seguimiento</h1>
+      <p>Cada predicción se guarda <b>antes</b> de que empiece el partido y no se puede modificar. Cuando llega el resultado
+        se compara con lo que pasó. Es la prueba más limpia, pero necesita cientos de partidos para ser concluyente.</p>
+    </div>
+    <div id="tracking-filters" class="filters" role="group" aria-label="Filtrar registros"><button type="button" class="chip" data-result-filter="all" aria-pressed="true">Todos</button><button type="button" class="chip" data-result-filter="win" aria-pressed="false">Aciertos</button><button type="button" class="chip" data-result-filter="lose" aria-pressed="false">Fallos</button></div><section id="paper-ledger"><h2 class="sec">Bitácora en papel</h2><p id="paper-summary"></p><div class="card">
         <div class="tabs" id="log-tabs">
           <button class="tab on" data-tab="bets">Apuestas realizadas <span id="tab-n-bets"></span></button>
           <button class="tab" data-tab="picks">Pronósticos registrados <span id="tab-n-picks"></span></button>
@@ -130,8 +227,30 @@
           <p class="pane-note">Pronósticos fiables registrados antes de cada partido: así la máquina pone a prueba su precisión todos los días.</p>
           <div class="table-wrap" id="rel-record" data-skel="table:5"></div>
         </div>
-      </div>
-      <div class="stack">
+      </div></section>
+<h2 class="sec">Evaluación de predicciones</h2>
+<div class="grid g4" id="trk-tiles" data-skel="kpi:4"></div>
+    <div class="card" style="margin-top:16px">
+      <h2>Predicciones evaluadas</h2>
+      <p class="sub">"Pronóstico" es el resultado al que el sistema le dio más probabilidad.</p>
+      <div class="table-wrap" id="trk-table"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Apuestas en papel (experimento, sin dinero)</h2>
+      <p class="sub">Se registran solo para medir si el modelo encuentra valor. CLV positivo = conseguimos mejor cuota que la de cierre,
+        la señal más rápida de una ventaja real.</p>
+      <div class="table-wrap" id="trk-bets"></div>
+    </div>
+  </section>
+
+  <!-- RENDIMIENTO -->
+  <section class="view" id="v-rendimiento">
+    <div class="view-head">
+      <h1 tabindex="-1">¿Qué tan fiable es?</h1>
+      <p id="bt-intro">Evaluación sobre todos los partidos de 2026 de 38 ligas. Los pesos se ajustaron con datos de 2016-2025,
+        así que estos partidos son "examen" para el modelo.</p>
+    </div>
+    <section id="home-history"><div class="stack">
         <div class="card">
           <h2>Precisión en vivo</h2>
           <p class="sub" id="acc-sub">Pronósticos fiables: probabilidad que dio la máquina vs. acierto real.</p>
@@ -143,10 +262,7 @@
           <p class="sub">Con cada resultado la máquina corrige si fue demasiado segura (T &gt; 1 suaviza) o demasiado tímida (T &lt; 1).</p>
           <div id="calib-box" data-skel="lines:3"></div>
         </div>
-      </div>
-    </div>
-
-    <h2 class="sec">Respaldo histórico (2012-2026)</h2>
+      </div><h2 class="sec">Respaldo histórico (2012-2026)</h2>
     <div class="grid g2">
       <div class="card">
         <h2>Bankroll de la regla en el histórico</h2>
@@ -157,7 +273,7 @@
         <h2>Selección vs prueba</h2>
         <p class="sub">La regla se eligió con 2013-2021; 2022 en adelante es la prueba.</p>
         <div class="table-wrap" id="pro-bt-table"></div>
-        <div id="pro-bt-reading" class="stack" style="font-size:13.5px;color:var(--text-2);margin-top:14px"></div>
+        <div id="pro-bt-reading" class="stack" style="font-size:var(--fs-base);color:var(--text-2);margin-top:14px"></div>
       </div>
     </div>
     <div class="hero" style="margin-top:14px">
@@ -180,91 +296,7 @@
         histórico, pero la ganancia aún no es concluyente. Todo se registra en papel antes de cada partido para medirlo.</div>
     </div>
   </section>
-
-  <!-- PRÓXIMOS PARTIDOS -->
-  <section class="view" id="v-partidos">
-    <div class="view-head">
-      <h1>Próximos partidos</h1>
-    </div>
-    <div class="toolbar"><div class="filters" id="league-filter"></div><div id="match-date"></div></div>
-    <div class="qchips" id="match-chips"></div>
-    <div id="matches" data-skel="rows:6"></div>
-  </section>
-
-  <!-- COMBINADAS -->
-  <section class="view" id="v-combinadas">
-    <div class="view-head">
-      <h1>Combinadas</h1>
-    </div>
-    <div class="grid g4" id="cb-tiles" data-skel="kpi:4"></div>
-    <div class="combo-layout" style="margin-top:16px">
-      <div>
-        <div class="toolbar"><div class="filters" id="cb-filter"></div><div id="cb-date"></div></div>
-        <div class="qchips" id="cb-chips"></div>
-        <div class="stack" id="cb-matches" data-skel="cards:4"></div>
-      </div>
-      <aside class="card ticket" id="ticket"></aside>
-    </div>
-    <div class="view-head" style="margin:36px 0 16px">
-      <h2 style="font-size:22px">Lo que dice la historia</h2>
-      <p id="cb-hist-intro">Combinadas simuladas con todos los partidos de 2026 que el modelo no vio al entrenar.</p>
-    </div>
-    <div class="grid g2">
-      <div class="card">
-        <h2>¿El porcentaje que muestra se cumple?</h2>
-        <p class="sub">Probabilidad que dio el sistema a cada combinada vs. cuántas se acertaron de verdad.</p>
-        <div class="chart tall"><canvas id="ch-combo-calib"></canvas></div>
-      </div>
-      <div class="card">
-        <h2>¿Combinar paga?</h2>
-        <p class="sub">Rendimiento por unidad apostada según el número de partidos (cuotas de cierre Bet365).</p>
-        <div class="chart tall"><canvas id="ch-combo-yield"></canvas></div>
-      </div>
-    </div>
-    <div class="card" style="margin-top:16px">
-      <h2>Estrategias simuladas</h2>
-      <div class="table-wrap" id="cb-strategies"></div>
-      <div id="cb-reading" class="stack" style="font-size:14px;color:var(--text-2);margin-top:14px"></div>
-    </div>
-    <div class="card" style="margin-top:16px">
-      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:end">
-        <div><h2>Combinaciones de un mismo partido que más se cumplen</h2>
-          <p class="sub" style="margin-bottom:0">Frecuencia real en 2026 y probabilidad media que les dio el sistema.</p></div>
-        <label style="min-width:220px">Liga<select id="cb-pattern-league"></select></label>
-      </div>
-      <div class="table-wrap" id="cb-patterns" style="margin-top:12px"></div>
-    </div>
-  </section>
-
-  <!-- RESULTADOS -->
-  <section class="view" id="v-resultados">
-    <div class="view-head">
-      <h1>Resultados: ¿acertó el sistema?</h1>
-      <p>Cada predicción se guarda <b>antes</b> de que empiece el partido y no se puede modificar. Cuando llega el resultado
-        se compara con lo que pasó. Es la prueba más limpia, pero necesita cientos de partidos para ser concluyente.</p>
-    </div>
-    <div class="grid g4" id="trk-tiles" data-skel="kpi:4"></div>
-    <div class="card" style="margin-top:16px">
-      <h2>Predicciones evaluadas</h2>
-      <p class="sub">"Pronóstico" es el resultado al que el sistema le dio más probabilidad.</p>
-      <div class="table-wrap" id="trk-table"></div>
-    </div>
-    <div class="card" style="margin-top:16px">
-      <h2>Apuestas en papel (experimento, sin dinero)</h2>
-      <p class="sub">Se registran solo para medir si el modelo encuentra valor. CLV positivo = conseguimos mejor cuota que la de cierre,
-        la señal más rápida de una ventaja real.</p>
-      <div class="table-wrap" id="trk-bets"></div>
-    </div>
-  </section>
-
-  <!-- RENDIMIENTO -->
-  <section class="view" id="v-rendimiento">
-    <div class="view-head">
-      <h1>¿Qué tan fiable es?</h1>
-      <p id="bt-intro">Evaluación sobre todos los partidos de 2026 de 38 ligas. Los pesos se ajustaron con datos de 2016-2025,
-        así que estos partidos son "examen" para el modelo.</p>
-    </div>
-    <div class="grid g3" id="bt-tiles" data-skel="kpi:3"></div>
+<div class="grid g3" id="bt-tiles" data-skel="kpi:3"></div>
     <div class="grid g2" style="margin-top:16px">
       <div class="card">
         <h2>Calibración</h2>
@@ -285,7 +317,7 @@
       </div>
       <div class="card">
         <h2>Lectura</h2>
-        <div id="bt-reading" class="stack" style="font-size:14px;color:var(--text-2)"></div>
+        <div id="bt-reading" class="stack" style="font-size:var(--fs-base);color:var(--text-2)"></div>
       </div>
     </div>
     <div class="card" style="margin-top:16px">
@@ -299,21 +331,21 @@
       <div class="table-wrap" id="bt-leagues"></div>
     </div>
     <div class="view-head" style="margin:36px 0 16px">
-      <h2 style="font-size:22px">Regla anterior: modelo propio contra Bet365</h2>
+      <h2 style="font-size:var(--fs-lg)">Regla anterior: modelo propio contra Bet365</h2>
       <p id="sg-hist-intro">Misma regla aplicada a los partidos de 2026, que el modelo no vio al entrenar (cuotas de cierre Bet365).</p>
     </div>
     <div class="grid g4" id="sg-tiles"></div>
     <div class="grid g2" style="margin-top:16px">
       <div class="card">
         <h2>Bankroll apostando el monto sugerido</h2>
-        <p class="sub">Partiendo de 100, con ¼ de Kelly y tope de 2,5% por apuesta.</p>
+        <p class="sub">Partiendo de 100, con ¼ de Kelly y tope de 2% por apuesta.</p>
         <div class="chart tall"><canvas id="ch-sg-bank"></canvas></div>
       </div>
       <div class="card">
         <h2>Por nivel de riesgo</h2>
         <p class="sub">Riesgo según la probabilidad de la selección: bajo ≥ 60%, medio 45-60%, alto &lt; 45%.</p>
         <div class="table-wrap" id="sg-risk"></div>
-        <div id="sg-reading" class="stack" style="font-size:14px;color:var(--text-2);margin-top:14px"></div>
+        <div id="sg-reading" class="stack" style="font-size:var(--fs-base);color:var(--text-2);margin-top:14px"></div>
       </div>
     </div>
   </section>
@@ -321,9 +353,8 @@
   <!-- SIMULADOR -->
   <section class="view" id="v-simulador">
     <div class="view-head">
-      <h1>Simulador de partido</h1>
-      <p>Elige liga y equipos para ver qué espera el modelo. Si ingresas las cuotas de una casa, el sistema las combina con el
-        modelo y te dice si ve valor (casi siempre dirá que no).</p>
+      <h1 tabindex="-1">Simulador de partido</h1>
+      <p>Elige liga y equipos para ver qué espera el modelo. Las cuotas opcionales permiten explorar escenarios educativos; no demuestran una ventaja para apostar.</p>
     </div>
     <div class="card">
       <form class="sim" id="sim-form">
@@ -337,7 +368,7 @@
           <label class="cross-only" hidden>Liga de la visita<select id="sim-away-league"></select></label>
           <label>Visita<select id="sim-away" required></select></label>
         </div>
-        <div class="fields">
+        <button class="primary" type="submit">Calcular probabilidades</button><details class="sim-optional"><summary>Agregar cuotas de una casa y monto</summary>        <div class="fields">
           <label>Cuota local (opcional)<input id="sim-o1" name="odds_home" autocomplete="off" type="number" step="0.01" min="1.01" placeholder="ej. 2.10"></label>
           <label>Cuota empate<input id="sim-o2" name="odds_draw" autocomplete="off" type="number" step="0.01" min="1.01" placeholder="ej. 3.40"></label>
           <label>Cuota visita<input id="sim-o3" name="odds_away" autocomplete="off" type="number" step="0.01" min="1.01" placeholder="ej. 3.60"></label>
@@ -345,16 +376,16 @@
         <div class="fields">
           <label>Monto a apostar ($)<input id="sim-stake" name="stake" autocomplete="off" type="number" min="1" step="any" placeholder="ej. 5000"></label>
         </div>
-        <button class="primary" type="submit">Calcular probabilidades</button>
+</details>
       </form>
     </div>
-    <div id="sim-out" style="margin-top:16px"></div>
+    <div id="sim-out" class="sim-preview"><h2>Elige dos equipos</h2><p>Al calcular verás las probabilidades, el precio justo y la fuente del pronóstico.</p></div>
   </section>
 
   <!-- CÓMO FUNCIONA -->
   <section class="view" id="v-como-funciona">
     <div class="view-head">
-      <h1>Cómo funciona</h1>
+      <h1 tabindex="-1">Cómo funciona</h1>
       <p>Explicado sin tecnicismos. Los detalles y todas las decisiones están en <code>docs/</code> del repositorio.</p>
     </div>
     <div class="card">
@@ -385,7 +416,7 @@
           <dt>Cuota justa</dt><dd>1 / probabilidad del sistema. Si la casa paga más que la cuota justa, hay valor; si paga menos, la apuesta pierde a la larga.</dd>
           <dt>Casa sharp (Pinnacle)</dt><dd>La casa con el margen más bajo y que acepta a apostadores profesionales: sus cuotas son la mejor estimación de la probabilidad real. El sistema la usa como precio justo.</dd>
           <dt>Line shopping</dt><dd>Comparar la misma apuesta en todas las casas y tomar la que paga más. Es lo primero que hace cualquier profesional.</dd>
-          <dt>Criterio de Kelly</dt><dd>Fórmula para decidir cuánto apostar según la ventaja y la cuota. Se usa ¼ de Kelly con tope de 2,5% del bankroll: crece más lento pero aguanta mejor las rachas malas.</dd>
+          <dt>Criterio de Kelly</dt><dd>Fórmula para decidir cuánto apostar según la ventaja y la cuota. Se usa ¼ de Kelly con tope de 2% del bankroll: crece más lento pero aguanta mejor las rachas malas.</dd>
           <dt>Machine learning</dt><dd>Un modelo (gradient boosting) que aprende de miles de partidos qué patrones del historial de los equipos —forma, goles, tiros, localía, descanso— anticipan el resultado.</dd>
           <dt>Walk-forward</dt><dd>Probar el modelo como si viviéramos en el pasado: para predecir cada semana solo usa partidos anteriores.</dd>
         </dl>
@@ -411,27 +442,56 @@
       </div>
     </div>
   </section>
+<section class="view" id="v-explorar">
+  <div class="view-head"><h1 tabindex="-1">Explorar</h1><p>Herramientas para comparar y aprender.</p></div>
+  <p class="explore-note">Simulaciones educativas: no demuestran una ventaja para apostar.</p>
+  <div class="destination-list"><a class="destination" href="#simulador"><span><b>Simulador</b><small>Compara dos equipos y sus probabilidades.</small></span><span aria-hidden="true">›</span></a>
+<a class="destination" href="#combinadas"><span><b>Combinadas</b><small>Explora selecciones y revisa tu boleto.</small></span><span aria-hidden="true">›</span></a></div>
+</section>
+<section class="view" id="v-mas">
+  <div class="view-head"><h1 tabindex="-1">Más</h1><p>Conoce el sistema y ajusta tu experiencia.</p></div>
+  <div class="destination-list"><a class="destination" href="#rendimiento"><span><b>Fiabilidad</b><small>Métricas, pérdidas y límites del sistema.</small></span><span aria-hidden="true">›</span></a>
+<a class="destination" href="#como-funciona"><span><b>Cómo funciona</b><small>Fuentes, modelos y reglas de riesgo.</small></span><span aria-hidden="true">›</span></a>
+<button class="destination" type="button" id="more-prefs" aria-haspopup="dialog" aria-controls="agent-prefs"><span><b>Preferencias</b><small>Tus ligas y equipos favoritos.</small></span><span aria-hidden="true">›</span></button>
+<button class="destination" type="button" id="more-theme"><span><b>Tema</b><small><span id="more-theme-label">Cambiar entre claro y oscuro.</span></small></span><span aria-hidden="true">›</span></button>
+<button class="destination" type="button" id="more-assistant" aria-controls="agent-chat" aria-expanded="false"><span><b>El Míster · asistente</b><small><span id="more-assistant-state">Comprobando disponibilidad…</span></small></span><span aria-hidden="true">›</span></button></div>
+  <p id="more-action-error" class="more-action-error" role="alert" hidden></p>
+</section>
 </main>
-    <footer id="footer">Futbol ML · modelos estadísticos y value betting · uso educativo, no es consejo de apuestas</footer>
+    <footer id="footer">Fútbol ML · modelos estadísticos y value betting · uso educativo, no es consejo de apuestas</footer>
   </div>
 </div>
-<nav class="bottomnav">
-  <a class="navlink" href="#inicio"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg><span>Panel</span></a>
-  <a class="navlink" href="#partidos"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Partidos</span></a>
-  <a class="navlink" href="#combinadas"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg><span>Combinadas</span></a>
-  <a class="navlink" href="#resultados"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Resultados</span></a>
-  <a class="navlink" href="#simulador"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h2M14 10h2M8 14h2M14 14h2M8 18h8"/></svg><span>Simulador</span></a>
+<nav class="bottomnav" aria-label="Navegación principal móvil">
+<a class="navlink" href="#inicio" data-nav-group="inicio"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg><span>Hoy</span></a>
+<a class="navlink" href="#partidos" data-nav-group="partidos"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Partidos</span></a>
+<a class="navlink" href="#apuestas" data-nav-group="apuestas"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="6.6" r="2.1" stroke-width="1.3"/><circle cx="12" cy="12" r="2.1" stroke-width="1.3"/><circle cx="12" cy="17.4" r="2.1" stroke-width="1.3"/></svg><span>Apuestas</span></a>
+<a class="navlink" href="#resultados" data-nav-group="resultados"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Seguimiento</span></a>
+<a class="navlink" href="#explorar" data-nav-group="explorar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6 6-2z"/></svg><span>Explorar</span></a>
+<a class="navlink" href="#mas" data-nav-group="mas"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg><span>Más</span></a>
 </nav>
-<button type="button" class="agent-fab" id="agent-fab" aria-controls="agent-chat" aria-expanded="false" aria-label="Abrir asistente">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 11h.01M12 11h.01M15.5 11h.01"/></svg>
+<button type="button" class="agent-fab" id="agent-fab" aria-controls="agent-chat" aria-expanded="false" aria-label="Hablar con el Míster, el asistente">
+  <span data-mister="face" data-size="50" data-live></span>
 </button>
-<section class="agent-chat" id="agent-chat" role="dialog" aria-label="Asistente de Futbol ML" hidden>
+<section class="agent-chat" id="agent-chat" role="dialog" aria-label="El Míster, asistente de Fútbol ML" hidden>
   <header class="chat-head">
-    <div><b>Asistente</b><span>IA local · cifras solo del sistema</span></div>
-    <button type="button" class="td-close chat-close" aria-label="Cerrar asistente">×</button>
+    <div class="chat-id"><span class="chat-mister" data-mister="chat" data-size="58" data-live></span><div><b>El Míster</b><span>Director técnico · IA local</span><small id="chat-demo-indicator" class="chat-demo-indicator" hidden>Modo presentación</small></div></div>
+    <div class="chat-actions">
+      <button type="button" class="chat-icon-btn" id="chat-history-btn" aria-controls="chat-history" aria-expanded="false" aria-label="Historial de conversaciones" title="Historial"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg></button>
+      <button type="button" class="chat-icon-btn" id="chat-new-btn" aria-label="Nueva conversación" title="Nueva conversación"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+      <button type="button" class="td-close chat-close" aria-label="Cerrar el chat con el Míster">×</button>
+    </div>
   </header>
-  <div class="chat-log" aria-live="polite">
-    <div class="msg bot"><div class="msg-text">Hola. Pregúntame por partidos, probabilidades, tablas o el rendimiento del sistema.</div></div>
+  <section class="chat-history" id="chat-history" aria-label="Historial de conversaciones" hidden>
+    <div class="history-head"><h3>Conversaciones</h3><button type="button" class="chip" id="chat-history-new">Nueva</button></div>
+    <ul class="history-list" id="chat-history-list"></ul>
+    <div class="history-head"><h3>Lo que sé de ti</h3><button type="button" class="chip" id="chat-memory-clear">Olvidar todo</button></div>
+    <p class="history-note">Lo aprendo de lo que conversamos: los equipos que sigues, lo que más consultas y lo que me cuentas.</p>
+    <ul class="memory-list" id="chat-memory-list"></ul>
+    <p class="history-status" id="chat-history-status" role="status"></p>
+  </section>
+  <div class="chat-body">
+    <div class="chat-log" aria-live="polite"></div>
+    <button type="button" class="chat-jump" id="chat-jump" aria-label="Ir a la última consulta" title="Ir a la última consulta" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button>
   </div>
   <div class="chat-suggest">
     <button type="button" class="chip">¿Qué apuestas con valor hay hoy?</button>
@@ -443,6 +503,7 @@
     <button type="submit" class="primary" aria-label="Enviar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
   </form>
 </section>
+<dialog id="match-filters" class="filter-sheet" aria-labelledby="match-filter-title"><header><h2 id="match-filter-title">Filtrar partidos</h2><button type="button" class="chip" id="match-filter-close">Cerrar</button></header><div id="match-filter-body"></div></dialog>
 <dialog class="agent-prefs" id="agent-prefs" aria-labelledby="prefs-title">
   <form id="pref-form" method="dialog">
     <h2 id="prefs-title">Tus preferencias</h2>
@@ -463,6 +524,17 @@
         <label><input type="radio" name="risk" value="aggressive"> Agresivo</label>
       </div>
     </fieldset>
+    <fieldset><legend>Avisos</legend>
+      <div class="pref-alerts" id="pref-alerts">
+        <label><input type="checkbox" name="alert-type" value="favorite_plays"> Juega uno de mis equipos o ligas</label>
+        <label><input type="checkbox" name="alert-type" value="value_bet"> Cuota con valor frente a Pinnacle</label>
+        <label><input type="checkbox" name="alert-type" value="near_value"> Cuota cerca de tener valor</label>
+        <label><input type="checkbox" name="alert-type" value="value_combo"> Combinada con valor</label>
+        <label><input type="checkbox" name="alert-type" value="near_combo"> Combinada cerca de tener valor (informativa)</label>
+        <label class="pref-alerts-sep"><input type="checkbox" id="pref-alerts-favorites"> Avisos de precio solo de mis equipos y ligas</label>
+        <label><input type="checkbox" id="pref-browser-notify"> Notificaciones del navegador mientras el panel está abierto</label>
+      </div>
+    </fieldset>
     <p class="pref-status" id="pref-status" role="status"></p>
     <div class="pref-actions">
       <button type="button" class="chip" id="pref-cancel">Cancelar</button>
@@ -470,10 +542,18 @@
     </div>
   </form>
 </dialog>
+<script type="application/json" id="team-display-es">__TEAM_DISPLAY_ES__</script>
+<script src="/static/team-display.js"></script>
+<script src="/static/format.js"></script>
+<script src="/static/trust.js"></script>
+<script src="/static/views.js"></script>
+<script src="/static/mascot.js"></script>
 <script src="/static/app.js"></script>
 <script src="/static/leaguepicker.js"></script>
 <script src="/static/combos.js"></script>
 <script src="/static/suggestions.js"></script>
+<script src="/static/demo.js"></script>
 <script src="/static/agent.js"></script>
+<script src="/static/alerts.js"></script>
 </body>
 </html>

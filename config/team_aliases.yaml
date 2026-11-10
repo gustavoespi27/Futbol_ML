@@ -2,6 +2,23 @@
 # Solo hace falta cuando el nombre normalizado no coincide entre fuentes.
 # Revisar con: python scripts/check_teams.py
 
+# Selecciones absolutas: nombres de la DB -> catálogo de martj42/international_results (CC0).
+international:
+  Bosnia-Herzegovina: Bosnia and Herzegovina
+  Cape Verde Islands: Cape Verde
+  Chinese Taipei: Taiwan
+  Congo DR: DR Congo
+  Czechia: Czech Republic
+  FYR Macedonia: North Macedonia
+  French Guyana: French Guiana
+  Kyrgyz Republic: Kyrgyzstan
+  Rep. Of Ireland: Republic of Ireland
+  St. Kitts and Nevis: Saint Kitts and Nevis
+  St. Lucia: Saint Lucia
+  St. Vincent / Grenadines: Saint Vincent and the Grenadines
+  Türkiye: Turkey
+  USA: United States
+
 espn:
   AGF: Aarhus
   Deportivo: La Coruna

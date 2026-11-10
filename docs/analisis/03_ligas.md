@@ -2,6 +2,10 @@
 
 *Generado por `scripts/screen_leagues.py`. Criterio pre-registrado en [decisiones.md](../decisiones.md).*
 
+**Revisión A2 (2026-11-09):** los rendimientos de este estudio son por unidad plana y no dependen de
+`suggestions.MAX_STAKE`. Se conservan sus cifras y umbrales pre-registrados; no describen el monto de producción.
+La política vigente es 2% por apuesta. Véase [la regeneración A2](10_riesgo_unificado.md).
+
 Mismo pipeline que el análisis 02 con grillas reducidas: Elo entrenado con todas las divisiones del país
 (los ascendidos llegan con historial), Dixon-Coles con la liga evaluada. Validación 2016-21, test 2022-25,
 mercado = cierre de Pinnacle sin margen.

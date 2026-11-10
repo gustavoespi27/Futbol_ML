@@ -1,5 +1,6 @@
 """Servidor del dashboard (FastAPI). Arranque: python scripts/serve.py  ->  http://127.0.0.1:8000"""
 
+import json
 import logging
 import re
 import threading
@@ -56,7 +57,15 @@ def _live_loop():
 async def lifespan(_app):
     threading.Thread(target=_prewarm, daemon=True).start()
     threading.Thread(target=_live_loop, daemon=True, name="espn-live").start()
-    yield
+    try:
+        yield
+    finally:
+        try:
+            from footy_agents.ollama_runtime import runtime
+        except ImportError:
+            pass
+        else:
+            runtime.shutdown()
 
 
 app = FastAPI(title="Futbol_ML", docs_url="/api/docs", lifespan=lifespan)
@@ -247,8 +256,11 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 @app.get("/")
 def index():
     """index.html con la versión de cada archivo estático (?v=fecha de modificación): el navegador siempre
-    carga el JS/CSS actual después de una actualización, sin quedarse con una copia vieja en caché."""
+    carga el JS/CSS e imágenes actuales después de una actualización, sin quedarse con una copia vieja en caché."""
     html = (STATIC / "index.html").read_text(encoding="utf-8")
-    html = re.sub(r'/static/([\w.-]+\.(?:js|css))"',
+    from footy.web.team_display import DISPLAY_NAMES
+
+    html = html.replace("__TEAM_DISPLAY_ES__", json.dumps(DISPLAY_NAMES, ensure_ascii=True))
+    html = re.sub(r'/static/([\w./-]+\.(?:js|css|png))"',
                   lambda m: f'/static/{m.group(1)}?v={int((STATIC / m.group(1)).stat().st_mtime)}"', html)
     return HTMLResponse(html, headers={"Cache-Control": "no-cache"})

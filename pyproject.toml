@@ -16,6 +16,7 @@ footy = ["db/*.sql", "web/static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]          # los tests importan scripts/ también con `pytest` a secas (CI)
 
 [tool.ruff]
 line-length = 120

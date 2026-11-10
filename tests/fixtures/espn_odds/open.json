@@ -1,0 +1,50 @@
+{
+  "id": "401861146",
+  "date": "2026-11-12T17:00Z",
+  "competitions": [
+    {
+      "odds": [
+        {
+          "provider": {
+            "name": "DraftKings"
+          },
+          "overUnder": 2.5,
+          "drawOdds": {
+            "moneyLine": 220
+          },
+          "moneyline": {
+            "home": {
+              "open": {
+                "odds": "+115"
+              }
+            },
+            "away": {
+              "open": {
+                "odds": "+210"
+              }
+            },
+            "draw": {
+              "open": {
+                "odds": "+225"
+              }
+            }
+          },
+          "total": {
+            "over": {
+              "open": {
+                "line": "o2.5",
+                "odds": "+105"
+              }
+            },
+            "under": {
+              "open": {
+                "line": "u2.5",
+                "odds": "-135"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

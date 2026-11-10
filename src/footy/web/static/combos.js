@@ -16,6 +16,10 @@ function afterTicketChange() {
     document.querySelectorAll("[data-ticket-count]").forEach((b) => {
       b.classList.remove("pulse"); void b.offsetWidth; b.classList.add("pulse");
     });
+    // El botón Boleto recibe la selección: salta y una capa cae sobre el mazo.
+    document.querySelectorAll(".ticket-btn").forEach((b) => {
+      b.classList.remove("bump"); void b.offsetWidth; b.classList.add("bump");
+    });
   }
   legCount = ticket.legs.length;
   const refs = new Set(ticket.legs.map((l) => l.ref));
@@ -63,7 +67,7 @@ function optionsTable(ctx) {
     const head = o.group !== group ? `<tr class="opt-group"><td colspan="6">${esc(o.group)}</td></tr>` : "";
     group = o.group;
     const odds = o.odds ? `${num(o.odds)}${o.estimated ? '<span title="Estimada desde el 1X2 de la misma casa" style="color:var(--muted)">*</span>' : ""}` : "–";
-    const val = vchip(o.verdict, o.odds && o.ev != null ? signed(o.ev) : "");
+    const val = vchip(priceVerdict(o), o.p_fair != null && o.odds && o.ev != null ? signed(o.ev) : "");
     return `${head}<tr><td>${esc(o.label)}</td><td class="r"><b>${pct(o.p, 1)}</b></td><td class="r">${odds}</td>
       <td class="r" style="color:var(--text-2)">${num(o.fair)}</td><td class="r">${val}</td>
       <td class="r"><button class="add" data-ref="${esc(ctx.ref)}" data-keys="${o.key}">+</button></td></tr>`;
@@ -86,6 +90,7 @@ async function renderCombos() {
   const histP = api("/api/combos/history");
   const [list, catalog] = await Promise.all([api("/api/upcoming"), leagueCatalog()]);
   const draw = () => {
+    if (systemState.kind !== "fresh") { gateView($("#v-combinadas"), systemState.kind); return; }
     const box = $("#cb-matches");
     // los partidos que ya están en el boleto van arriba (aunque el filtro no los incluya), en el orden en que se agregaron
     const inTicket = [...new Set(ticket.legs.map((l) => l.ref))];
@@ -99,11 +104,11 @@ async function renderCombos() {
       return `
       <details class="mx ${n ? "in-ticket" : ""}" data-ref="${esc(m.ref)}" ${m.ref === openRef || wasOpen.has(m.ref) ? "open" : ""}>
         <summary>
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--text-2);font-size:12.5px"><span class="lg">${leagueLogo(m.league, 16)}${esc(m.league_name)}</span>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--text-2);font-size:var(--fs-sm)"><span class="lg">${leagueLogo(m.league, 16)}${esc(m.league_name)}</span>
             <span style="display:flex;align-items:center;gap:8px">${n ? `<span class="in-ticket-tag">En tu combinada · ${n} ${n === 1 ? "selección" : "selecciones"}</span>` : ""}${fmtDate(m.kickoff)}</span></div>
           ${teamsRow(m)}
           ${probBar(m.p_official)}
-          <div style="color:var(--muted);font-size:12px">Toca para ver todas las opciones · ${esc(m.source)}</div>
+          <div style="color:var(--muted);font-size:var(--fs-xs)">Toca para ver todas las opciones · ${esc(m.source)}</div>
         </summary>
         <div class="body">${suggestionsBlock(m)}${optionsTable(m)}
           <p class="sub" style="margin:0">* Doble oportunidad estimada desde el 1X2 de la misma casa. Valor = probabilidad × cuota − 1.</p></div>
@@ -265,9 +270,9 @@ async function refreshTicket() {
     <div class="t-head"><h2>Tu boleto</h2><span class="t-type">${type}<b>${nSel}</b></span>
       <button class="t-clear" id="t-clear" title="Quitar todas las selecciones">Vaciar</button></div>
     <div class="legs">${legsHtml}</div>
-    <div><div style="color:var(--text-2);font-size:13px">Probabilidad de acertarla</div>
+    <div><div style="color:var(--text-2);font-size:var(--fs-sm)">Probabilidad de acertarla</div>
       <div class="big-p num">${pct(r.p, 1)}</div>
-      <div style="color:var(--muted);font-size:12.5px;margin-top:4px">${r.p > 0 ? `≈ 1 de cada ${Math.max(1, Math.round(1 / r.p))} veces` : "imposible: hay selecciones contradictorias"}</div></div>
+      <div style="color:var(--muted);font-size:var(--fs-sm);margin-top:4px">${r.p > 0 ? `≈ 1 de cada ${Math.max(1, Math.round(1 / r.p))} veces` : "imposible: hay selecciones contradictorias"}</div></div>
     <div class="kv">
       <div><span>Cuota ${nSel === 1 ? "" : "combinada"}${odds ? "" : " (justa)"}</span><b class="num">${num(odds || r.fair_odds)}</b></div>
       <div><span>Monto a apostar ($)</span><input id="t-stake" type="number" min="1" step="any" value="${stake}" style="padding:4px 8px"></div>
@@ -292,7 +297,7 @@ async function refreshTicket() {
     };
   });
   const drawPay = () => {
-    const st = parseFloat($("#t-stake").value) || 0;
+    const st = Math.max(0, amountValue($("#t-stake")) || 0);
     const o = odds || r.fair_odds;
     el.querySelectorAll(".t-chip").forEach((c) => c.classList.toggle("on", Number(c.dataset.v) === st));
     if (!st || !o) {
@@ -318,9 +323,10 @@ async function refreshTicket() {
     });
     lastPay = pay;
   };
+  bindAmountInput($("#t-stake"));
   $("#t-stake").oninput = (e) => { setStake(e.target.value); drawPay(); };
   el.querySelectorAll(".t-chip").forEach((c) => {
-    c.onclick = () => { $("#t-stake").value = c.dataset.v; setStake(c.dataset.v); drawPay(); };
+    c.onclick = () => { $("#t-stake").value = c.dataset.v; setStake(c.dataset.v); formatAmountInput($("#t-stake")); drawPay(); };
   });
   shownLegs = new Set(r.groups.flatMap((g) => g.keys.map((k) => `${g.ref}|${k}`)));
   drawPay();

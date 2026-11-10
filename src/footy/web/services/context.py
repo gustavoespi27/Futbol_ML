@@ -34,7 +34,7 @@ from footy.web.services.common import _f, _probs, data_through, public
 
 PREDICTOR_TTL = 6 * 3600
 CONTEXT_TTL = 600
-DISPLAY_BOOKS = ("Bet365", "Pinnacle", "Betfair Exchange", "Betfair", "Market Avg")   # cuota que se muestra
+DISPLAY_BOOKS = ("Bet365", "Pinnacle", "Betfair Exchange", "Betfair", "Market Avg", "DraftKings")
 REFERENCE_BOOKS = ("Pinnacle", "Betfair Exchange", "Market Avg", "Bet365")             # para quitar el margen
 STALE_DAYS = 12
 HORIZON_DAYS = 5          # partidos que se muestran: hoy y 4 días más (calendario de ESPN; las cuotas llegan después)
@@ -65,6 +65,24 @@ def _cross_probs(code: str, home_id: int | None, away_id: int | None) -> np.ndar
     if hit is None or hit[0] != mtime:
         _cross["model"] = hit = (mtime, cross_league.load())
     return hit[1].probabilities(int(home_id), int(away_id))
+
+
+def _international_prediction(code: str, home: str, away: str, kickoff: str | None,
+                              round_name: str | None) -> tuple | None:
+    if config.settings()["competitions"].get(code, {}).get("type") != "international":
+        return None
+    from footy.ingest.international import neutral_policy
+    from footy.models import international
+
+    model = international.load()
+    if model is None:
+        return None
+    when = datetime.fromisoformat(kickoff.replace("Z", "+00:00")) if kickoff else datetime.now(timezone.utc)
+    try:
+        return (*model.predict(home, away, when, neutral_policy(code, round_name)),
+                neutral_policy(code, round_name))
+    except ValueError:
+        return None  # Juveniles, femenino, clubes o selección sin alias: no inventar un rating.
 
 
 # --- predictores por liga ---------------------------------------------------
@@ -226,7 +244,8 @@ def _stats(r: dict | None, conn=None, home_id: int | None = None, away_id: int |
 
 def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | None, odds: dict,
                    home_id: int | None = None, away_id: int | None = None,
-                   cross_probs: np.ndarray | None = None) -> dict:
+                   cross_probs: np.ndarray | None = None, round_name: str | None = None,
+                   offered_only_books: set[str] | None = None) -> dict:
     """`cross_probs`: probabilidades del modelo entre ligas ya calculadas (simulador entre ligas): se usan aunque la
     liga de `code` tenga modelo propio."""
     params, names = load_params(), league_names()
@@ -234,12 +253,32 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
     mlr = None if row is None or np.isnan(row.get("ml_H", np.nan)) else row
     stats = _stats(row, connect(), home_id, away_id, kickoff) if row else None
     books = _books_1x2(odds)
-    ref_book = next((b for b in REFERENCE_BOOKS if b in books), None) or next(iter(books), None)
-    p_mkt_over = _market_over(odds)
+    offered_only_books = (offered_only_books or set()) | {"DraftKings"}
+    reference_books = {b: p for b, p in books.items() if b not in offered_only_books}
+    ref_book = next((b for b in REFERENCE_BOOKS if b in reference_books), None) or next(iter(reference_books), None)
+    reference_odds = {market: {b: p for b, p in prices.items() if b not in offered_only_books}
+                      for market, prices in odds.items()}
+    p_mkt_over = _market_over(reference_odds)
     ctx = {"ref": ref, "league": code, "league_name": names.get(code, code), "home": home, "away": away,
            "kickoff": kickoff, "market_book": ref_book, "home_id": home_id, "away_id": away_id}
     cross = None
-    if cross_probs is None and code in params:
+    national = _international_prediction(code, home, away, kickoff, round_name)
+    if national is not None:
+        from footy.markets.scoreline import score_matrix
+
+        p_model, lam, mu, neutral = national
+        # Solo Pinnacle puede sustituir la probabilidad del modelo de selecciones.
+        ref_book = "Pinnacle" if "Pinnacle" in reference_books else None
+        p_off = proportional(books[ref_book][None, :])[0] if ref_book else p_model
+        M = combos.fit_matrix(lam, mu, 0, p_off, p_mkt_over) if ref_book else score_matrix(lam, mu)
+        note = "Probabilidades de Pinnacle sin margen." if ref_book else "Pronóstico del modelo de selecciones."
+        if neutral is None:
+            note += " Sede sin verificar: no se aplica ventaja local."
+        ctx.update({"source": "mercado" if ref_book else "modelo selecciones", "market_book": ref_book,
+                    "model_name": "Elo de selecciones + Poisson (v1)", "p_model": _probs(p_model),
+                    "p_market": _probs(p_off) if ref_book else None, "stats": stats,
+                    "xg": [_f(lam, 2), _f(mu, 2)], "recommendation": {"bet": False, "text": note}})
+    elif cross_probs is None and code in params:
         pred = predictor(code)
         if home_id is None:
             home_id, away_id = pred.find_team(home).id, pred.find_team(away).id
@@ -267,7 +306,8 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
                     "stats": stats,
                     "p_market": _probs(pr.get("p_market")), "xg": [_f(pr["lam"], 2), _f(pr["mu"], 2)]})
         ctx["recommendation"] = paper_bet(params[code], p_off, books) if ref_book else {
-            "bet": False, "text": "Sin cuotas: no se puede evaluar valor."}
+            "bet": False, "text": "Precios ofrecidos sin referencia Pinnacle: no se puede evaluar ventaja." if books
+            else "Sin cuotas: no se puede evaluar valor."}
     elif ref_book or (cross := cross_probs if cross_probs is not None
                       else _cross_probs(code, home_id, away_id)) is not None:
         # Copas de clubes: modelo entre ligas (Elo global + ajuste por liga). Con cuotas manda Pinnacle sin margen
@@ -283,12 +323,16 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
         ctx.update({"source": "mercado" if ref_book else "modelo entre ligas", "xg": [_f(lam, 2), _f(mu, 2)],
                     "recommendation": {"bet": False, "text": (
                         "Sin modelo validado en esta liga: se muestra la probabilidad del mercado." if ref_book else
+                        "Precios ofrecidos sin referencia Pinnacle: pronóstico del modelo entre ligas." if books else
                         "Sin cuotas todavía: pronóstico del modelo entre ligas (Elo global + fuerza de cada liga).")}})
         if ref_book:
             ctx["p_market"] = _probs(p_off)
     else:
         ctx.update({"source": "sin datos", "p_official": None, "options": [], "suggestions": [],
-                    "recommendation": {"bet": False, "text": "Sin modelo validado ni cuotas todavía."}})
+                    "odds_1x2": {b: [round(float(x), 2) for x in v] for b, v in books.items() if b in DISPLAY_BOOKS},
+                    "recommendation": {"bet": False, "text":
+                        "Hay precios ofrecidos, pero falta un modelo validado y referencia Pinnacle." if books else
+                        "Sin modelo validado ni cuotas todavía."}})
         return ctx
     oo = _option_odds(odds)
     options = []
@@ -359,8 +403,11 @@ def match_context(conn, match_id: int) -> dict:
             (match_id,)).fetchone()
         if r is None:
             raise KeyError(f"Partido {match_id} no encontrado")
+        offered_only = {row[0] for row in conn.execute(
+            "SELECT DISTINCT bookmaker FROM odds WHERE match_id=? AND source='espn_odds'", (match_id,))}
         ctx = _build_context(f"m:{match_id}", r["code"], r["home"], r["away"], r["kickoff_utc"],
-                             tracking.latest_market_odds(conn, match_id), r["home_team_id"], r["away_team_id"])
+                             tracking.latest_market_odds(conn, match_id), r["home_team_id"], r["away_team_id"],
+                             round_name=r["round"], offered_only_books=offered_only)
         if r["type"] == "cup" and r["round"]:          # fase de la copa (Champions: "League Stage - 3", "Final"...)
             ctx["round"] = r["round"]
         # Forma reciente de ambos (puntos G/E/P y detalle): solo partidos que empezaron antes de este partido y de

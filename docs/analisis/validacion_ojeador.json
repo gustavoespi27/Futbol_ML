@@ -1,0 +1,480 @@
+{
+  "date": "2026-11-10",
+  "model": "qwen2.5:7b",
+  "full_original_evidence": {
+    "commit": "8003ab8",
+    "path": "docs/analisis/validacion_ojeador.json"
+  },
+  "regenerate_current_detail": "python scripts/odds_scout.py --dry-run --output reports/ojeador/percepcion.json",
+  "before": {
+    "measured_at": "2026-11-10T17:10:46.696651+00:00",
+    "calendar_total": 90,
+    "with_any_odds": 3,
+    "with_pinnacle": 1,
+    "scout_total": 142,
+    "espn_rows_before": 0
+  },
+  "after": {
+    "measured_at": "2026-11-10T17:26:46.926994+00:00",
+    "calendar_total": 90,
+    "with_any_odds": 69,
+    "with_pinnacle": 1,
+    "espn_rows": 360,
+    "espn_matches": 72,
+    "duplicates": 0,
+    "postkickoff_rows": 0,
+    "espn_sharp_rows": 0
+  },
+  "dry_run": {
+    "perceived": 142,
+    "actions": 0,
+    "inserted": 0,
+    "elapsed_ms": 112.8
+  },
+  "first_cycle": {
+    "run_at": "2026-11-10T17:23:39Z",
+    "perceived": 142,
+    "actions": 25,
+    "inserted": 350,
+    "elapsed_ms": 14618.19,
+    "decision_counts": {
+      "api_football_discarded": 141,
+      "espn_selected": 133,
+      "espn_discarded": 9
+    },
+    "examples": [
+      {
+        "match_id": 180986,
+        "selected": false,
+        "reason": "Pinnacle no disponible: API-Football reservado para la ingesta diaria",
+        "source": "api_football",
+        "group": null,
+        "refresh_hours": 6
+      },
+      {
+        "match_id": 180986,
+        "selected": true,
+        "reason": "Captura publicada: 5 precios ofrecidos; no son referencia justa",
+        "source": "espn",
+        "group": [
+          "esp.copa_del_rey",
+          "20261110"
+        ],
+        "refresh_hours": 1.0
+      },
+      {
+        "match_id": 181056,
+        "selected": false,
+        "reason": "Sin id ESPN o sin slug: no hay calce exacto",
+        "source": "espn",
+        "group": [
+          "esp.copa_del_rey",
+          "20261110"
+        ],
+        "refresh_hours": 1.0
+      },
+      {
+        "match_id": 180988,
+        "selected": true,
+        "reason": "Sin precios válidos: Oferta ausente",
+        "source": "espn",
+        "group": [
+          "esp.copa_del_rey",
+          "20261110"
+        ],
+        "refresh_hours": 1.0
+      },
+      {
+        "match_id": 180996,
+        "selected": false,
+        "reason": "Captura ESPN reciente: no se repite la petición",
+        "source": "espn",
+        "group": [
+          "uefa.nations",
+          "20261112"
+        ],
+        "refresh_hours": 6.0
+      }
+    ]
+  },
+  "second_cycle": {
+    "run_at": "2026-11-10T17:25:54Z",
+    "perceived": 142,
+    "actions": 14,
+    "inserted": 0,
+    "elapsed_ms": 9325.49,
+    "decision_counts": {
+      "api_football_discarded": 141,
+      "espn_discarded": 79,
+      "espn_selected": 63
+    },
+    "examples": [
+      {
+        "match_id": 181056,
+        "selected": false,
+        "reason": "Pinnacle no disponible: API-Football reservado para la ingesta diaria",
+        "source": "api_football",
+        "group": null,
+        "refresh_hours": 6
+      },
+      {
+        "match_id": 181056,
+        "selected": false,
+        "reason": "Sin id ESPN o sin slug: no hay calce exacto",
+        "source": "espn",
+        "group": [
+          "esp.copa_del_rey",
+          "20261110"
+        ],
+        "refresh_hours": 1.0
+      },
+      {
+        "match_id": 180986,
+        "selected": false,
+        "reason": "Captura ESPN reciente: no se repite la petición",
+        "source": "espn",
+        "group": [
+          "esp.copa_del_rey",
+          "20261110"
+        ],
+        "refresh_hours": 1.0
+      },
+      {
+        "match_id": 180988,
+        "selected": true,
+        "reason": "Sin precios válidos: Oferta ausente",
+        "source": "espn",
+        "group": [
+          "esp.copa_del_rey",
+          "20261110"
+        ],
+        "refresh_hours": 1.0
+      }
+    ]
+  },
+  "examples": {
+    "historical_comparison": "Gana Türkiye: mejor 3.650 en DraftKings\nEmpate: mejor 3.950 en DraftKings\nGana Belgium: mejor 1.800 en DraftKings\nSin Pinnacle no hay valor medible; son precios ofrecidos.",
+    "historical_real_chat": [
+      {
+        "question": "Analiza Türkiye contra Belgium",
+        "answer": "El partido entre Türkiye y Belgium se juega en el medio, según el modelo. Belgium es el favorito con un 47.5% de ganar. No se puede evaluar ventaja sin precio de Pinnacle.",
+        "elapsed_s": 14.732,
+        "path": [
+          {
+            "tool": "get_upcoming_matches",
+            "args": {
+              "team": "Türkiye",
+              "limit": 20
+            }
+          },
+          {
+            "tool": "analyze_match",
+            "args": {
+              "match_id": 180997
+            }
+          }
+        ],
+        "manual_review": "Favorito y probabilidad correctos; frase «se juega en el medio» impropia, no se corrigió fuera del comparador"
+      },
+      {
+        "question": "Compara cuotas de ese partido",
+        "answer": "Gana Türkiye: mejor 3.650 en DraftKings\nEmpate: mejor 3.950 en DraftKings\nGana Belgium: mejor 1.800 en DraftKings\nSin Pinnacle no hay valor medible; son precios ofrecidos.",
+        "elapsed_s": 34.095,
+        "path": [
+          {
+            "tool": "analyze_match",
+            "args": {
+              "match_id": 180997
+            }
+          },
+          {
+            "tool": "request_odds",
+            "args": {
+              "match_id": 180997
+            }
+          },
+          {
+            "tool": "request_odds",
+            "args": {
+              "match_id": 180997
+            }
+          }
+        ],
+        "manual_review": "Comparación canónica correcta, sin ventaja calculada sin Pinnacle"
+      }
+    ],
+    "web_context": {
+      "ref": "m:180997",
+      "source": "modelo selecciones",
+      "market_book": null,
+      "odds_1x2": {
+        "DraftKings": [
+          3.65,
+          3.95,
+          1.8
+        ]
+      }
+    }
+  },
+  "original_validation": {
+    "pytest": 634,
+    "ruff": "ok",
+    "node_tests": 8,
+    "agent_coverage_pct": 95.74,
+    "no_duplicate_snapshots": true,
+    "no_postkickoff_rows": true,
+    "no_sharp_rows_from_espn": true
+  },
+  "audit_validation": {
+    "pytest": 651,
+    "ruff": "ok",
+    "node_tests": 8,
+    "agent_coverage_pct": 95.38
+  },
+  "audit_live": [
+    {
+      "case": "C1",
+      "question": "¿Cuánto paga Colombia contra Chile?",
+      "memory": "nueva conversación sin historial",
+      "answer": "Ninguna casa publica cuotas todavía para este partido; ESPN tampoco tiene precios disponibles.",
+      "elapsed_s": 23.473,
+      "done": {
+        "iterations": 4,
+        "success": true
+      },
+      "recoveries": 1,
+      "calls": [
+        {
+          "tool": "get_upcoming_matches",
+          "args": {
+            "team": "Colombia",
+            "limit": 20
+          },
+          "success": true
+        },
+        {
+          "tool": "request_odds",
+          "args": {
+            "match_id": 181043
+          },
+          "success": true
+        }
+      ],
+      "run_ids": [
+        234
+      ],
+      "llm_repairs": 1,
+      "fallback_used": true,
+      "manual_review": "Respuesta verificada; solo el partido identificado aporta los precios"
+    },
+    {
+      "case": "C2",
+      "question": "¿cuánto paga Argentina contra Uruguay?",
+      "memory": "nueva conversación sin historial",
+      "answer": "Gana Argentina: mejor 1.53 en DraftKings\nEmpate: mejor 3.90 en DraftKings\nGana Uruguay: mejor 5.75 en DraftKings\nSin Pinnacle no hay valor medible; son precios ofrecidos.",
+      "elapsed_s": 23.842,
+      "done": {
+        "iterations": 5,
+        "success": true
+      },
+      "recoveries": 1,
+      "calls": [
+        {
+          "tool": "get_upcoming_matches",
+          "args": {
+            "team": "Argentina",
+            "limit": 20
+          },
+          "success": true
+        },
+        {
+          "tool": "request_odds",
+          "args": {
+            "match_id": 181042
+          },
+          "success": true
+        },
+        {
+          "tool": "request_odds",
+          "args": {
+            "match_id": 123456
+          },
+          "success": false
+        }
+      ],
+      "run_ids": [
+        235
+      ],
+      "llm_repairs": 1,
+      "fallback_used": true,
+      "manual_review": "Respuesta verificada; solo el partido identificado aporta los precios"
+    }
+  ],
+  "known_limitations": [
+    "API ESPN no documentada; grupos sin captura válida se vuelven a consultar.",
+    "C1 y C2 reales usaron reparación y respaldo; no se presentan como redacción autónoma impecable.",
+    "C2 intentó además request_odds(123456): la herramienta lo rechazó; el respaldo usa 181042.",
+    "La introducción sin cifras más todas las líneas canónicas pasa sin reparación con FakeLLM."
+  ],
+  "audit_c7": {
+    "base_commit": "bd5c217",
+    "pytest": 663,
+    "ruff": "ok",
+    "node_tests": 8,
+    "agent_coverage_pct": 95.39,
+    "cases": [
+      {
+        "case": "C1",
+        "question": "¿Cuánto paga Colombia contra Chile?",
+        "answer": "Ninguna casa publica cuotas todavía para este partido; ESPN tampoco tiene precios disponibles.",
+        "elapsed_s": 13.211,
+        "path": [
+          {
+            "tool": "get_upcoming_matches",
+            "args": {
+              "team": "Colombia",
+              "limit": 20
+            }
+          },
+          {
+            "tool": "request_odds",
+            "args": {
+              "match_id": 181043
+            }
+          }
+        ],
+        "done": {
+          "iterations": 2,
+          "success": true
+        },
+        "repairs": 0,
+        "recoveries": 1,
+        "run_ids": [
+          236
+        ],
+        "fallback_used": false,
+        "steps": [
+          {
+            "kind": "observation",
+            "text": "Ningún partido listado tiene precio de Pinnacle: no se puede evaluar ventaja."
+          },
+          {
+            "kind": "recovery",
+            "text": "El agente decide consultar cuotas consultadas por el Ojeador"
+          },
+          {
+            "kind": "deviation",
+            "text": "Cambio de camino: cuotas consultadas por el Ojeador, porque no hay precio de Pinnacle."
+          },
+          {
+            "kind": "observation",
+            "text": "Ninguna casa publica cuotas todavía para este partido; ESPN tampoco tiene precios disponibles."
+          }
+        ]
+      },
+      {
+        "case": "seguimiento",
+        "question": "Compara cuotas de ese partido",
+        "answer": "Ninguna casa publica cuotas todavía para este partido; ESPN tampoco tiene precios disponibles.",
+        "elapsed_s": 14.011,
+        "path": [
+          {
+            "tool": "analyze_match",
+            "args": {
+              "match_id": 181043
+            }
+          },
+          {
+            "tool": "request_odds",
+            "args": {
+              "match_id": 181043
+            }
+          }
+        ],
+        "done": {
+          "iterations": 2,
+          "success": true
+        },
+        "repairs": 0,
+        "recoveries": 1,
+        "run_ids": [
+          237
+        ],
+        "fallback_used": false,
+        "steps": [
+          {
+            "kind": "observation",
+            "text": "Continúa con Colombia vs Chile: se consulta el análisis actualizado",
+            "memory": "continued"
+          },
+          {
+            "kind": "observation",
+            "text": "Sin precio de Pinnacle: entrega probabilidades del modelo, sin hablar de ventaja."
+          },
+          {
+            "kind": "recovery",
+            "text": "El agente decide consultar cuotas consultadas por el Ojeador"
+          },
+          {
+            "kind": "deviation",
+            "text": "Cambio de camino: cuotas consultadas por el Ojeador, porque no hay precio de Pinnacle."
+          },
+          {
+            "kind": "observation",
+            "text": "Ninguna casa publica cuotas todavía para este partido; ESPN tampoco tiene precios disponibles."
+          }
+        ]
+      },
+      {
+        "case": "C2",
+        "question": "¿cuánto paga Argentina contra Uruguay?",
+        "answer": "Gana Argentina: mejor 1.53 en DraftKings\nEmpate: mejor 3.90 en DraftKings\nGana Uruguay: mejor 5.75 en DraftKings\nSin Pinnacle no hay valor medible; son precios ofrecidos.",
+        "elapsed_s": 9.068,
+        "path": [
+          {
+            "tool": "get_upcoming_matches",
+            "args": {
+              "team": "Argentina",
+              "limit": 20
+            }
+          },
+          {
+            "tool": "request_odds",
+            "args": {
+              "match_id": 181042
+            }
+          }
+        ],
+        "done": {
+          "iterations": 2,
+          "success": true
+        },
+        "repairs": 0,
+        "recoveries": 1,
+        "run_ids": [
+          238
+        ],
+        "fallback_used": false,
+        "steps": [
+          {
+            "kind": "observation",
+            "text": "Ningún partido listado tiene precio de Pinnacle: no se puede evaluar ventaja."
+          },
+          {
+            "kind": "recovery",
+            "text": "El agente decide consultar cuotas consultadas por el Ojeador"
+          },
+          {
+            "kind": "deviation",
+            "text": "Cambio de camino: cuotas consultadas por el Ojeador, porque no hay precio de Pinnacle."
+          },
+          {
+            "kind": "observation",
+            "text": "Sin Pinnacle no hay valor medible; son precios ofrecidos."
+          }
+        ]
+      }
+    ],
+    "manual_review": "Tres respuestas verificadas, cero reparaciones, sin ids inventados; sin otra inferencia tras request_odds."
+  }
+}

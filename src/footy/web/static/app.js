@@ -57,13 +57,153 @@ const teamsRow = (o) => {
 };
 
 const cache = {};
+const apiPending = {};
 async function api(path, opts) {
   if (!opts && cache[path]) return cache[path];
-  const r = await fetch(path, opts);
-  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
-  const data = await r.json();
-  if (!opts) cache[path] = data;
-  return data;
+  if (!opts && apiPending[path]) return apiPending[path];
+  const request = async () => {
+    const r = await fetch(path, opts);
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+    const data = await r.json();
+    if (!opts) cache[path] = data;
+    return data;
+  };
+  if (opts) return request();
+  apiPending[path] = request();
+  try { return await apiPending[path]; } finally { delete apiPending[path]; }
+}
+
+/* ---------- estado compartido: fallar cerrado para recomendaciones ---------- */
+const systemState = { overview: null, health: null, kind: "loading", checked: 0, pending: null };
+const prospectiveViews = new Set(["inicio", "partidos", "apuestas", "combinadas", "simulador"]);
+
+async function loadSystemStatus(force = false) {
+  if (systemState.pending) return systemState.pending;
+  if (!force && systemState.checked && Date.now() - systemState.checked < 60000) {
+    if (systemState.overview) systemState.kind = FootyTrust.classify(systemState.overview);
+    paintSystemStatus();
+    pauseViewsIfNeeded();
+    return systemState;
+  }
+  systemState.pending = (async () => {
+    const [overview, health] = await Promise.allSettled([
+      api("/api/overview", { cache: "no-store" }), api("/api/agent/health", { cache: "no-store" }),
+    ]);
+    systemState.overview = overview.status === "fulfilled" ? overview.value : null;
+    systemState.health = health.status === "fulfilled" ? health.value : null;
+    systemState.kind = overview.status === "rejected" ? "error" : FootyTrust.classify(overview.value);
+    systemState.checked = Date.now();
+    paintSystemStatus();
+    pauseViewsIfNeeded();
+    return systemState;
+  })();
+  try { return await systemState.pending; } finally { systemState.pending = null; }
+}
+
+function pauseViewsIfNeeded() {
+  if (systemState.kind === "fresh") return;
+  document.querySelectorAll("section.view").forEach((view) => {
+    if (prospectiveViews.has(view.id.slice(2))) gateView(view, systemState.kind);
+  });
+  window.dispatchEvent(new Event("footy-data-paused"));
+}
+
+function paintSystemStatus() {
+  const box = $("#system-status"), o = systemState.overview || {}, h = systemState.health;
+  const state = systemState.kind;
+  const valid = ["fresh", "stale"].includes(state);
+  const when = valid ? FootyTrust.updatedTime(o.last_daily_run) : "";
+  const full = state === "fresh" ? `Datos al día · actualizados ${when}`
+    : state === "stale" ? `Datos sin actualizar desde ${when}`
+    : state === "error" ? "No se pudo comprobar la actualización de los datos" : "Sin fecha de actualización verificable";
+  const short = state === "fresh" ? `Datos · ${when}` : full;
+  const resting = h && !h.llm_available && h.autostart && !h.startup_failed;
+  const assistant = !h ? "No se pudo comprobar el estado del asistente" : h.llm_available
+    ? "El Míster disponible" : resting ? "El Míster en reposo (se activa al usarlo)"
+    : "El Míster no disponible (el resto funciona)";
+  const mode = h && h.briefing_mode === "template" ? "Resumen por plantilla" : "";
+  const smallAssistant = !h ? "El Míster: sin verificar" : resting ? "El Míster en reposo"
+    : !h.llm_available ? "El Míster: no disponible"
+    : mode || "El Míster disponible";
+  box.classList.toggle("status-strip--warn", state !== "fresh");
+  box.dataset.state = state;
+  $("#more-assistant-state").textContent = [assistant, mode].filter(Boolean).join(" · ");
+  const unit = (label, small, title) => `<span class="status-unit" role="group" title="${esc(title)}" aria-label="${esc(title)}">
+    <span class="status-full" aria-hidden="true">${esc(label)}</span><span class="status-short" aria-hidden="true">${esc(small)}</span></span>`;
+  const markup = unit(full, short, full) + unit([assistant, mode].filter(Boolean).join(" · "), smallAssistant, [assistant, mode].filter(Boolean).join(" · "))
+    + unit(`Modelo: ${o.model_version || "sin verificar"}`, o.model_version || "Modelo: —", `Modelo: ${o.model_version || "sin verificar"}`)
+    + `<button type="button" class="status-refresh" aria-label="Volver a comprobar datos y asistente">${REFRESH_ICON}Actualizar</button>`;
+  if (box.innerHTML !== markup) {
+    const focused = box.contains(document.activeElement);
+    box.innerHTML = markup;
+    if (focused) $(".status-refresh", box).focus();
+  }
+  $(".status-refresh", box).onclick = (event) => spinWhile(event.currentTarget, retryCurrentView);
+}
+
+function trustEmpty(box, kind, { count = 0, total = count, action = null } = {}) {
+  const messages = {
+    stale: ["Recomendaciones en pausa", "Sin datos recientes para evaluar.", "Ver últimos resultados"],
+    unknown: ["Recomendaciones en pausa", "Falta verificar la actualización.", "Ver últimos resultados"],
+    error: ["No se pudo cargar", "Reintenta la consulta.", "Reintentar"],
+    no_matches: ["Sin partidos próximos", "No hay partidos para esta selección.", "Ver todos los partidos"],
+    no_value: ["Sin ventaja detectada", `${count} de ${total} con Pinnacle; ninguno supera el 6 % sobre el precio justo.`, "Ver el semáforo"],
+    no_reference: ["Sin referencia de precio", `0 de ${total} con Pinnacle.`, "Ver los partidos"],
+  };
+  const [title, text, label] = messages[kind] || messages.error;
+  // action === false: sin botón (p. ej. el semáforo ya está en la misma vista, más abajo).
+  box.innerHTML = emptyState({ title, text, action: action === false ? "" : label });
+  box.querySelector(".empty-state").classList.add("empty-state--trust");
+  if (action === false) return;
+  box.querySelector(".empty-action").onclick = action || (kind === "error" ? retryCurrentView
+    : () => { location.hash = kind === "no_value" ? "#apuestas" : "#resultados"; });
+}
+
+function gateView(view, kind = null) {
+  const key = view.id.slice(2);
+  view.dataset.trustKind = kind || "";
+  let message = $(".view-trust-empty", view);
+  if (!message) {
+    message = document.createElement("div"); message.className = "view-trust-empty";
+    view.append(message);
+  }
+  [...view.children].forEach((child) => {
+    if (child === message || child.id === "system-status" || child.classList.contains("view-head")) return;
+    child.classList.toggle("trust-hidden", Boolean(kind));
+  });
+  message.hidden = !kind;
+  if (!kind) return;
+  if (key === "inicio") {
+    const tiles = $("#home-tiles"); tiles.classList.remove("trust-hidden");
+    tiles.innerHTML = ["Partidos próximos", "Con ventaja de precio"].map((title) =>
+      `<div class="card stat"><div class="label">${title}</div><div class="value">${kind === "no_matches" ? "0" : "—"}</div><div class="hint">${kind === "no_matches" ? "Sin partidos próximos" : "En pausa"}</div></div>`).join("");
+    tiles.after(message);
+  }
+  trustEmpty(message, kind, { action: kind === "no_matches" ? () => { location.hash = "#partidos"; } : null });
+}
+
+// Ícono de recarga para los botones «Actualizar»: gira al pasar el cursor y mientras la acción trabaja.
+const REFRESH_ICON = '<svg class="ico refresh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+  + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/>'
+  + '<path d="M21 3v5h-5"/></svg>';
+
+// Marca el botón como ocupado durante la acción; un mínimo de 600 ms evita un parpadeo si responde al instante.
+async function spinWhile(btn, action) {
+  if (!btn || btn.classList.contains("is-busy")) return;
+  btn.classList.add("is-busy");
+  btn.setAttribute("aria-busy", "true");
+  const start = performance.now();
+  try { await action(); } finally {
+    setTimeout(() => { btn.classList.remove("is-busy"); btn.removeAttribute("aria-busy"); },
+      Math.max(0, 600 - (performance.now() - start)));
+  }
+}
+
+async function retryCurrentView() {
+  for (const path of Object.keys(cache)) delete cache[path];
+  rendered.clear();
+  await loadSystemStatus(true);
+  route();
 }
 
 /* ---------- tema ---------- */
@@ -72,26 +212,59 @@ function setTheme(t) {
   document.documentElement.dataset.theme = t;
   try { localStorage.setItem("theme", t); } catch (e) { /* sin storage */ }
   redrawCharts();
+  $("#more-theme-label").textContent = `Tema ${t === "light" ? "claro" : "oscuro"}. Cambiar a ${t === "light" ? "oscuro" : "claro"}.`;
 }
-$("#theme").addEventListener("click", () => {
+function toggleTheme() {
   setTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light");
+}
+$("#theme").addEventListener("click", toggleTheme);
+$("#more-theme").addEventListener("click", toggleTheme);
+$("#more-assistant").addEventListener("click", () => toggleChat(true));
+$("#more-prefs").addEventListener("click", async () => {
+  const error = $("#more-action-error"); error.hidden = true;
+  try { await openPrefs(); } catch (e) { error.textContent = "No se pudieron cargar las preferencias. Vuelve a intentarlo."; error.hidden = false; }
 });
 
 /* ---------- navegación ---------- */
-const views = { inicio: renderHome, partidos: renderMatches, combinadas: () => renderCombos(), resultados: renderTracking,
-  rendimiento: renderBacktest, simulador: renderSimulator, "como-funciona": () => {} };
+const views = { inicio: renderHome, partidos: renderMatches, apuestas: renderBets, combinadas: () => renderCombos(), resultados: renderTracking,
+    rendimiento: renderBacktest, simulador: renderSimulator, "como-funciona": () => {}, explorar: () => {}, mas: () => {} };
+const pageTitles = { inicio: "Hoy", partidos: "Partidos", apuestas: "Apuestas", resultados: "Seguimiento", combinadas: "Combinadas",
+  simulador: "Simulador de partido", rendimiento: "¿Qué tan fiable es?", "como-funciona": "Cómo funciona", explorar: "Explorar", mas: "Más" };
+const navGroups = { combinadas: "explorar", simulador: "explorar", rendimiento: "mas", "como-funciona": "mas" };
 const rendered = new Set();
-function route() {
+let homeMatchRef = null;
+function route(event) {
   const id = (location.hash || "#inicio").slice(1);
-  const key = id in views ? id : "inicio";             // "#sugeridas" (enlaces antiguos) cae en el panel
+  if (id === "main" && event && event.type === "hashchange") { $("#main").focus({ preventScroll: true }); return; }
+  // El enlace de salto conserva la vista; abrir /#main directamente debe seguir mostrando Hoy.
+  const key = id === "main" ? (document.querySelector("section.view.active")?.id || "v-inicio").slice(2)
+    : id in views ? id : "inicio";             // "#sugeridas" (enlaces antiguos) cae en Hoy
   document.querySelectorAll("section.view").forEach((s) => s.classList.toggle("active", s.id === "v-" + key));
-  document.querySelectorAll(".navlink").forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + key));
-  const link = document.querySelector(`#nav a[href="#${key}"]`);
-  if (link) { $("#page-title").textContent = link.dataset.title; document.title = `${link.dataset.title} · Futbol ML`; }
-  if (!rendered.has(key) || key === "combinadas") {          // combinadas se redibuja: depende del boleto
-    rendered.add(key);
-    Promise.resolve(views[key]()).catch((e) => showError("v-" + key, e));
+  document.querySelectorAll(".navlink").forEach((a) => {
+    const active = a.dataset.navGroup === (navGroups[key] || key);
+    a.classList.toggle("active", active);
+    if (active) a.setAttribute("aria-current", navGroups[key] ? "location" : "page");
+    else a.removeAttribute("aria-current");
+  });
+  updateSecondaryNav(key, navGroups[key] || key);
+  const view = $("#v-" + key), strip = $("#system-status");
+  $(".view-head", view).after(strip);
+  strip.classList.toggle("status-strip--compact", key !== "inicio");
+  $("#page-title").textContent = pageTitles[key]; document.title = `${pageTitles[key]} · Fútbol ML`;
+  if (event && event.type === "hashchange") {
+    const heading = $(".view-head h1", view);
+    (heading.getClientRects().length ? heading : $("#page-title")).focus({ preventScroll: true });
   }
+  if (!rendered.has(key) || key === "combinadas" || (key === "partidos" && homeMatchRef)) {          // combinadas se redibuja: depende del boleto
+    loadSystemStatus().then(() => {
+      if (prospectiveViews.has(key)) {
+        if (systemState.kind !== "fresh") { gateView(view, systemState.kind); return; }
+        gateView(view);
+      }
+      rendered.add(key);
+      return views[key]();
+    }).catch((e) => showError("v-" + key, e));
+  } else if (key === "inicio") loadBriefing();
   window.scrollTo(0, 0);
 }
 window.addEventListener("hashchange", route);
@@ -144,8 +317,8 @@ function emptyMatches(box, filtered, reset, sel = null, catalog = []) {
     ? emptyState({ icon: "search", title: league ? `${esc(league.name)} no tiene partidos para este filtro` : "Sin partidos para este filtro",
       text: canSimulate ? "Puedes simular cualquier partido de esta liga o volver a ver todos." : "Prueba con otra liga, equipo o día.",
       action: "Ver todos los partidos" })
-    : emptyState({ title: "No hay partidos programados para hoy ni mañana",
-      text: "Puede ser fecha FIFA. La tarea diaria agrega partidos y cuotas a medida que se publican." });
+    : emptyState({ title: "No hay partidos en el calendario próximo",
+      text: "Los datos están actualizados. Puedes revisar otras ligas o los últimos resultados.", action: "Ver todos los partidos" });
   const b = box.querySelector(".empty-action");
   if (b) b.onclick = reset;
   if (canSimulate && b) {
@@ -167,7 +340,13 @@ const isFiltered = (sel, date) => (sel && sel.type !== "all") || (date && date.t
 
 function showError(id, e) {
   const el = document.getElementById(id);
-  el.insertAdjacentHTML("beforeend", `<div class="callout warn" style="margin-top:16px">No se pudieron cargar los datos: ${esc(e.message)}</div>`);
+  rendered.delete(id.slice(2));
+  if (prospectiveViews.has(id.slice(2))) gateView(el, "error");
+  else {
+    let box = $(".view-load-error", el);
+    if (!box) { box = document.createElement("div"); box.className = "view-load-error"; el.prepend(box); }
+    trustEmpty(box, "error");
+  }
 }
 
 /* ---------- gráficos ---------- */
@@ -180,11 +359,9 @@ function chart(id, build) {
 }
 function redrawCharts() { Object.keys(chartDefs).forEach((id) => chart(id, chartDefs[id])); }
 const FONT_BODY = '"Inter", system-ui, sans-serif';
-const FONT_MONO = '"JetBrains Mono", ui-monospace, Consolas, monospace';
-const FONT_DISPLAY = '"Plus Jakarta Sans", "Inter", system-ui, sans-serif';
 if (window.Chart) {                       // gráficos con la tipografía del sitio y tooltips flotantes con sombra
   Chart.defaults.font.family = FONT_BODY;
-  Chart.defaults.font.size = 11.5;
+  Chart.defaults.font.size = 12;
   Chart.register({
     id: "tooltipShadow",
     beforeTooltipDraw: (ch) => { const c = ch.ctx; c.save(); c.shadowColor = "rgba(2, 6, 23, .45)"; c.shadowBlur = 18; c.shadowOffsetY = 6; },
@@ -238,15 +415,15 @@ function baseOptions(extra = {}) {
         // las series con área degradada usan el color de su línea en la leyenda
         generateLabels: (ch) => Chart.defaults.plugins.legend.labels.generateLabels(ch)
           .map((l) => (typeof l.fillStyle === "string" ? l : { ...l, fillStyle: l.strokeStyle })) } },
-      // tooltip oscuro tipo terminal en ambos temas: cifras en monoespaciada
-      tooltip: { backgroundColor: "#111726", titleColor: "#f1f5fb", bodyColor: "#c9d3e3", footerColor: "#8b97ab",
-        borderColor: "rgba(255, 255, 255, .10)", borderWidth: 1, padding: 12, cornerRadius: 10, boxPadding: 5, caretSize: 6,
-        usePointStyle: true, titleFont: { family: FONT_DISPLAY, weight: "700", size: 12.5 },
-        bodyFont: { family: FONT_MONO, size: 12 }, footerFont: { family: FONT_MONO, size: 11, weight: "500" } },
+      // Inter y colores del tema también en los textos del gráfico.
+      tooltip: { backgroundColor: css("--surface-2"), titleColor: css("--text"), bodyColor: text, footerColor: css("--muted"),
+        borderColor: css("--border"), borderWidth: 1, padding: 12, cornerRadius: 10, boxPadding: 5, caretSize: 6,
+        usePointStyle: true, titleFont: { family: FONT_BODY, weight: "700", size: 13 },
+        bodyFont: { family: FONT_BODY, size: 13 }, footerFont: { family: FONT_BODY, size: 12, weight: "600" } },
     },
     scales: {
-      x: { grid: { color: grid, drawTicks: false }, border: { display: false }, ticks: { color: text, font: { family: FONT_MONO, size: 11 }, padding: 6 } },
-      y: { grid: { color: grid, drawTicks: false }, border: { display: false }, ticks: { color: text, font: { family: FONT_MONO, size: 11 }, padding: 6 } },
+      x: { grid: { color: grid, drawTicks: false }, border: { display: false }, ticks: { color: text, font: { family: FONT_BODY, size: 12 }, padding: 6 } },
+      y: { grid: { color: grid, drawTicks: false }, border: { display: false }, ticks: { color: text, font: { family: FONT_BODY, size: 12 }, padding: 6 } },
     },
     ...extra,
   };
@@ -275,7 +452,8 @@ function miniBar(p) {
 function stat(label, value, hint = "") {
   return `<div class="card stat"><div class="label">${label}</div><div class="value num">${value}</div>${hint ? `<div class="hint">${hint}</div>` : ""}</div>`;
 }
-const SOURCE_PILL = { "modelo + mercado": "good", modelo: "", "modelo entre ligas": "", mercado: "warn", "sin datos": "", error: "bad" };
+const SOURCE_PILL = { "modelo + mercado": "good", modelo: "", "modelo entre ligas": "", "modelo selecciones": "",
+  mercado: "warn", "sin datos": "", error: "bad" };
 const KPI_ICONS = {
   value: '<path d="M3 17 9 11l4 4 8-8"/><path d="M15 7h6v6"/>',
   reliable: '<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/>',
@@ -291,12 +469,32 @@ function kpi(kind, label, value, hint, good = false) {
 }
 
 /* ---------- calculadora de apuesta ---------- */
-const clp = (x) => (x == null || isNaN(x) ? "–" : (x < 0 ? "−$" : "$") + Math.round(Math.abs(x)).toLocaleString("es-CL"));
+const clp = FootyFormat.money;
+const amountValue = input => FootyFormat.parseAmount(input.value);
+function formatAmountInput(input) {
+  const value = amountValue(input);
+  if (Number.isFinite(value) && value > 0) { input.value = FootyFormat.amount(value); input.setCustomValidity(""); }
+}
+function bindAmountInput(input) {
+  input.type = "text"; input.inputMode = "decimal";
+  input.onfocus = () => { const value = amountValue(input); if (Number.isFinite(value)) input.value = String(value).replace(".", ","); };
+  input.onblur = () => formatAmountInput(input);
+  if (!input.dataset.amountBound) {
+    input.addEventListener("input", () => input.setCustomValidity(amountValue(input) > 0 ? "" : "Ingresa un monto mayor que cero."));
+    input.dataset.amountBound = "true";
+  }
+  formatAmountInput(input);
+}
 function getStake() {
-  try { return Number(localStorage.getItem("stake")) || 5000; } catch (e) { return 5000; }
+  try {
+    const value = Number(localStorage.getItem("stake"));
+    return Number.isFinite(value) && value > 0 ? value : 5000;
+  } catch (e) { return 5000; }
 }
 function setStake(v) {
-  try { localStorage.setItem("stake", String(v)); } catch (e) { /* sin storage */ }
+  const amount = FootyFormat.parseAmount(v);
+  if (!(amount > 0)) return;
+  try { localStorage.setItem("stake", String(amount)); } catch (e) { /* sin storage */ }
 }
 // Resultado de apostar `stake` a `odds` con probabilidad `p` de acertar (según el sistema).
 function payout(stake, odds, p) {
@@ -315,7 +513,7 @@ function vcell(op) {
     return `<div class="vcell none" title="${esc(op.label)}: sin cuota de mercado disponible aún">
       <b>${pct(op.p)}</b><span>—</span><small>sin cuota</small></div>`;
   }
-  const v = op.verdict || { level: "none", label: "Sin cuota", reason: "" };
+  const v = priceVerdict(op) || { level: "none", label: "Sin cuota", reason: "" };
   return `<div class="vcell ${v.level}" title="${esc(op.label)}: ${esc(v.reason)}"><b>${pct(op.p)}</b>
     <span>${num(op.odds)}</span><small>${esc(v.label)}</small></div>`;
 }
@@ -325,6 +523,7 @@ let semSel = { type: "all" }, semDate = { type: "all" };
 async function renderSemaphore() {
   const [list, catalog] = await Promise.all([api("/api/upcoming"), leagueCatalog()]);
   const draw = () => {
+    if (systemState.kind !== "fresh") { gateView($("#v-apuestas"), systemState.kind); return; }
     const shown = list.filter((m) => leagueSelMatch(semSel, m, catalog) && dateSelMatch(semDate, m.kickoff));
     if (!shown.length) return emptyMatches($("#semaforo"), isFiltered(semSel, semDate), reset, semSel, catalog);
     $("#semaforo").innerHTML = `<table class="sem"><thead><tr><th>Partido</th>${SEM_COLS.map(([, n]) => `<th style="text-align:center">${n}</th>`).join("")}
@@ -340,42 +539,87 @@ async function renderSemaphore() {
   return list;
 }
 function bestOption(m) {
-  return (m.options || []).filter((o) => o.odds && !o.estimated && o.verdict)
+  return (m.options || []).filter((o) => o.odds && !o.estimated && o.p_fair != null && o.verdict)
     .sort((a, b) => (RANK[b.verdict.level] - RANK[a.verdict.level]) || ((b.ev ?? -9) - (a.ev ?? -9)))[0];
 }
 function semRow(m) {
   const ops = Object.fromEntries((m.options || []).map((o) => [o.key, o]));
   const best = bestOption(m);
   return `<tr><td class="m" onclick="goToCombos('${esc(m.ref)}')"><div class="mt">${matchTag(m, 22)}</div>
-    <div style="color:var(--muted);font-size:12px">${leagueLogo(m.league, 13)} ${esc(m.league_name)} · ${fmtDate(m.kickoff)}${m.stale ? " · ⚠ datos atrasados" : ""}</div></td>
+    <div style="color:var(--muted);font-size:var(--fs-xs)">${leagueLogo(m.league, 13)} ${esc(m.league_name)} · ${fmtDate(m.kickoff)}${m.stale ? " · ⚠ datos atrasados" : ""}</div></td>
     ${SEM_COLS.map(([k]) => `<td>${vcell(ops[k])}</td>`).join("")}
-    <td>${best ? `${vchip(best.verdict)}<div style="font-size:12.5px;margin-top:4px">${esc(best.label)} a ${num(best.odds)}</div>`
-      : '<span style="color:var(--muted);font-size:12.5px">sin cuotas aún</span>'}</td></tr>`;
+    <td>${best ? `${vchip(best.verdict)}<div style="font-size:var(--fs-sm);margin-top:4px">${esc(best.label)} a ${num(best.odds)}</div>`
+      : `<span style="color:var(--muted);font-size:var(--fs-sm)">${esc(FootyTrust.priceState(m).label)}</span>`}</td></tr>`;
 }
 
 /* ---------- INICIO ---------- */
-// Ticker del motor: datos vigentes de /api/overview (nada escrito a mano).
-function renderTicker(o) {
-  const e = o.engine || {};
-  const ago = o.last_daily_run ? Math.max(0, Math.round((Date.now() - new Date(o.last_daily_run)) / 3600000)) : null;
-  const chip = (k, v, title = "") => `<span class="ticker-chip" title="${esc(title)}"><span>${k}</span><b>${v}</b></span>`;
-  const model = e.ml_model === "poisson_goals" ? "Poisson λ/μ" : esc(e.ml_model || "Elo + DC");
-  $("#quant-ticker").innerHTML = [
-    `<span class="ticker-chip live"><span class="live-dot"></span><b>Motor activo</b>${ago != null ? `<span>datos hace ${ago} h</span>` : ""}</span>`,
-    chip("Ligas", `${o.n_leagues_model} con modelo · ${e.n_competitions} seguidas`),
-    chip("Modelo", `${model}${e.rho != null ? ` · ρ ${num(e.rho, 3)}` : ""}`, "Goles esperados del local (λ) y la visita (μ); todos los mercados salen de la misma matriz"),
-    chip("Sharp", esc(e.sharp || "–"), "Precio justo de referencia: cuotas de Pinnacle sin margen"),
-    chip("Edge", `≥ ${signed(e.min_edge, 1)}`, "Ventaja mínima sobre el precio justo para apostar"),
-    chip("Cuota", `≤ ${num(e.max_odds, 1)}`),
-    chip("Stake", `${e.kelly_fraction === 0.25 ? "1/4" : num(e.kelly_fraction, 2)} Kelly · máx ${pct(e.max_stake, 0)}`, `Máximo ${pct(e.max_daily, 0)} del bankroll por día`),
-    chip("Calibración", `T ${num(e.temperature, 2)}`, "Ajuste automático con resultados reales: T > 1 suaviza, T < 1 agudiza"),
+let homeFavoriteRefs = new Set();
+const homeTeamKey = name => String(name).normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+async function renderHomeFavorites(list) {
+  const box = $("#home-favorites-body");
+  homeFavoriteRefs = new Set();
+  try {
+    const p = await api(`/api/agent/preferences?user_id=${AGENT_USER}`, { cache: "no-store" });
+    const teams = new Set(p.favorite_teams.map(homeTeamKey));
+    const favorites = list.filter(m => teams.has(homeTeamKey(m.home)) || teams.has(homeTeamKey(m.away)))
+      .sort((a, b) => Date.parse(a.kickoff) - Date.parse(b.kickoff));
+    homeFavoriteRefs = new Set(favorites.map(m => m.ref));
+    box.innerHTML = favorites.length ? `<p>${matchTag(favorites[0])} · ${esc(fmtDate(favorites[0].kickoff))}</p>
+      <button type="button" class="chip" data-home-ref="${esc(favorites[0].ref)}">Ver próximo partido</button>`
+      : `<p>${teams.size ? "Tus equipos no tienen partidos en el calendario disponible." : "Elige favoritos para priorizar sus próximos partidos."}</p>
+        <button type="button" class="chip" data-home-prefs>${teams.size ? "Cambiar favoritos" : "Elegir mis equipos"}</button>`;
+  } catch (e) {
+    box.innerHTML = '<p>No se pudieron cargar tus favoritos.</p><button type="button" class="chip" data-home-retry>Reintentar</button>';
+  }
+}
+function renderHomeReview(list) {
+  const best = m => {
+    const all = m.pro || [], eligible = all.filter(o => o.bet);
+    return (eligible.length ? eligible : all).reduce((top, o) => !top || o.edge > top.edge ? o : top, null);
+  };
+  const chosen = [...list].sort((a, b) => Number(Boolean(best(b)?.bet)) - Number(Boolean(best(a)?.bet))
+    || Number(homeFavoriteRefs.has(b.ref)) - Number(homeFavoriteRefs.has(a.ref)) || Date.parse(a.kickoff) - Date.parse(b.kickoff)).slice(0, 3);
+  $("#home-review").innerHTML = chosen.map(m => {
+    const o = best(m), level = !o ? "neutral" : o.bet ? "good" : "warn";
+    const badge = !o ? FootyTrust.priceState(m).label : o.bet ? `Con ventaja ${signed(o.edge)} · Pinnacle` : "Sin ventaja detectada";
+    return `<button type="button" class="review-card" data-home-ref="${esc(m.ref)}">
+      <span class="review-meta">${esc(m.league_name || m.league)} · ${esc(fmtDate(m.kickoff))}</span>
+      <span class="review-teams">${matchTag(m, 24)}</span><span class="pill ${level}"><i aria-hidden="true"></i>${esc(badge)}</span>
+      ${compactProb(m.p_official)}<span class="review-action">Ver partido →</span></button>`;
+  }).join("");
+}
+$("#v-inicio").addEventListener("click", async e => {
+  const button = e.target.closest("button"); if (!button) return;
+  if (button.dataset.homeRef) { homeMatchRef = button.dataset.homeRef; matchSel = { type: "all" }; matchDate = { type: "all" }; location.hash = "#partidos"; }
+  if (button.hasAttribute("data-home-retry")) { await renderHomeFavorites(cache["/api/upcoming"] || []); renderHomeReview(cache["/api/upcoming"] || []); }
+  if (button.hasAttribute("data-home-prefs")) $("#brief-prefs").click();
+});
+// Apuestas: recomendaciones con valor, más fiables y semáforo, como destino propio (antes plegado en Partidos).
+async function renderBets() {
+  await api("/api/upcoming");                       // drawCurrent lee el calendario desde la caché
+  await Promise.all([renderSuggestions(), renderReliable({ current: true }), renderSemaphore()]);
+}
+async function renderHome() {
+  $("#home-date").textContent = new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", weekday: "long", day: "numeric", month: "long" }).format(new Date());
+  await loadSystemStatus();
+  if (systemState.kind !== "fresh") { gateView($("#v-inicio"), systemState.kind); return; }
+  const list = await api("/api/upcoming");
+  if (!list.length) { gateView($("#v-inicio"), "no_matches"); return; }
+  const sug = await api("/api/suggestions");
+  if (systemState.kind !== "fresh") return;
+  loadBriefing();
+  $("#home-tiles").innerHTML = [
+    kpi("reliable", "Partidos próximos", list.length, "Calendario disponible"),
+    kpi("value", "Con ventaja de precio", sug.singles.length, "En el calendario próximo", sug.singles.length > 0),
   ].join("");
+  await renderHomeFavorites(list);
+  if (systemState.kind !== "fresh") return;
+  renderHomeReview(list);
 }
 
-async function renderHome() {
+async function renderHomeHistory() {
   const o = await api("/api/overview");
-  renderTicker(o);
-  const b = o.backtest, t = o.tracking;
+  const b = o.backtest;
   $("#hero-acc").innerHTML = `${pct(b.acc_official, 1)} <small>de ${b.n.toLocaleString("es-CL")} partidos</small>`;
   $("#hero-sub").textContent = `Partidos de ${b.leagues} ligas entre ${fmtDate(b.from, false)} y ${fmtDate(b.to, false)}, que el sistema no había visto al elegir sus parámetros.`;
   $("#hero-note").innerHTML = `<div><b>¿50% es poco?</b> Hay tres resultados posibles: adivinando al azar se acierta 33%, y siempre al local ${pct(b.acc_naive_home)}.
@@ -385,22 +629,7 @@ async function renderHome() {
     ["Siempre al local", pct(b.acc_naive_home, 1), "estrategia ingenua"],
     ["Modelo solo", pct(b.acc_model, 1), "Elo + Dixon-Coles"],
     ["Casas de apuestas", pct(b.acc_market, 1), "cuotas de cierre"],
-  ].map(([l, v, h]) => `<div class="stat"><div class="label">${l}</div><div class="value num" style="font-size:22px">${v}</div><div class="hint">${h}</div></div>`).join("");
-
-  // Cada sección se dibuja por su cuenta en cuanto llega su dato; los indicadores esperan a ambos.
-  renderSemaphore().catch((e) => showError("v-inicio", e));
-  const [sug, rel] = await Promise.all([renderSuggestions(), renderReliable()]);
-  const L = sug.ledger || {}, R = rel.record || {};
-  // Cada indicador lleva un ícono de su tema; el acento esmeralda solo aparece cuando hay apuestas con valor.
-  $("#home-tiles").innerHTML = [
-    kpi("value", "Apuestas con valor hoy", sug.singles.length, `en ${sug.n_matches_sharp} partidos con precio de Pinnacle`,
-      sug.singles.length > 0),
-    kpi("reliable", "Pronósticos fiables hoy", rel.today.length, `selecciones con ${pct(rel.min_p)} o más`),
-    kpi("accuracy", "Precisión en vivo", R.n ? pct(R.hit, 1) : "–",
-      R.n ? `esperaba ${pct(R.expected, 1)} · ${R.n} pronósticos` : `${R.pending || 0} pronósticos esperando resultado`),
-    kpi("ledger", "Cartera en papel", L.settled ? signed(L.yield) : `${L.open || 0} <small>abiertas</small>`,
-      L.clv != null ? `CLV ${signed(L.clv)} · ${pct(L.clv_pos)} sobre el cierre` : L.settled ? `${L.won} ganadas de ${L.settled}` : "se mide al terminar cada partido"),
-  ].join("");
+  ].map(([l, v, h]) => `<div class="stat"><div class="label">${l}</div><div class="value num" style="font-size:var(--fs-lg)">${v}</div><div class="hint">${h}</div></div>`).join("");
 
   chart("ch-confidence", () => ({
     type: "bar",
@@ -435,6 +664,11 @@ async function renderMatches() {
   // Los partidos en juego van arriba, en su propio bloque, en Todos, Hoy y Jugados hoy (con el filtro de liga).
   const withLive = () => ["all", "today", "played"].includes(matchDate.type);
   const draw = () => {
+    if (systemState.kind !== "fresh") { gateView($("#v-partidos"), systemState.kind); return; }
+    const leagueLabel = matchSel.type === "all" ? "Todas las ligas" : matchSel.name || matchSel.value || matchSel.code;
+    const dateLabel = { all: "Todas las fechas", today: "Hoy", yesterday: "Ayer", played: "Jugados hoy", tomorrow: "Mañana" }[matchDate.type] || fmtDate(matchDate.day, false);
+    $("#match-selection").textContent = `${leagueLabel} · ${dateLabel}`;
+    $("#match-clear").disabled = !isFiltered(matchSel, matchDate);
     const done = { yesterday: past, played: today }[matchDate.type];
     const live = withLive() ? today.matches.filter((m) => m.status === "live" && leagueSelMatch(matchSel, m, catalog)) : [];
     const shown = (done ? done.matches : list).filter((m) => leagueSelMatch(matchSel, m, catalog) && dateSelMatch(matchDate, m.kickoff)
@@ -442,11 +676,16 @@ async function renderMatches() {
     if (chips) chips.sync();
     if (!shown.length && !live.length) return emptyMatches($("#matches"), isFiltered(matchSel, matchDate), reset, matchSel, catalog);
     $("#matches").innerHTML = liveBlock(live, today) + (done ? resultsNote(done) + resultGroups(shown) : matchGroups(shown));
+    if (homeMatchRef) {
+      const ref = homeMatchRef; homeMatchRef = null;
+      const row = [...document.querySelectorAll("#matches .mrow")].find(r => r.dataset.ref === ref);
+      if (row) { row.click(); row.focus({ preventScroll: true }); row.scrollIntoView({ block: "center" }); }
+    }
   };
   // Con partidos en juego a la vista, los marcadores se vuelven a pedir cada minuto (solo con la pestaña visible).
   clearInterval(liveTimer);
   liveTimer = setInterval(async () => {
-    if (document.hidden || location.hash !== "#partidos" || !withLive()) return;
+    if (document.hidden || !$("#v-partidos").classList.contains("active") || !withLive()) return;
     delete cache["/api/results?day=today"];
     try { today = await api("/api/results?day=today"); draw(); } catch (e) { /* se reintenta en el próximo ciclo */ }
   }, LIVE_REFRESH_MS);
@@ -460,15 +699,22 @@ async function renderMatches() {
   };
   const reset = () => { matchSel = { type: "all" }; matchDate = { type: "all" }; mount(); draw(); };
   mount();
+  $("#match-clear").onclick = reset;
   const toggle = (row) => {
     const next = row.nextElementSibling;
     const open = !(next && next.classList.contains("mdetail"));
+    if (open) row.dataset.scrollY = String(window.scrollY);
     if (open) row.insertAdjacentHTML("afterend", `<div class="mdetail">${matchCard(byRef[row.dataset.ref])}</div>`);
     else next.remove();
     row.classList.toggle("open", open);
     row.setAttribute("aria-expanded", String(open));
+    if (open) {
+      const detail = row.nextElementSibling;
+      api("/api/suggestions").then(d => { if ((d.ledger?.items || []).some(i => `m:${i.match_id}` === row.dataset.ref) && detail.isConnected) detail.querySelector(".paper-link").hidden = false; }).catch(() => {});
+    } else { row.focus({ preventScroll: true }); window.scrollTo(0, Number(row.dataset.scrollY) || 0); }
   };
   $("#matches").onclick = (e) => {
+    if (e.target.closest("[data-match-close]")) { toggle(e.target.closest(".mdetail").previousElementSibling); return; }
     if (e.target.closest("button, a, .mdetail")) return;
     const row = e.target.closest(".mrow"); if (row) toggle(row);
   };
@@ -560,8 +806,11 @@ function matchRow(m) {
   const day = new Intl.DateTimeFormat("es-CL", { weekday: "short", day: "numeric" }).format(d);
   const pm = m.p_market;
   const cell = (k, i, color) => {
-    if (!p) return `<div class="pcell"><b>–</b><span>sin datos</span></div>`;
-    const o = ops[k], v = o && o.verdict;
+    if (!p) {
+      const raw = m.odds_1x2?.[FootyTrust.priceState(m).book]?.[i];
+      return `<div class="pcell"><i>${k}</i><b>${raw ? num(raw) : "–"}</b><span>sin probabilidad</span></div>`;
+    }
+    const o = ops[k], v = o && priceVerdict(o);
     const tip = [v ? `${v.label}: ${v.reason}` : "", pm ? `Mercado: ${pct(pm[i])}` : ""].filter(Boolean).join(" · ");
     // Botón de cuota: etiqueta 1/X/2, la cuota en grande y la probabilidad del sistema debajo.
     const odds = o && o.odds ? num(o.odds) : null;
@@ -576,7 +825,7 @@ function matchRow(m) {
     <div class="time"><b>${time}</b><span>${esc(day)}</span>${m.round ? `<em class="stage">${esc(stageLabel(m.round))}</em>` : ""}</div>
     <div class="tm">${tag(m.home_id, m.home, fav === 0, st.home_pos)}${tag(m.away_id, m.away, fav === 2, st.away_pos)}</div>
     ${cell("1", 0, "--home")}${cell("X", 1, "--draw")}${cell("2", 2, "--away")}
-    <div class="best">${best ? `${evBadge(best) || vchip(best.verdict)}<span>${esc(best.label)} · ${num(best.odds)}</span>` : `<span>${m.stale ? "datos atrasados" : "sin cuotas aún"}</span>`}</div>
+    <div class="best">${best ? `${evBadge(best) || vchip(best.verdict)}<span>${esc(best.label)} · ${num(best.odds)}</span>` : `<span>${m.stale ? "datos atrasados" : esc(FootyTrust.priceState(m).label)}</span>`}</div>
     <svg class="chev" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
   </div>`;
 }
@@ -623,6 +872,8 @@ const TEAM_HIT = ".team, .teams .t, .h2h-team, .rf-opp, .st-head > span";
 document.addEventListener("click", (e) => {
   const hit = e.target.closest(TEAM_HIT);
   if (!hit || hit.closest(".mrow")) return;
+  // En la cabecera del partido el bloque del equipo es ancho: solo cuentan el escudo y el nombre.
+  if (hit.matches(".teams .t") && !e.target.closest(".teams .t > span, .teams .t [data-team]")) return;
   const logo = hit.querySelector("[data-team]") || (e.target.dataset && e.target.dataset.team ? e.target : null);
   if (!logo) return;
   e.preventDefault(); e.stopPropagation();
@@ -714,7 +965,7 @@ function predictionBlock(m) {
       <div class="row"><span></span><span>Local</span><span>Empate</span><span>Visita</span></div>
       <div class="row"><span>${esc(m.model_name === "ML historial" ? "Modelo ML" : "Modelo")}</span>${m.p_model.map((x) => `<span class="num">${pct(x)}</span>`).join("")}</div>
       <div class="row"><span>Mercado</span>${m.p_market.map((x) => `<span class="num">${pct(x)}</span>`).join("")}</div></div>` : ""}
-    ${m.p_model && !m.p_market && m.model_name === "ML historial" ? `<div class="reco"><span class="pill">pronóstico ML</span> sin cuotas aún: probabilidades del modelo entrenado con el historial de los equipos</div>` : ""}
+    ${m.p_model && !m.p_market && m.model_name === "ML historial" ? `<div class="reco"><span class="pill">pronóstico ML</span> ${esc(FootyTrust.priceState(m).label)}: probabilidades del modelo entrenado con el historial de los equipos</div>` : ""}
   </section>`;
 }
 // Tira de enfrentamientos directos: los últimos partidos entre ambos (siempre anteriores a este), con el resultado
@@ -803,10 +1054,10 @@ async function toggleStandings(btn) {
   }
 }
 // "Market Avg" es un promedio, no una casa donde apostar: se muestra, pero no compite por la mejor cuota ni el +EV.
-const NOT_BETTABLE = new Set(["Market Avg"]);
+const NOT_BETTABLE = new Set(["Pinnacle", "Betfair Exchange", "Betfair", "Market Avg", "Market Max", "Tu casa"]);
 const BOOK_ORDER = ["Pinnacle", "Bet365", "Betfair Exchange", "Betfair", "Market Avg"];
 const MIN_EDGE = 0.06;   // mismo umbral que pro.MIN_EDGE: desde aquí el semáforo recomienda apostar
-function oddsTable(odds, p) {
+function oddsTable(odds, fair) {
   const names = Object.keys(odds).sort((a, b) => {
     const ia = BOOK_ORDER.indexOf(a), ib = BOOK_ORDER.indexOf(b);
     return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
@@ -815,7 +1066,6 @@ function oddsTable(odds, p) {
   const bettable = real.length ? real : names;
   const best = [0, 1, 2].map((i) => Math.max(...bettable.map((b) => odds[b][i])));
   const bestBook = best.map((x, i) => bettable.find((b) => odds[b][i] === x));
-  const fair = p ? p.map((x) => 1 / x) : null;
   const payout = (o) => 1 / o.reduce((s, x) => s + 1 / x, 0);
   const cell = (b, x, i) => {
     const isBest = bettable.length > 1 && !NOT_BETTABLE.has(b) && x === best[i];
@@ -829,12 +1079,12 @@ function oddsTable(odds, p) {
     <thead><tr><th>Casa</th><th>1</th><th>X</th><th>2</th><th class="pay">Payout</th></tr></thead>
     <tbody>${names.map((b) => {
       const o = odds[b], pay = payout(o);
-      return `<tr${NOT_BETTABLE.has(b) ? ' class="avg"' : ""}><td class="bk">${esc(b === "Market Avg" ? "Promedio mercado" : b)}</td>
+      return `<tr${NOT_BETTABLE.has(b) ? ' class="avg"' : ""}><td class="bk">${esc(b === "Market Avg" ? "Promedio mercado" : FootyTrust.bookLabel(b))}</td>
         ${o.map((x, i) => cell(b, x, i)).join("")}
         <td class="num pay" title="Margen de la casa: ${pct(1 - pay, 1)}">${pct(pay, 1)}</td></tr>`;
     }).join("")}
-    ${fair ? `<tr class="fair"><td class="bk">Cuota justa (modelo)</td>${fair.map((x) => `<td class="num">${num(x)}</td>`).join("")}<td class="num pay">100%</td></tr>` : ""}
-    <tr class="gain"><td class="bk">Si apuestas 1.000</td>${best.map((x, i) => `<td class="num" title="Con la mejor cuota (${esc(bestBook[i])})">+${Math.round(x * 1000 - 1000).toLocaleString("es-CL")}</td>`).join("")}<td></td></tr>
+    ${fair ? `<tr class="fair"><td class="bk">Precio justo Pinnacle</td>${fair.map((x) => `<td class="num">${num(x)}</td>`).join("")}<td class="num pay">100%</td></tr>` : ""}
+    ${real.length ? `<tr class="gain"><td class="bk">Si apuestas 1.000</td>${best.map((x, i) => `<td class="num" title="Con la mejor cuota (${esc(bestBook[i])})">+${Math.round(x * 1000 - 1000).toLocaleString("es-CL")}</td>`).join("")}<td></td></tr>` : ""}
     </tbody></table></div></div>`;
 }
 function matchCard(m) {
@@ -848,43 +1098,55 @@ function matchCard(m) {
   let oddsHtml = "";
   const books = m.odds_1x2 ? Object.keys(m.odds_1x2) : [];
   if (books.length > 1) {
-    oddsHtml = oddsTable(m.odds_1x2, p);
+    oddsHtml = oddsTable(m.odds_1x2, FootyTrust.pinnacleFair(m));
   } else if (books.length) {
     const book = books[0];
     const o = m.odds_1x2[book];
-    const fair = p ? p.map((x) => 1 / x) : null;
+    const fair = FootyTrust.pinnacleFair(m);
     oddsHtml = `<div class="compare">
-      <div class="odds-row"><span>Cuota ${esc(book)}</span>${o.map((x) => `<span><b>${num(x)}</b></span>`).join("")}</div>
-      ${fair ? `<div class="odds-row"><span>Cuota justa</span>${fair.map((x, i) => `<span title="${o[i] > x ? "La casa paga más que la cuota justa" : "La casa paga menos que la cuota justa"}">${num(x)}</span>`).join("")}</div>` : ""}
+      <div class="odds-row"><span>Precio ${esc(FootyTrust.bookLabel(book))}</span>${o.map((x) => `<span><b>${num(x)}</b></span>`).join("")}</div>
+      ${fair ? `<div class="odds-row"><span>Precio justo Pinnacle</span>${fair.map((x, i) => `<span title="${o[i] > x ? "La casa paga más que el precio justo" : "La casa paga menos que el precio justo"}">${num(x)}</span>`).join("")}</div>` : ""}
       <div class="odds-row" style="color:var(--muted)"><span>Si apuestas 1.000</span>${o.map((x) => `<span>gana ${Math.round(x * 1000 - 1000).toLocaleString("es-CL")}</span>`).join("")}</div></div>`;
-  } else if (p) {
-    oddsHtml = `<div class="compare"><div class="odds-row"><span>Cuota justa</span>${p.map((x) => `<span>${num(1 / x)}</span>`).join("")}</div>
-      <div style="color:var(--muted)">Cuotas de la casa: aún no publicadas o no recolectadas.</div></div>`;
+  } else {
+    oddsHtml = `<p class="mc-note">Sin cuotas aún: no hay precios publicados o recolectados.</p>`;
+  }
+  if (!FootyTrust.priceState(m).reference && books.length) {
+    oddsHtml += '<p class="mc-note">Son precios ofrecidos; sin referencia Pinnacle no se evalúa ventaja.</p>';
   }
   return `<article class="card match">
     <div class="meta"><span class="lg">${leagueLogo(m.league, 16)}${esc(m.league_name)}</span><span>${fmtDate(m.kickoff)}</span></div>
     ${teamsRow(m)}
+    <button type="button" class="chip" data-match-close>Volver a la lista</button>
+    <section class="mc-sec"><h4>Probabilidad de acertar</h4>${compactProb(p)}
+      <p class="mc-note">Fuente: ${esc(m.source)} · ${esc(m.model_name || systemState.overview?.model_version || "Modelo sin verificar")}. ${esc(FootyTrust.updatedTime(systemState.overview?.last_daily_run))}.</p>
+      ${m.model_name?.includes("selecciones") ? `<p class="mc-note">${esc(r.text || "")}</p>` : ""}
+      <p>Una probabilidad alta no equivale a una ventaja de precio.</p></section>
+    ${priceAdvantage(m)}
+    <details class="match-context"><summary>Forma, tabla, modelo y cuotas</summary>
     ${predictionBlock(m)}
     ${statsBlock(m)}
     ${m.standings_summary ? `<section class="mc-sec st-sec" data-league="${esc(m.league)}" data-home="${m.home_id}" data-away="${m.away_id}">
       <button type="button" class="chip st-toggle" onclick="toggleStandings(this)">Ver tabla de posiciones</button>
       <div class="st-box"></div></section>` : ""}
-    <section class="mc-sec"><h4>Cuotas y valor</h4>
+    <section class="mc-sec"><h4>Cuotas disponibles · exploración</h4>
       <div class="reco"><span class="pill ${SOURCE_PILL[m.source] ?? ""}">${esc(m.source)}</span>
         ${m.options && m.options.length ? `<span class="sem-legend">${["1", "X", "2"].map((k) => {
           const op = m.options.find((x) => x.key === k);
           return op ? vchip(op.verdict, `${k === "1" ? "Local" : k === "X" ? "Empate" : "Visita"} ${pct(op.p)}`) : "";
         }).join("")}</span>` : ""}</div>
       ${oddsHtml}
-      <div class="reco">${reco}</div>
+
       ${m.options && m.options.length ? `<button class="chip" style="justify-self:start" onclick="goToCombos('${esc(m.ref)}')">Ver todas las opciones y combinar →</button>` : ""}
     </section>
+    </details>
     ${m.stale ? `<div class="stale">⚠ Datos de la liga hasta ${fmtDate(m.data_through, false)}: faltan fechas recientes (la fuente se atrasó).</div>` : ""}
   </article>`;
 }
 
 /* ---------- RESULTADOS ---------- */
 async function renderTracking() {
+  const [suggestions] = await Promise.all([api("/api/suggestions"), renderReliable({ record: true })]);
+  drawLedger(suggestions.ledger || {});
   const d = await api("/api/tracking");
   const s = d.summary;
   const llTxt = s.ll_market != null
@@ -897,9 +1159,9 @@ async function renderTracking() {
   ].join("");
   $("#trk-table").innerHTML = d.matches.length ? `<table>
     <thead><tr><th>Fecha</th><th>Liga</th><th>Partido</th><th>Probabilidades</th><th>Pronóstico</th><th class="r">Resultado</th><th></th><th>Versión</th></tr></thead>
-    <tbody>${d.matches.map((m) => `<tr>
+    <tbody>${d.matches.map((m) => `<tr data-result="${m.hit ? "win" : "lose"}">
       <td>${fmtDate(m.kickoff)}</td><td title="${esc(m.league_name || m.league)}">${leagueLogo(m.league, 18) || esc(m.league)}</td><td>${matchTag(m, 18)}</td>
-      <td>${miniBar(m.p_official)} <span class="num" style="color:var(--muted);font-size:12px">${m.p_official.map((x) => pct(x)).join(" · ")}</span></td>
+      <td>${miniBar(m.p_official)} <span class="num" style="color:var(--muted);font-size:var(--fs-xs)">${m.p_official.map((x) => pct(x)).join(" · ")}</span></td>
       <td>${SEL[m.pick]} <span class="num" style="color:var(--muted)">(${pct(m.p_official[m.pick])})</span></td>
       <td class="r"><b>${esc(m.score)}</b></td>
       <td>${m.hit ? '<span class="pill good">✓ acierto</span>' : '<span class="pill bad">✗ fallo</span>'}</td>
@@ -907,7 +1169,7 @@ async function renderTracking() {
     : `<div class="empty">Todavía no terminan partidos con predicción registrada.</div>`;
   $("#trk-bets").innerHTML = d.bets.length ? `<table>
     <thead><tr><th>Fecha</th><th>Partido</th><th>Selección</th><th class="r">Cuota</th><th class="r">EV</th><th class="r">CLV</th><th class="r">Resultado</th><th>Versión</th></tr></thead>
-    <tbody>${d.bets.map((b) => `<tr><td>${fmtDate(b.kickoff)}</td><td>${esc(b.partido)}</td><td>${SEL["HDA".indexOf(b.sel)]} (${esc(b.book)})</td>
+    <tbody>${d.bets.map((b) => `<tr data-result="${b.won ? "win" : "lose"}"><td>${fmtDate(b.kickoff)}</td><td>${esc(b.partido)}</td><td>${SEL["HDA".indexOf(b.sel)]} (${esc(b.book)})</td>
       <td class="r">${num(b.odds)}</td><td class="r">${signed(b.ev)}</td><td class="r">${signed(b.clv)}</td>
       <td class="r">${b.won ? `<span class="pill good">+${num(b.profit)} u</span>` : '<span class="pill bad">−1 u</span>'}</td>
       <td><span class="pill">${esc(b.version)}</span></td></tr>`).join("")}</tbody></table>`
@@ -916,6 +1178,9 @@ async function renderTracking() {
 
 /* ---------- RENDIMIENTO ---------- */
 async function renderBacktest() {
+  renderHomeHistory().catch((e) => showError("v-rendimiento", e));
+  renderReliable({ metrics: true }).catch((e) => showError("v-rendimiento", e));
+  api("/api/suggestions").then(d => drawProBacktest(d.pro_backtest || {}, d.ledger || {})).catch((e) => showError("v-rendimiento", e));
   renderRuleHistory().catch((e) => showError("v-rendimiento", e));
   renderML().catch((e) => showError("v-rendimiento", e));
   const d = await api("/api/backtest");
@@ -1024,7 +1289,7 @@ async function renderML() {
       ${tbl(`Más/menos de 2,5 (${r.over25.n.toLocaleString("es-CL")})`, r.over25, [["dixon_coles", "Dixon-Coles"], ["ml", "ML historial"], ["mercado", "Mercado"], ["ml_mercado", "ML + mercado"]])}
       ${tbl("Ambos marcan", r.btts, [["frecuencia_historica", "Frecuencia histórica"], ["ml", "ML historial"]])}
     </div>
-    <div class="stack" style="font-size:14px;color:var(--text-2);margin-top:16px">
+    <div class="stack" style="font-size:var(--fs-base);color:var(--text-2);margin-top:16px">
       <p><b style="color:var(--text)">El ML mejora a los modelos anteriores, pero poco:</b> aprende de ${r.n_features} variables del historial de los equipos
         (forma, tiros, localía, temporada, rachas, descanso, enfrentamientos directos) con ${r.n_train.toLocaleString("es-CL")} partidos.</p>
       <p><b style="color:var(--text)">No alcanza al mercado:</b> al combinarlos, el ML recibe peso ${num(r.blend["1x2"][0], 2)} frente a
@@ -1110,16 +1375,17 @@ function mountIconSelect(select, { items, placeholder = "Buscar…", disabled = 
 let simMode = "same";
 async function renderSimulator() {
   $("#sim-stake").value = getStake();
+  bindAmountInput($("#sim-stake"));
   // El envío se registra primero (si no, un clic temprano recargaría la página) y el botón espera a los equipos.
   const submitBtn = $("#sim-form button[type=submit]");
   submitBtn.disabled = true;
   submitBtn.textContent = "Cargando equipos…";
   const teamsOf = {};                                   // equipos por liga (con id) de la última carga
-  $("#sim-form").addEventListener("submit", async (e) => {
+  $("#sim-form").onsubmit = async (e) => {
     e.preventDefault();
     const btn = e.target.querySelector("button[type=submit]"); btn.disabled = true;
     const odds = ["#sim-o1", "#sim-o2", "#sim-o3"].map((s) => parseFloat($(s).value));
-    const st = parseFloat($("#sim-stake").value);
+    const st = amountValue($("#sim-stake"));
     if (st > 0) setStake(st);
     const hl = sel.value, al = simMode === "cross" ? $("#sim-away-league").value : hl;
     const idOf = (lg, name) => ((teamsOf[lg] || []).find((t) => t.name === name) || {}).id;
@@ -1132,7 +1398,7 @@ async function renderSimulator() {
     } catch (err) {
       $("#sim-out").innerHTML = `<div class="callout warn">${esc(err.message)}</div>`;
     } finally { btn.disabled = false; }
-  });
+  };
   // Misma liga: las ligas con modelo validado. Entre ligas: todas las ligas seguidas y "Otras ligas".
   const [modelLeagues, catalog] = await Promise.all([api("/api/leagues"), leagueCatalog()]);
   const allLeagues = catalog.filter((c) => c.type === "league").map((c) => ({ code: c.code, name: c.name }))
@@ -1186,8 +1452,8 @@ async function renderSimulator() {
     await loadAll();
   };
   $("#sim-mode").onclick = (e) => { const b = e.target.closest(".t-chip"); if (b && b.dataset.m !== simMode) setMode(b.dataset.m); };
-  sel.addEventListener("change", loadAll);
-  asel.addEventListener("change", async () => { const a = await loadSide(asel, $("#sim-away")); mountTeams(teamsOf[sel.value], a); });
+  sel.onchange = loadAll;
+  asel.onchange = async () => { const a = await loadSide(asel, $("#sim-away")); mountTeams(teamsOf[sel.value], a); };
   await setMode(simMode);
   submitBtn.disabled = false;
   submitBtn.textContent = "Calcular probabilidades";
@@ -1244,7 +1510,7 @@ function renderSimResult(r) {
   </div>`;
   syncAddButtons();
   const drawSim = () => {
-    const st = parseFloat($("#sim-stake2").value) || 0;
+    const st = Math.max(0, amountValue($("#sim-stake2")) || 0);
     $("#sim-payouts").innerHTML = `<table><thead><tr><th>Apuesta</th><th class="r">Cuota</th><th class="r">Probabilidad</th>
       <th class="r">Si aciertas, recibes</th><th class="r">Ganancia neta</th><th class="r">Si fallas</th><th class="r">Ganancia esperada</th></tr></thead>
       <tbody>${SEL.map((n, i) => {
@@ -1254,24 +1520,23 @@ function renderSimResult(r) {
           <td class="r" style="color:${x.expected >= 0 ? "var(--good)" : "var(--bad)"}"><b>${x.expected >= 0 ? "+" : ""}${clp(x.expected)}</b></td></tr>`;
       }).join("")}</tbody></table>`;
   };
+  bindAmountInput($("#sim-stake2"));
   $("#sim-stake2").oninput = (e) => { setStake(e.target.value); drawSim(); };
   drawSim();
 }
 
 /* ---------- barra lateral y superior ---------- */
 async function initChrome() {
+  $("#more-theme-label").textContent = `Tema ${document.documentElement.dataset.theme === "light" ? "claro" : "oscuro"}. Cambiar tema.`;
   $("#tb-date").textContent = new Intl.DateTimeFormat("es-CL", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
-  try {
-    const o = await api("/api/overview");
-    const el = $("#status-line");
-    if (o.last_daily_run) {
-      const h = (Date.now() - new Date(o.last_daily_run)) / 3.6e6;
-      const ago = h < 1 ? `hace ${Math.max(1, Math.round(h * 60))} min` : h < 48 ? `hace ${Math.round(h)} h` : `hace ${Math.round(h / 24)} días`;
-      el.classList.toggle("stale", h > 30);
-      el.innerHTML = `<i class="dot"></i><span>Datos actualizados ${ago}<br>modelo ${esc(o.model_version)}</span>`;
-    }
-  } catch (e) { /* el estado es informativo */ }
+  await loadSystemStatus();
+  setInterval(async () => {
+    if (document.hidden) return;
+    const previous = systemState.kind, stamp = systemState.overview && systemState.overview.last_daily_run;
+    await loadSystemStatus(true);
+    if (systemState.kind === "fresh" && (previous !== "fresh" || stamp !== systemState.overview.last_daily_run)) retryCurrentView();
+  }, 60000);
 }
 
 // combos.js se carga después de este archivo: se enruta cuando ambos están listos.
-window.addEventListener("DOMContentLoaded", () => { paintSkeletons(); route(); initChrome(); });
+window.addEventListener("DOMContentLoaded", () => { initViewComponents(); paintSkeletons(); route(); initChrome(); });

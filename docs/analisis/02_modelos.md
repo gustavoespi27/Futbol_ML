@@ -2,6 +2,10 @@
 
 *Generado por `scripts/evaluate_models.py`.*
 
+**Revisión A2 (2026-11-09):** estas tablas evalúan una regla histórica independiente, con el tope Kelly de 5%
+indicado más abajo; no dependen de `suggestions.MAX_STAKE`. Se conservan sus cifras y el experimento original.
+La política vigente de producción es 2% por apuesta. Véase [la regeneración A2](10_riesgo_unificado.md).
+
 **Diseño (sin leakage):** predicción semanal; cada semana el modelo se ajusta solo con partidos anteriores.
 Validación 2016-2021: se eligen hiperparámetros, pesos y umbral de EV.
 Test 2022-2025: evaluación única. Live 2026: sin Pinnacle.

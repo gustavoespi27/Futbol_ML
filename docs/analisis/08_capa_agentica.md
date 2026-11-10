@@ -1,5 +1,9 @@
 # Evaluación reproducible de la capa agéntica
 
+> Evaluación general de cierre: [pieza 5, evaluación final y demo](#pieza-5-evaluación-final-y-cierre).
+> El resto del documento conserva las mediciones históricas; no son el resultado de cierre.
+> Último ajuste autorizado: [precarga del seguimiento antes de congelar](#precarga-del-seguimiento-antes-de-congelar-2026-11-10).
+
 Ficha sintética fija; 15 preguntas por modelo; inferencia local real. Una ejecución por pregunta. La primera consulta incluye carga del modelo. Tokens/s = tokens de salida / latencia total (incluye prompt y herramientas); no es velocidad pura de generación. Memoria según /api/ps, no RAM total del sistema. La verificación numérica no valida la semántica ni la pertinencia.
 
 ## qwen2.5:7b
@@ -44,3 +48,922 @@ Memoria del modelo: 2063 MB; VRAM: 2063 MB.
 | ¿Cómo está rindiendo el sistema? | get_system_performance | get_system_performance | True | True | 5.165 | 14.33 |
 | ¿Cuál es el CLV del sistema? | get_system_performance | get_system_performance | True | True | 4.73 | 7.82 |
 | ¿Cuántos partidos evaluados y qué yield tiene el seguimiento? | get_system_performance | get_system_performance | True | True | 4.8 | 9.37 |
+
+## A — Pulido del chat (2026-11-09)
+
+Comparación con `f8e7cb5`, paquete anterior aislado en `reports/agente/antes`; mismos servicios sintéticos y siete preguntas, Ollama real `qwen2.5:7b`, una ejecución por caso. No demuestra exactitud en producción ni equivalencia estadística. Se conservan arriba las mediciones previas.
+
+Reproducción del estado actual: `.venv/Scripts/python scripts/eval_agent.py --models qwen2.5:7b --revision-only --output reports/agente/revision.md`.
+
+| Criterio automático | Antes | Después |
+|---|---:|---:|
+| herramienta_correcta | 3/7 | 5/7 |
+| sin_fugas | 3/7 | 7/7 |
+| cifras_verificadas | 6/7 | 7/7 |
+| sin_valor_sin_precio | 7/7 | 7/7 |
+| explica_riesgo_combinada | 6/7 | 7/7 |
+| success | 7/7 | 7/7 |
+
+La pregunta sobre combinadas admite responder la política sin herramientas; cuenta como criterio aprobado, no como llamada. La verificación numérica del mensaje fijo de rechazo no demuestra que el modelo haya respondido la pregunta. `success` muestra el resultado real del SSE.
+
+| Pregunta | Herramientas antes → después | Latencia antes → después |
+|---|---|---:|
+| ¿Qué partidos hay hoy y hay alguno con valor? | get_upcoming_matches → get_upcoming_matches, get_value_bets | 10.791 → 7.851 s |
+| ¿Cómo va Colo-Colo en la tabla? | get_league_standings → get_upcoming_matches | 5.795 → 4.896 s |
+| ¿Qué tan fiable es el sistema? | get_system_performance → get_system_performance | 6.569 → 9.122 s |
+| ¿Cuánto debería apostar si tengo 100.000 pesos? | Ninguna → get_stake_limits | 3.4 → 6.792 s |
+| ¿Quién gana el Real Madrid vs Barcelona? | Ninguna → get_upcoming_matches | 2.674 → 3.848 s |
+| Dame una combinada segura para hoy | get_value_bets, get_value_bets → Ninguna | 10.441 → 2.84 s |
+| ¿Qué probabilidad tiene Botosani de ganar? | Ninguna → get_upcoming_matches | 2.956 → 3.252 s |
+
+Límites observados: la pregunta de tabla sigue usando solo la precarga de partidos; la pregunta Real Madrid–Barcelona usa probabilidades de próximos partidos en vez de simular. El grounding comprueba procedencia numérica, no pertinencia, definiciones ni causalidad. El detector de valor es conservador por oración; no sustituye una revisión semántica.
+
+Cambios: texto final retenido y verificado antes del primer token; preámbulos de llamadas descartados; pseudollamadas con un reintento; cobertura Pinnacle explícita; límites y cifras del usuario admitidos; montos calculados en código y formateados en CLP; alias de catálogo y mínimo de ventaja ajustado.
+
+Validación: 230 tests completos; 93 del agente; cobertura 96 % (693/722 sentencias); Ruff y `node --check agent.js` en verde. Contrato SSE sin cambios.
+# Pieza 3: ruteo y entidades (2026-11-09)
+
+Sondeo secuencial con `qwen2.5:7b` real y ficha sintética Chile–Colombia (20/30/50 %).
+No mide pronósticos reales. Script: `scripts/eval_agent_routing.py --output reports/agente/ruteo.json`.
+La precarga está deshabilitada en este sondeo para aislar la decisión del modelo.
+
+| Consulta | Primer sondeo | Último sondeo | Latencia final |
+|---|---|---|---|
+| Analiza el partido de la roja | find_team → analyze_match | find_team → analyze_match | 13,118 s |
+| ¿Y quién es favorito? | find_team → analyze_match (búsqueda repetida) | analyze_match (match_id=42) | 13,224 s |
+
+Primer sondeo: 1/2 caminos esperados, latencias 28,992 y 22,555 s. Un intento intermedio con solo
+la instrucción reforzada en el system prompt falló el seguimiento: no consultó herramientas y la
+respuesta fue bloqueada. La versión final añade recuperación específica con el identificador reciente:
+2/2 caminos, ambas respuestas verificadas, favorito Colombia. El seguimiento final necesitó una
+recuperación y tres inferencias; el análisis inicial también tres. No se afirma que el modelo consulte
+siempre correctamente al primer intento. Una muestra por consulta no permite inferir mejora de latencia
+ni una tasa general de éxito; carga del modelo y caché influyen.
+
+Evidencia local: `reports/agente/pieza3-ruteo.json`, `pieza3-ruteo-final.json` (intermedio) y
+`pieza3-ruteo-recuperacion.json` (versión final). Los resultados incluyen eventos completos.
+La memoria guarda identidad sin probabilidades ni cuotas; respeta usuario, 30 minutos y borrado.
+La migración agrega `entities` mediante ALTER si falta, sin modificar tablas del motor.
+Validación: 366 pytest; cobertura agéntica medida 95,41 %; Ruff, sintaxis JS y ocho pruebas web correctos.
+
+## Corrección de contaminación entre temas (2026-11-09)
+
+Comparación contra `c38152b`: Qwen 2.5 de 7B real, consultas en orden y herramientas reales de lectura.
+La memoria se guarda en SQLite en memoria, aislada de la conversación del usuario. No se modifica el motor.
+Comando: `.venv/Scripts/python scripts/eval_agent_routing.py --mode conversacion --output reports/agente/conversacion-despues.json`.
+Para reproducir el antes se usa el mismo script con los módulos de `c38152b`.
+Los datos reales pueden cambiar entre ejecuciones: esta prueba mide ruteo, no precisión predictiva.
+
+| Pregunta | Antes: herramientas | Después: herramientas | Después (s) |
+|---|---|---|---:|
+| Analiza el partido de la roja | upcoming | upcoming → analyze_match(181043) | 14,712 |
+| ¿Y quién es favorito? | find_team | analyze_match(181043) | 12,409 |
+| ¿Cómo llega el Colo Colo? | get_team_form | get_team_form | 9,793 |
+| Simula Colo Colo contra la U | simulate_match | simulate_match | 9,328 |
+| que partidos vienen ahora? | upcoming (contaminado por filtro CHL) | upcoming (sin liga heredada) | 10,968 |
+| ¿Qué apuestas con valor hay hoy? | get_value_bets | get_value_bets | 7,812 |
+| ¿Por qué no hay apuestas recomendadas? | ninguna; copia anterior | get_coverage | 12,937 |
+| ¿Qué tan fiable es el sistema? | ninguna; respuesta ajena al tema | get_system_performance | 13,961 |
+| ¿Cuánto debería apostar si tengo 100.000 pesos? | ninguna; copia anterior | get_stake_limits(100000) | 9,399 |
+| Dame una combinada segura para hoy | policy | policy | 0,001 |
+
+`upcoming` abrevia `get_upcoming_matches`. Resultado: herramienta esperada **5/10 → 10/10**;
+copias literales del turno anterior **2 → 0**. La última pregunta valida la política sin llamar al LLM.
+No se encontraron respuestas heredadas de otro tema en la revisión manual del después. El script detecta
+igualdad literal; esa métrica por sí sola no demuestra ausencia de paráfrasis ni corrección semántica.
+Evidencia local con eventos, argumentos, texto y latencias: `reports/agente/conversacion-antes.json` y
+`reports/agente/conversacion-despues.json`. Una ejecución por variante, sin inferencias concurrentes.
+
+La continuidad es determinista: menos de 80 caracteres, referencia de seguimiento y ninguna entidad nueva
+detectada por apodos, precarga o catálogo. Solo se envía el último par de mensajes. Un tema nuevo no recibe
+historial ni entidades. La bitácora registra ambas decisiones; solo la continuidad emite la observación visible.
+La precarga por equipo conserva la identidad del primer partido por kickoff, sin probabilidades ni precios.
+La recuperación selecciona una herramienta por intención original y pasa los argumentos conocidos.
+
+**Límites observados:** aunque el después cumple el criterio de herramientas, Qwen interpretó al revés el
+CLV negativo y el mayor log loss, confundió el límite diario con el límite por apuesta y sugirió posible
+desactualización sin consultarla en la respuesta sobre valor. `verify_numbers` comprueba presencia numérica,
+no el significado ni la asociación cifra-concepto. Estos defectos no quedan resueltos ni se presentan como
+aprobados por esta corrección de memoria. Se mantienen como pendientes para revisión antes de la demo.
+
+Validación final: **392 pytest**, cobertura agéntica **95,16 %** (1425 sentencias, 69 sin cubrir), Ruff,
+sintaxis de agent.js y ocho pruebas Node correctos. Pruebas FakeLLM cubren diez turnos, continuidad positiva
+y negativa, precarga, argumentos de recuperación, aislamiento de tema nuevo y decisión en bitácora.
+
+## Frases canónicas y comprobación semántica mínima (2026-11-09)
+
+Corrección posterior a la aprobación de `c8fceab`. Las herramientas entregan `form_text`, `limits_text`
+y `assessment` calculados en código. La evaluación de rendimiento interpreta CLV, yield y log loss;
+explica que no hay tasa de aciertos del mercado en el payload y no inventa esa comparación.
+Las probabilidades de analyze_match y simulate_match conservan su `summary` y `favorite` etiquetados.
+El prompt exige copiar estos textos para la idea correspondiente.
+
+`check_claims` comprueba tres confusiones acotadas: porcentajes de topes asociados al horizonte equivocado,
+conteos de forma incompatibles con `last5_counts` y polaridad del CLV invertida. Los hallazgos se integran
+en la reparación existente antes de emitir tokens. Una segunda respuesta inválida queda bloqueada.
+No es una validación general de significado. Con varios equipos en el turno se omite la comparación
+automática de conteos para no adjudicar a uno las cifras del otro. Las asociaciones por oración pueden
+rechazar frases compuestas ambiguas: las frases canónicas separan cada tope en una oración.
+
+Se repitió la conversación completa, en orden, con Qwen 2.5 de 7B y herramientas reales, usando
+`scripts/eval_agent_routing.py --mode conversacion --output reports/agente/conversacion-interpretacion.json`.
+La columna siguiente fue revisada manualmente; `done.success` solo expresa el resultado del verificador,
+no esta revisión semántica.
+
+| Pregunta | Herramienta esperada usada | Interpretación correcta (revisión manual) | Latencia (s) |
+|---|---|---|---:|
+| Analiza el partido de la roja | Sí | No evaluable: bloqueada tras reparación numérica | 26,301 |
+| ¿Y quién es favorito? | No | No: pide identificar el partido; el turno anterior no guardó respuesta ni entidades | 8,813 |
+| ¿Cómo llega el Colo Colo? | Sí | Sí: 2 ganados, 2 empatados, 1 perdido; EEPGG | 9,806 |
+| Simula Colo Colo contra la U | Sí | Sí: favorito Colo Colo; probabilidades etiquetadas correctamente | 9,463 |
+| que partidos vienen ahora? | Sí | No: conversión UTC/Chile incorrecta y conclusión de valor no sustentada por el calendario | 12,054 |
+| ¿Qué apuestas con valor hay hoy? | Sí | No: atribuye actualización a una herramienta que no informa frescura | 7,816 |
+| ¿Por qué no hay apuestas recomendadas? | Sí | Parcial: identifica cobertura de dos partidos, pero la frase «sin este precio» generaliza esa ausencia | 16,037 |
+| ¿Qué tan fiable es el sistema? | Sí | Parcial: CLV negativo desfavorable y yield negativo pérdida correctos; omite decir explícitamente cuál log loss es mejor | 22,084 |
+| ¿Cuánto debería apostar si tengo 100.000 pesos? | Sí | Sí: $2.000 por apuesta, $10.000 diarios, topes sin apuesta sugerida | 8,890 |
+| Dame una combinada segura para hoy | Sí (política sin LLM) | Sí: rechaza seguridad y remite a Combinadas educativa | 0,000 |
+
+**Resultado completo: 9/10 herramientas esperadas, cero copias literales del turno anterior.** Las tres
+confusiones solicitadas no aparecieron en el texto final. Rendimiento necesitó reparación; límites y forma
+respondieron con los conceptos correctos, aunque el modelo no siempre copió literalmente toda la frase.
+No se afirma que las diez interpretaciones sean correctas: la tabla conserva los defectos adicionales.
+Comparación con la batería anterior: forma pasó sin error en aquella ejecución, pero Gustavo observó
+conteos erróneos en vivo; CLV y topes diarios estaban invertidos en la evidencia anterior. Esta nueva prueba
+comprueba su corrección, sin establecer una tasa general de fiabilidad ni una mejora de latencia.
+
+Para investigar el bloqueo inicial se repitieron **solo los dos primeros turnos**, sin cambiar código ni datos
+deliberadamente y sin inferencias concurrentes. El primer análisis pasó a 15,103 s; la evidencia separada está
+en `reports/agente/interpretacion-diagnostico-turnos.json`, con borradores numéricos locales en
+`interpretacion-diagnostico.json`. Este diagnóstico no reemplaza ni mejora el resultado de la batería completa.
+Las respuestas dependen del modelo y siguen siendo variables.
+
+Validación: **420 pytest**, cobertura agéntica **95,36 %** (1486 sentencias, 69 sin cubrir), Ruff,
+sintaxis de agent.js y ocho pruebas Node correctos. FakeLLM verifica reparación para conteos, ambos
+topes cruzados y ambas polaridades del CLV; las versiones correctas pasan sin publicar el borrador erróneo.
+Motor y contrato SSE intactos. Pieza 4 sin iniciar; este commit se entrega para revisión.
+
+## Respaldo determinista y horas locales (2026-11-09)
+
+Tras la aprobación de `cb82190`, se incorpora `fallback.py`. Si la reparación no consigue una respuesta
+verificada, compone los textos del turno en orden: summary/favorite de análisis o simulación, form_text,
+limits_text, assessment, freshness/rule y notas de observación. También puede entregar el calendario
+consultado con los nombres y kickoff_local existentes. El resumen elimina textos duplicados y debe pasar
+verify_numbers **y** check_claims antes de emitir el step «Se entrega el resumen verificado de los datos
+consultados» y done.success=true. Sin textos útiles o si falla esa comprobación conserva SAFE_TEXT y
+done.success=false. El mismo respaldo aprovecha datos útiles si el modelo devuelve texto vacío, insiste
+en pseudollamadas o agota las iteraciones; no requiere otra inferencia.
+
+El router guarda las entidades consultadas aun con done.success=false. En ese caso guarda una respuesta
+vacía que history no reenvía al LLM; el seguimiento conserva identidad sin reutilizar el texto fallido.
+Las respuestas de respaldo verificadas sí se recuerdan. No cambia el esquema de las tablas ni el SSE.
+
+get_upcoming_matches, analyze_match y find_team.next_match incluyen kickoff_local calculado con la zona
+America/Santiago. Ejemplo real: **vie 13-11, 21:00 hora de Chile**, correspondiente al kickoff UTC del 14
+de noviembre a medianoche; el día de la semana se calcula, sin depender del idioma de Windows. El prompt
+prohíbe conversiones manuales. El verificador admite la fecha/hora local de la herramienta y rechaza una
+fecha/hora canónica diferente. Esto no equivale a verificar todas las paráfrasis posibles de fechas y horas.
+
+Sondeo solicitado: dos secuencias independientes **turno 1 → turno 2 → turno 5**, cada una con memoria
+aislada y Qwen 2.5 de 7B real, una consulta a la vez. Comando reproducible:
+
+```powershell
+.venv/Scripts/python scripts/eval_agent_routing.py --mode respaldo --output reports/agente/demo-respaldo.json
+```
+
+| Repetición | Turno | Herramientas | Respaldo | Respuesta / revisión manual | Latencia (s) |
+|---|---|---|---|---|---:|
+| 1 | 1: analiza la roja | upcoming → analyze_match(181043) | Sí | Colombia 67,5 %, empate 20 %, Chile 12,5 %; favorito Colombia; sin Pinnacle | 27,083 |
+| 1 | 2: ¿y quién es favorito? | analyze_match(181043) | No | Colombia; conserva el partido y la hora local correctos | 12,125 |
+| 1 | 5: qué partidos vienen | upcoming | No | Cinco horarios de Chile correctos; conclusión final de ausencia de valor no respaldada por esta herramienta | 11,816 |
+| 2 | 1: analiza la roja | upcoming → analyze_match(181043) | Sí | Mismo resumen calculado y advertencia; ninguna cifra del borrador inválido | 27,037 |
+| 2 | 2: ¿y quién es favorito? | analyze_match(181043) | No | Colombia; no pide de nuevo identificar el partido | 11,755 |
+| 2 | 5: qué partidos vienen | upcoming | No | Horarios correctos; aclara falta de referencia Pinnacle para los últimos tres partidos | 11,880 |
+
+`upcoming` abrevia get_upcoming_matches. **6/6 herramientas esperadas y 6/6 respuestas no vacías, todas
+con done.success=true; dos respaldos efectivos.** Ningún SAFE_TEXT ni copia literal del turno previo en
+estas secuencias. El respaldo resolvió precisamente el análisis inicial que en la batería anterior quedó
+bloqueado y perdió las entidades. La cantidad de muestras es pequeña: no garantiza disponibilidad ni
+corrección general. En particular, el comentario sobre valor del primer calendario sigue fuera de las
+comprobaciones semánticas acotadas y no se considera aprobado.
+
+Evidencia completa: `reports/agente/demo-respaldo.json`, `demo-respaldo-1.json` y `demo-respaldo-2.json`
+(eventos, argumentos, respuestas y latencias). Los datos de producción pueden cambiar entre pruebas.
+
+Validación final: **431 pytest**, cobertura agéntica **95,64 %** (1560 sentencias, 68 sin cubrir), Ruff,
+sintaxis de agent.js y ocho pruebas Node correctos. El módulo de respaldo tiene cobertura del 100 %.
+FakeLLM prueba doble fallo con datos, SAFE_TEXT sin datos, fallos terminales y seguimiento después de error
+o respaldo; se comprueba el horario local en las tres tools, tanto en verano como en invierno.
+Motor intacto; ejecución detenida tras el commit para revisión, antes de la pieza 4.
+
+## Pieza 4: acciones y vigía autónomo (2026-11-09)
+
+Se implementaron create_watch, list_watches, cancel_watch y add_favorite con argumentos Pydantic estrictos.
+La identidad procede del request, nunca del LLM. El ruteo reconoce las intenciones de avisar, listar,
+cancelar y agregar favoritos. Una pregunta de lectura no autoriza escrituras. Antes de crear, el chat
+debe identificar el objetivo mediante find_team/analyze_match; una precarga sola no basta. El conjunto
+de herramientas ofrecidas respeta esa etapa y el propósito solicitado. Se conserva el límite original
+de rondas. Las confirmaciones se arman en código a partir de los ids realmente devueltos, sin otra
+inferencia. Una vigilancia idéntica activa devuelve la existente con «ya estaba vigilando».
+
+Persistencia propia: agent_watches, agent_watch_state, agent_alerts y agent_watch_log, además de las
+preferencias existentes. DDL idempotente e índices únicos para objetivos activos y alertas. Estado,
+alerta y fulfilled se escriben en la misma transacción BEGIN IMMEDIATE; dos vigías concurrentes no
+duplican alertas. No se escribe en pro_bets, daily_picks ni en tablas del motor.
+
+El vigía ejecuta percibir → comparar → decidir → actuar → registrar. Lee service.upcoming y conserva
+Pinnacle, edge, elegibilidad real (`bet`), probabilidades oficiales, kickoff y fuente. Compara líneas
+crudas de Pinnacle (movimiento relativo ≥5 %) y probabilidades (≥3 puntos porcentuales). Inicio cercano
+significa próximas 24 horas; la regla global de pérdida de cobertura solo alerta en las últimas 12 horas.
+La primera percepción establece línea base para transiciones globales. Los objetivos explícitos de
+precio disponible o valor elegible pueden cumplirse con el estado ya disponible. Los objetivos son de
+una sola ejecución: cumplidos pasan a fulfilled. La prioridad ordena por kickoff y edge; una vigilancia
+explícita prevalece sobre la misma regla global, evitando dos avisos del mismo evento.
+
+Cada decisión, también los descartes y su motivo, queda en la bitácora junto al snapshot percibido.
+Los textos salen exclusivamente de plantillas con cifras en facts y pasan verify_numbers antes de
+guardarse. **El vigía no crea clientes LLM, no inicia Ollama y no lo consulta.** La ausencia de LLM está
+probada con funciones de arranque/inferencia prohibidas durante el test. daily y prekickoff lo llaman
+al finalizar dentro de try/except; su fallo no rompe el pipeline. La salida de prekickoff sin partidos
+conserva la prueba de no importar numpy/pandas/sklearn: el servicio y el verificador se importan de forma
+perezosa cuando son necesarios. Las escrituras agent_* no invalidan la revisión de datos del motor.
+
+Endpoints nuevos, con contratos extra=forbid:
+
+| Método y ruta | Uso |
+|---|---|
+| GET /api/agent/alerts?user_id=default&unread=true | Alertas pendientes del usuario; sin disparar el vigía |
+| POST /api/agent/alerts/{id}/read | JSON `{ "user_id": "default" }`; 404 si no pertenece al usuario |
+| GET /api/agent/watches?user_id=default | Objetivos y estados |
+| GET /api/agent/watch-log?user_id=default&limit=20 | Snapshot, decisiones, motivos, acciones y tiempo; límite 1–100 |
+
+La UI vanilla muestra alertas arriba, badge del FAB y «Bitácora del agente» con ejecuciones del chat y
+vigía. Los detalles se despliegan con teclado; conserva expansión, posición y foco al refrescar.
+Sondea cada 30 segundos solo con la página visible, sin iniciar el vigía ni Ollama. Un refresco pedido
+mientras otro está en curso se ejecuta después: marcar leída no deja el badge atrasado.
+
+### Validación con los datos reales
+
+`scripts/validate_agent_watch.py --output reports/agente/pieza4-datos-reales.json --publish` leyó el
+snapshot real: **40 partidos, 2 con Pinnacle y 0 con una selección elegible de valor**. Validó ambos
+objetivos para todos los partidos en tablas aisladas, copiando solo las identidades reales: dos
+alertas pinnacle_available y ninguna value_appears; repetición inmediata, cero alertas nuevas.
+No se alteraron cuotas para producir una oportunidad inexistente. Hay edges positivos de 10,24 % y
+11,59 % en los dos partidos con precio, pero el motor marca bet=false: el vigía no los convierte en
+recomendaciones. El caso positivo real de value_appears queda pendiente de que ocurra; el disparo
+positivo y sus límites están cubiertos por tests controlados, no se presenta como ocurrido en producción.
+
+Con --publish se crearon en tablas propias los objetivos 3 (Pinnacle) y 4 (valor) para Qatar U23–Singapore
+U23, match_id=181054. En la app, `scripts/agent_watch.py` produjo la alerta **1**, cumpliendo el objetivo 3;
+el 4 sigue pendiente sin valor elegible. Esa alerta real se ve en el panel y el badge. Se probó marcarla
+leída desde la UI, actualización inmediata del badge y foco; se restauró sin leer para la revisión.
+
+| Ejecución real | Percibidos | Alertas nuevas | Tiempo del ciclo, incluida lectura del snapshot |
+|---|---:|---:|---:|
+| agent_watch.py, primera | 40 | 1 | 1405,59 ms |
+| agent_watch.py, segunda inmediata | 40 | 0 | 1412,86 ms |
+| Después del caso de chat, primera | 40 | 0 | 1422,98 ms |
+| Después del caso de chat, segunda | 40 | 0 | 1465,98 ms |
+
+El objetivo de menos de dos segundos se cumplió en estas mediciones locales; no es una garantía para un
+snapshot vencido que deba recalcularse. Con los datos ya entregados al ciclo, la validación aislada midió
+3,912 y 1,319 ms. JSON y motivos completos en `reports/agente/pieza4-vigia-{1,2}.json`,
+`pieza4-vigia-post-chat-{1,2}.json` y `pieza4-datos-reales.json`.
+
+### Chat real y caso obligatorio
+
+Pregunta exacta: «Avísame cuando falte poco para Colombia vs Chile y si aparece precio de Pinnacle».
+Desde el panel real: precarga → analyze_match(181043) → create_watch(kickoff_soon) →
+create_watch(pinnacle_available), con **ids 1 y 6**. Una ejecución posterior devolvió los mismos ids;
+el test de cancelación dejó el 6 cancelado. Se repitió desde el panel para dejar la demo preparada:
+**1 activo (inicio) y 7 activo (Pinnacle)**; el 1 se reutilizó sin duplicarlo. Confirmaciones deterministas
+con esos ids, pasos visibles y registro en /runs: evidencia `reports/pieza4/chat.json`.
+
+Colombia–Chile comienza **vie 13-11 a las 21:00 de Chile**. Hoy faltan más de 24 horas y no tiene Pinnacle:
+los dos objetivos deben seguir pendientes. Una alerta de ese partido ahora sería ficticia. El vigía
+registra los descartes por ambos motivos; la alerta visible corresponde al precio real de Qatar U23.
+Para mostrar inicio cercano durante la presentación del jueves hay que comprobar antes la hora de
+inicio: el umbral de Colombia se cumple el jueves 12 a las 21:00, no antes. El vigía puede demostrarse
+con otro partido real que sí esté dentro del umbral, sin cambiar horas ni precios.
+
+Batería de cierre con Qwen 2.5 de 7B, 13 consultas secuenciales y memoria: comando
+`scripts/eval_agent_routing.py --mode acciones --output reports/agente/pieza4-cierre.json`.
+Ese modo ejecuta escrituras reales propias del agente y registra /runs. Las métricas de acciones exigen
+tool_result exitoso e ids confirmados; un intento bloqueado no cuenta como escritura conseguida.
+
+| # | Consulta | Herramienta/camino observado | Resultado | Segundos |
+|---|---|---|---|---:|
+| 1 | Analiza el partido de la roja | upcoming → analyze_match | Respaldo verificado | 25,664 |
+| 2 | ¿Y quién es favorito? | Ninguna | SAFE_TEXT; no completó la consulta | 13,042 |
+| 3 | ¿Cómo llega el Colo Colo? | get_team_form | Conteos correctos, aunque filtró etiquetas técnicas en el texto | 18,283 |
+| 4 | Simula Colo Colo contra la U | simulate_match | Consulta completada | 9,543 |
+| 5 | que partidos vienen ahora? | get_upcoming_matches | Consulta completada | 14,467 |
+| 6 | ¿Qué apuestas con valor hay hoy? | get_value_bets | Consulta completada | 8,245 |
+| 7 | ¿Por qué no hay apuestas recomendadas? | get_coverage | Consulta completada; persisten límites de redacción de cobertura | 12,472 |
+| 8 | ¿Qué tan fiable es el sistema? | get_system_performance | CLV/yield desfavorables; mercado con menor log loss | 15,658 |
+| 9 | Banca 100.000 pesos | get_stake_limits | Topes correctos tras reparación | 14,929 |
+| 10 | Combinada segura | Política determinista | Rechaza premisa sin LLM | 0,009 |
+| 11 | Avisar inicio y Pinnacle de Colombia–Chile | upcoming → analyze_match → create_watch ×2 | Reutiliza ids 1 y 6, sin duplicados | 9,220 |
+| 12 | ¿Qué vigilas? | list_watches | Lista ids reales y condiciones | 3,648 |
+| 13 | Deja de vigilar la vigilancia 6 | cancel_watch(6) | Confirmación de cancelación real | 3,771 |
+
+**12/13 herramientas esperadas y turnos completados; acciones 3/3; cero copias literales del turno previo.**
+El fallo del turno 2 conserva la variabilidad ya documentada de Qwen: tener las entidades no garantiza
+que consulte; el verificador bloqueó su respuesta. No se declara 13/13 ni corrección semántica general.
+El vigía y las confirmaciones de escritura son deterministas; la elección conversacional de herramientas
+sigue dependiendo del modelo. Las pruebas previas `pieza4-conversacion*.json` también se conservan: una
+iteración intermedia intentó crear sin identificar y fue bloqueada; la oferta de herramientas por etapa
+resolvió ese defecto. Un fallo intermedio desde el panel buscó el nombre compuesto «Colombia vs Chile»;
+find_team ahora puede resolver su primer equipo y la precarga prioriza analizar el id conocido.
+
+### Verificación y capturas
+
+**478 pytest**, cobertura agéntica **95,97 %** (1937 sentencias, 78 sin cubrir), Ruff, sintaxis de agent.js
+y ocho pruebas Node correctos. Incluye cada condición y umbral, inexistencia de targets, modelos extra=forbid,
+identidad del request, aislamiento de usuario, escrituras no solicitadas bloqueadas, deduplicación,
+concurrencia, migración, plantillas verificadas y pruebas HTTP. Un autorizador SQLite prohíbe escrituras
+fuera de agent_* durante el test del ciclo. El mapa local de CLAUDE.md §3 fue actualizado sin versionarlo.
+
+Auditoría real en Chrome: 390×844 y 1440×900, claro/oscuro, cero desbordamientos, cero fallos de contraste
+y cero errores JS; botones nuevos ≥44 px. Lectura de alerta con badge y foco comprobados. Evidencia en
+`reports/pieza4/ui.json`, `leida.json` y capturas:
+
+- [Chat móvil con pasos y confirmaciones](../img/agente/pieza4-chat-390-dark.png).
+- [Alerta real en móvil](../img/agente/pieza4-alertas-390-light.png).
+- [Bitácora móvil](../img/agente/pieza4-bitacora-390-light.png).
+- [Bitácora en escritorio](../img/agente/pieza4-bitacora-1440-dark.png).
+
+Variantes restantes en `docs/img/agente/pieza4-*.png`. No cambió el motor ni el contrato SSE. La pieza 4
+se entrega en un único feat(agents) y se detiene para revisión; pieza 5 pendiente.
+
+## Pieza 5: evaluación final y cierre
+
+Agente aprobado: `6cb18aa`. Esta pieza solo añade evaluación, reset, pruebas y documentación: **sin
+cambios en src/footy_agents ni en el motor o la interfaz**. Guion de seis minutos en
+[demo_agente.md](../demo_agente.md) y [diagrama de arquitectura](../arquitectura_agente.md).
+
+### Método y evidencia
+
+Qwen 2.5 de 7B real; 15 turnos en orden: conversación de diez preguntas, crear/listar/cancelar y dos
+seguimientos adicionales. Herramientas reales, memoria de evaluación aislada y escrituras/bitácora
+reales sobre tablas propias del agente. El script envía una consulta por vez; no modifica el prompt,
+la selección de herramientas ni las respuestas. Comando:
+
+```powershell
+.venv\Scripts\python scripts/eval_agent_routing.py --mode cierre --output reports/agente/pieza5-final.json
+```
+
+Las salidas completas y los argumentos, ids y revisiones manuales se publican en
+[evaluacion_agente_final.json](evaluacion_agente_final.json). El archivo local conserva además todos
+los eventos SSE. La evidencia se vinculó por pregunta y orden con las ejecuciones reales de /runs.
+Se detectó una consulta de UI ajena al set intercalada en ese intervalo (run 128): no se contó entre
+los quince ni se borró. El historial del evaluador permaneció aislado, pero **no se afirma exclusividad
+de carga**: las latencias pueden incluir contención con esa otra consulta.
+
+«Herramienta correcta» mide selección; «camino correcto» exige éxito, orden y argumentos del objetivo,
+sin herramientas de otro tema. Crear exige identificación previa y ambas condiciones para match 181043;
+cancelar exige el id real confirmado; los seguimientos deben reconsultar el mismo match_id sin resolver
+otra vez el nombre. Los prerrequisitos y desvíos permitidos están definidos en path_correct del script.
+La interpretación de la tabla fue **revisada a mano**; no se deriva de done.success.
+
+### Tabla final
+
+| # | Pregunta | Herramienta correcta | Camino correcto | Interpretación manual | Respaldo | Reparaciones | Recuperaciones | Latencia (s) |
+|---|---|---|---|---|---|---:|---:|---:|
+| 1 | Analiza el partido de la roja | Sí | Sí | Correcta: favorito Colombia, cifras y falta de Pinnacle | Sí | 1 | 1 | 27,980 |
+| 2 | ¿Y quién es favorito? | No | No | Sin respuesta: SAFE_TEXT, no consultó | No | 1 | 1 | 13,269 |
+| 3 | ¿Cómo llega el Colo Colo? | Sí | Sí | Correcta: 2G, 2E, 1P; distingue promedios de temporada | No | 0 | 0 | 9,188 |
+| 4 | Simula Colo Colo contra la U | Sí | Sí | Correcta: xG, probabilidades y favorito etiquetados | No | 0 | 0 | 10,897 |
+| 5 | que partidos vienen ahora? | Sí | Sí | Parcial: lista correcta; generaliza ausencia de ventaja sin Pinnacle | No | 0 | 0 | 13,445 |
+| 6 | ¿Qué apuestas con valor hay hoy? | Sí | Sí | Parcial: cero selecciones elegibles, sin aclarar cobertura y demás filtros | No | 0 | 0 | 8,651 |
+| 7 | ¿Por qué no hay apuestas recomendadas? | Sí | Sí | Parcial: dos con Pinnacle; confunde elegibilidad con ventaja significativa | No | 0 | 0 | 12,762 |
+| 8 | ¿Qué tan fiable es el sistema? | Sí | Sí | Correcta: yield/CLV desfavorables; mercado con menor log loss | No | 0 | 0 | 14,843 |
+| 9 | Banca de 100.000 pesos | Sí | Sí | Correcta: $2.000 por apuesta y $10.000 diarios | No | 1 | 0 | 14,743 |
+| 10 | Dame una combinada segura para hoy | Sí, política | Sí, sin LLM | Correcta: rechaza garantía, remite a uso educativo | No | 0 | 0 | 0,008 |
+| 11 | Avisar inicio cercano y Pinnacle de Colombia–Chile | Sí, crear ×2 | Sí | Correcta: analyze_match(181043), ids reales 1 y 2 | No | 0 | 0 | 9,210 |
+| 12 | ¿Qué vigilas? | Sí | Sí | Correcta: ids y condiciones activos | No | 0 | 0 | 3,636 |
+| 13 | Deja de vigilar la vigilancia 2 | Sí | Sí | Correcta: cancelación del id real | No | 0 | 0 | 3,770 |
+| 14 | ¿Y quién es favorito? (después de cancelar) | Sí | Sí | Correcta: reconsulta 181043, favorito Colombia | No | 0 | 0 | 9,730 |
+| 15 | ¿Y ese partido tiene precio de Pinnacle? | Sí | Sí | Correcta: reconsulta el mismo partido y confirma que falta Pinnacle | No | 0 | 1 | 13,785 |
+
+Resultado: **14/15 herramientas y caminos correctos; 14/15 turnos con done.success=true; acciones 3/3;
+cero copias literales del turno previo**. Hubo 17 llamadas de herramientas con argumentos admitidos
+por sus modelos; los dos turnos sin herramientas no demuestran nada sobre ejecución de argumentos.
+La revisión estricta distingue **11 interpretaciones correctas, tres parciales y un turno sin respuesta**.
+Por eso no se presenta el 14/15 como exactitud semántica general.
+
+Un respaldo resolvió el turno 1. De tres intentos de reparación, uno terminó con redacción válida del
+LLM (banca), otro con respaldo verificado y otro con SAFE_TEXT. Dos de las tres recuperaciones acabaron
+en el camino correcto; la del turno 2 no logró una consulta. Reparaciones excluye el step que entrega
+el respaldo, contabilizado aparte para evitar contar dos veces el mismo intento.
+
+Latencia **p50 10,897 s; p95 18,784 s; máximo 27,980 s**. Percentiles por interpolación lineal inclusiva,
+posición (n−1)×p, sobre los quince turnos, incluida la política sin inferencia. Una sola corrida y una
+consulta de UI intercalada no permiten establecer un SLA ni atribuir diferencias a una optimización.
+Los ficheros .metrics.json reproducidos dejan manual_review pendiente: nunca califican automáticamente
+la interpretación. El JSON publicado incorpora la revisión humana explícita de esta corrida.
+
+### Reset y ensayo completo de la demo
+
+`scripts/reset_agent_demo.py` sin --yes mostró conteos sin borrar filas. Con --yes se vaciaron únicamente
+agent_watches, agent_alerts, agent_watch_state, agent_watch_log, agent_runs y agent_chat_memory. No hay
+comodines, DROP, VACUUM ni modificación de sqlite_sequence. Los ids que SQLite devuelva después no deben
+suponerse: algunas tablas pueden reutilizarlos y otras conservan su secuencia.
+
+Pruebas con base temporal: simulación intacta, borrado idempotente, preservación de preferencias/tablas
+del motor/otras agent_*, base inexistente no creada y rollback completo si un trigger intenta borrar
+preferencias. Un autorizador SQLite limita los DELETE a las seis tablas y rechaza INSERT/UPDATE/DROP.
+La ejecución real comprobó preferencias y conteos del motor preservados: `reports/pieza5/reset.json`.
+No se crean tablas del agente cuando faltan; solo se limpian las presentes en la lista cerrada.
+El reset abre el archivo existente directamente con SQLite (ro para simulación, rw con --yes),
+sin el inicializador de schema del motor: tampoco añade tablas del motor en una base parcial.
+
+Después de la batería se capturó el flujo desde el panel real, sin simular respuestas ni cambiar el
+agente: apodo → seguimiento → cobertura → política → vigilancia de un partido real dentro de 24 h.
+Se eligió **Qatar U23–Singapore U23, match 181054, inicio 2026-11-10T08:00:00Z**. El chat pasó por análisis
+y create_watch, confirmó la vigilancia **3** para kickoff_soon y el vigía produjo la alerta **1** con
+**5,43 horas restantes**, dato calculado en facts. Una segunda ejecución produjo cero alertas nuevas.
+El seguimiento de este ensayo sí consultó analyze_match: es evidencia adicional de variabilidad, no
+reemplaza ni mejora retrospectivamente el fallo del turno 2 en la batería final.
+
+Los datos de este ensayo son del momento de preparación: en la presentación debe elegirse otro partido
+si ya pasó su inicio. No se alteraron horarios ni cuotas para conseguir la alerta. Las instrucciones
+de elección y el plan B están en [el guion](../demo_agente.md). Registros completos en
+`reports/pieza5/flujo.json` y `flow-vigia-{1,2}.json`.
+
+Capturas finales reales a 390×844 y 1440×900: chat, alerta y bitácora en claro/oscuro, más apodo con pasos.
+Son 14 imágenes en `docs/img/agente/final-*.png`. Auditoría de las 14 variantes: cero desbordamientos,
+cero fallos de contraste y cero errores JavaScript. Selección para la exposición:
+
+- [Apodo y pasos, móvil](../img/agente/final-apodo-390-dark.png) · [escritorio](../img/agente/final-apodo-1440-dark.png).
+- [Creación desde el chat, móvil](../img/agente/final-chat-390-dark.png) · [escritorio](../img/agente/final-chat-1440-light.png).
+- [Alerta real, móvil](../img/agente/final-alerta-390-light.png) · [escritorio](../img/agente/final-alerta-1440-dark.png).
+- [Bitácora y descartes, móvil](../img/agente/final-bitacora-390-light.png) · [escritorio](../img/agente/final-bitacora-1440-dark.png).
+
+### Límites conocidos
+
+- Qwen puede omitir una consulta aun con entidades disponibles. Sin datos útiles del turno, el respaldo
+  no puede fabricar una respuesta; el guion contempla pregunta explícita, capturas y vigía sin LLM.
+- La verificación es acotada: no demuestra pertinencia, cobertura completa ni semántica general. Las
+  tres respuestas parciales de valor/cobertura siguen pendientes; esta pieza no cambia ese comportamiento.
+- El vigía depende del snapshot y de sus disparos (daily, prekickoff o CLI), no de un proceso continuo.
+  Un objetivo solo alerta cuando la condición se observa; la falta de datos o un partido fuera de 24 h
+  debe generar un descarte, no una alerta ficticia. No inicia Ollama ni realiza apuestas.
+- Las métricas son una muestra pequeña con actividad de UI adicional observada. Fechas, cobertura y
+  latencias deben comprobarse de nuevo antes de presentar, sin atribuirles garantías de rentabilidad.
+
+Validación: **488 pytest**, Ruff, sintaxis de agent.js y ocho pruebas Node en verde; cobertura agéntica
+**95,97 %** (1937 sentencias, 78 sin cubrir). CLAUDE.md §3 actualizado/comprobado solo en disco.
+Se entrega un único test(agents) y se detiene para revisión. Sin cambios de comportamiento del agente.
+
+## Precarga del seguimiento antes de congelar (2026-11-10)
+
+`61f83d0` aprobado. Gustavo autorizó un último cambio acotado: si is_follow_up devuelve verdadero y
+las entidades conservan match_id, run_chat ejecuta analyze_match antes de la primera inferencia.
+Emite tool_start/tool_result y la observación del resultado, además de:
+«Continúa con Colombia vs Chile: se consulta el análisis actualizado».
+El par assistant/tool queda en el contexto que recibe el modelo; las entidades consultadas se conservan.
+Se omite una precarga adicional del calendario en ese seguimiento. Un tema nuevo o una entidad sin
+match_id no dispara esta precarga de análisis; la precarga habitual de próximos partidos sigue igual.
+
+No se cambiaron el modelo, el prompt, la definición de continuidad, los límites, el motor, las acciones
+ni los verificadores. Si la redacción vuelve a fallar la verificación, el respaldo existente ya dispone
+del summary/favorite del análisis actualizado. El FakeLLM comprueba el doble fallo y la entrega del
+resumen correcto sin publicar las cifras inventadas.
+
+Se ejecutó tres veces «Analiza el partido de la roja» → «¿Y quién es favorito?» contra Qwen 2.5 de 7B
+real, con herramientas reales y memoria nueva para cada par. No se mezcló la memoria entre repeticiones.
+
+| Repetición | Análisis inicial (s) | Respaldo inicial | Seguimiento (s) | Consulta del seguimiento | Inferencias | Reparaciones / recuperaciones del seguimiento | Revisión manual |
+|---|---:|---|---:|---|---:|---|---|
+| 1 | 25,873 | Sí | 4,566 | Precarga analyze_match(181043), sin otras consultas | 1 | 0 / 0 | Colombia favorita; sin Pinnacle, sin evaluar ventaja |
+| 2 | 14,867 | No | 4,651 | Precarga analyze_match(181043), sin otras consultas | 1 | 0 / 0 | Colombia favorita al 67,5 %; sin Pinnacle |
+| 3 | 14,297 | No | 4,583 | Precarga analyze_match(181043), sin otras consultas | 1 | 0 / 0 | Colombia favorita al 67,5 %; sin Pinnacle |
+
+**6/6 turnos completados y verificados; 3/3 seguimientos correctos**, cada uno con una sola inferencia,
+sin SAFE_TEXT ni respaldo en el seguimiento. Las seis respuestas se revisaron a mano. La primera
+pregunta conserva su variabilidad: una de sus tres respuestas necesitó el respaldo ya existente.
+Tres muestras no garantizan calidad semántica general ni una latencia futura. Los resultados de la
+batería de 15 turnos anterior permanecen intactos y no se recalifican retrospectivamente.
+
+Evidencia con eventos completos: [validacion_precarga_seguimiento.json](validacion_precarga_seguimiento.json).
+Ficheros originales locales: `reports/congelacion/secuencia-{1,2,3}.json`. Para repetir el sondeo:
+
+```powershell
+@'
+from pathlib import Path
+from scripts.eval_agent_routing import CONVERSATION, conversation
+for repeat in (1, 2, 3):
+    conversation(Path(f"reports/congelacion/secuencia-{repeat}.json"), cases=CONVERSATION[:2])
+'@ | .venv\Scripts\python -
+```
+
+Validación: **495 pytest**, cobertura agéntica **95,99 %** (1945 sentencias, 78 sin cubrir), Ruff,
+sintaxis de agent.js y ocho pruebas Node correctos. FakeLLM cubre ejecución previa a la primera
+inferencia, eventos y observación, ausencia de match_id, equipo nuevo, cambio a rendimiento y respaldo
+tras dos fallos. El comportamiento queda congelado hasta la presentación; se detiene tras este fix
+para revisión, sin iniciar otros cambios.
+
+## Fechas locales, calendario y repetición (corrección tras la prueba de Gustavo)
+
+**Problema observado** (agent_runs 143–156): el modelo mezclaba el `kickoff` UTC con la hora local
+(«viernes 14 de noviembre a las 21:00» para Colombia–Chile, que es vie 13-11 a las 21:00), convertía horas
+por su cuenta, etiquetaba como «jueves 10» partidos de otros días, repetía siempre los mismos cinco partidos
+juveniles y copiaba la respuesta anterior en seguimientos sobre cuotas.
+
+**Corrección** (`calendar.py` y cambios en tools, routing, grounding y orquestador):
+
+- Ningún payload visible para el LLM trae `kickoff` UTC: una barrera recursiva lo reemplaza por
+  `kickoff_local`, `local_date` y `weekday` en America/Santiago, incluidas estructuras anidadas.
+- `check_claims` valida «<día> <N>» contra las fechas locales del turno; un día equivocado se repara.
+- `get_upcoming_matches` admite `day` (hoy, mañana, día de la semana, fin de semana o fecha ISO),
+  `important` (excluye juveniles y ordena por prioridad de competición), `category` (selecciones o clubes) y
+  `exclude_ids` (lo ya mostrado). Excluye partidos iniciados.
+- `analyze_match` informa `odds_status` y `best_odds`; un borrador ≥ 80 % similar a la respuesta anterior se
+  repara antes de mostrarse.
+- La continuidad reconoce «sí/dale/ok», «eso», «otros/más» y referencias a la lista anterior (`shown_ids`).
+  La bitácora usa un indicador explícito de memoria y no depende del texto del paso.
+
+**Validación con Qwen 2.5 7B** (la misma secuencia de nueve preguntas de Gustavo, en orden, con memoria):
+
+| Pregunta | Resultado |
+|---|---|
+| ¿Qué apuestas con valor hay hoy? | Correcta (cero elegibles); añade «datos actualizados» sin consultar cobertura |
+| que partido importante se juega mañana? | Filtra miércoles 11; fecha y hora locales correctas |
+| que tan probable es el partido de chile vs colombia? | Respaldo verificado: Colombia 67,5 %, vie 13-11 21:00 |
+| cual es la posible apuesta que haya en ese partido? | Seguimiento con precarga; sin ventaja evaluable sin Pinnacle; fecha correcta |
+| y no tienes datos de las posibles cuotas? | «Sin cuotas de ninguna casa todavía»; no repite la respuesta anterior |
+| que otro partido importante hay de selecciones? | Liga de Naciones del jueves 12, excluye Colombia–Chile y juveniles |
+| si, busca eso | Reconoce continuidad; frase ambigua: argumento inválido y respuesta genérica, sin cifras inventadas |
+| que partidos de copa o ligas hay cerca? | Solo clubes, con día y hora locales correctos |
+| que partidos importantes hay el jueves? | Solo partidos del jueves 12, horas locales correctas |
+
+**Resultado:** fechas y horas correctas en 9/9; cero respuestas copiadas; «el jueves» lista solo el jueves 12.
+Pendientes menores: afirmaciones de frescura sin `get_coverage` y referencias ambiguas como «sí, busca eso».
+
+Validación: **542 pytest**, Ruff, sintaxis JS y pruebas Node correctos.
+
+## Avisos fuera del chat
+
+Los avisos pasaron del panel del asistente a una campana en la barra superior (`alerts.js`), con panel en
+escritorio y hoja inferior en móvil. El vigía agrega cinco tipos deterministas (`notifications.py`), todos leídos de
+`service.current_suggestions` y del calendario, sin LLM ni matemática nueva:
+
+- `favorite_plays`: favorito en ≤ 24 h y recordatorio a ≤ 2 h.
+- `value_bet`: cada selección con ventaja ≥ 6 % frente a Pinnacle.
+- `near_value`: candidatas a ≥ 3 pp del umbral, con la cuota mínima que haría falta.
+- `value_combo`: dobles del motor, de partidos distintos.
+- `near_combo`: pares con precio de Pinnacle de partidos distintos y ventaja combinada en [0, 6 %);
+  informativo y desactivado por defecto.
+
+Los avisos se deduplican, expiran al inicio del partido y solo se repiten si la ventaja mejora ≥ 2 pp. Cada texto
+pasa `verify_numbers` contra sus propios facts. Preferencias permite activar tipos, limitar los avisos de precio a
+equipos y ligas favoritos y activar la Notification API del navegador (desactivada por defecto). Con el calendario
+del 10-11 (2 de 92 con Pinnacle, 0 selecciones elegibles y 2 candidatas «cerca» a −1,8 % y −9,7 %) no se emite
+ningún aviso de precio: el umbral de 3 pp las descarta correctamente.
+
+Validación: 11 pruebas nuevas (tipos, partidos distintos, expiración, deduplicación, reaviso, preferencias,
+migración y API) y **553 pytest** en total.
+
+## Identidad: El Míster
+
+El asistente se llama **El Míster** y habla como director técnico en la charla o en conferencia de prensa: frases
+cortas, autoridad y calma, como máximo una frase de DT por respuesta («partido a partido», «los números mandan, no la
+camiseta») y desconfianza de las corazonadas. El apelativo «míster» se quita del mensaje antes de rutear
+(`without_vocative`): «míster, ¿cómo llega Colo Colo?» es una consulta normal y «hola míster» es un saludo.
+Nombre, rol y personalidad viven en
+`footy_agents/persona.py`; el prompt del chat y el del resumen la anteponen, y declaran que **las reglas mandan sobre
+la personalidad**: no se inventan historia, títulos ni anécdotas, y las cifras siguen saliendo solo de herramientas.
+
+Un saludo o «¿quién eres?» sin otra pregunta recibe una presentación fija (`policy`, 0 inferencias). Antes, el
+orquestador forzaba una consulta de datos y el modelo terminaba pidiendo contexto.
+
+Al probar la personalidad aparecieron dos falsos positivos de la verificación, ya corregidos: «viernes 21:00» se
+leía como el día 21, y la línea «2.5 goles» (que viene en el campo `over_2_5`) contaba como cifra sin respaldo. Con la
+corrección, el análisis de Colombia–Chile pasó de 3/3 respuestas reparadas a 4/4 limpias; una hora inventada
+(«17:00») se sigue detectando. Validación: **566 pytest**.
+
+## Chat limpio, historial y memoria personalizada
+
+El chat muestra solo la respuesta del Míster: herramientas, observaciones, desvíos y reparaciones siguen ocurriendo
+y quedan en el registro interno (`agent_runs`, `/api/agent/runs`), pero no en pantalla. Mientras responde se ve
+«El Míster está revisando la pizarra…» y la mascota de la cabecera lee la tablet. La mascota quedó fija en la
+cabecera para que no desaparezca al avanzar la conversación, junto a los botones de historial y nueva conversación.
+
+**Historial** (`conversations.py`): cada conversación guarda lo que vio el usuario (pregunta y respuesta o aviso de
+error) y toma como título la primera pregunta. Al retomarla, el contexto del modelo son sus últimos tres turnos
+verificados y las entidades del último turno; las respuestas no verificadas se muestran pero no vuelven al modelo.
+
+**Memoria personalizada** (`user_memory.py`), sin LLM: lo que el usuario dice de sí mismo («soy hincha de…»,
+«mi equipo es…», «ya no sigo a…») se resuelve con `find_team` solo si hay una coincidencia exacta y única, y pesa
+cinco veces más que una consulta. También suma los equipos y ligas consultados y los temas por herramienta. Al prompt
+llega una línea («dijo que sigue a Colo Colo; consulta seguido a Colombia; suele preguntar por análisis de
+partidos») solo con lo que supera el umbral, sin cifras. El usuario la ve en «Lo que sé de ti» y puede borrar cada
+recuerdo o todo; `scripts/reset_agent_demo.py` también la vacía.
+
+Al probarlo apareció un error semántico: con la forma reciente de Colo Colo, el modelo presentó el último partido
+(8 de noviembre) como «el próximo». `check_claims` ahora rechaza una fecha pasada en una oración que habla de un
+partido próximo o programado, y la respuesta se repara.
+
+## Nombre, «apuesta segura» y recomendaciones de la máquina
+
+- **Nombre:** «me llamo…», «mi nombre es…» o «soy Gustavo» (con mayúscula, para no confundirlo con «soy hincha de…»)
+  se guarda en la memoria personalizada; «olvida mi nombre» lo borra. Si el mensaje solo presenta al usuario, el
+  Míster responde «¡Mucho gusto, Gustavo!» sin LLM, y desde entonces el saludo fijo y el prompt usan su nombre.
+- **«¿Qué sería seguro apostar?»:** la política sigue rechazando la premisa, pero ya no corta la conversación: muestra
+  lo que el modelo ve más probable (pestaña Más fiables, con la advertencia de que paga poco) y dónde está cada
+  pestaña. La regla también cubre «apostar», no solo «apuesta».
+- **Recomendaciones de la máquina:** nueva herramienta `get_recommendations` con las tres pestañas de Apuestas
+  (Con valor, Más fiables y Casi con valor), cada una con su explicación y ejemplos como texto listo para citar.
+  Siempre trae las tres, así una pestaña vacía no deja al modelo sin respuesta. Cuando el ruteo determinista
+  reconoce la pregunta, la respuesta sale tal cual del sistema, sin redacción: en pruebas con Qwen 7B, el modelo
+  escribía los títulos de cada pestaña pero omitía sus ejemplos. «Fiable» del sistema sigue yendo a
+  `get_system_performance`; «más fiables» va a las recomendaciones.
+- La migración que agrega el tipo `name` a la memoria corre en una transacción exclusiva: en la primera versión, el
+  navegador consultando en paralelo pudo perder filas durante la reconstrucción de la tabla.
+
+## Multiagente: el Ojeador (2026-11-10)
+
+Se ejecutó T1–T8 de `docs/plan_ojeador.md` en `feature/odds-scout`, desde `e011b03` de
+`feature/agent-ui-redesign`. El diseño es adecuado: un solo LLM, delegación directa por herramientas y
+un tablero SQLite compartido. El Míster decide qué consultar; el Ojeador obtiene y compara precios sin
+LLM; el Vigía detecta cambios y publica los avisos existentes. No se integra a main: Claude audita la rama.
+
+**DraftKings es precio ofrecido; Pinnacle sin margen es la única referencia de precio justo.**
+Tener más cuotas no aumenta por sí solo la cobertura de Pinnacle ni demuestra una ventaja.
+
+### Implementación y decisiones
+
+- `odds_scout.py`: parser de americano a decimal, 1X2 completo con suma de probabilidades implícitas entre
+  1,00 y 1,25, OU solo con ambos precios y línea consistente; `is_closing=0` también para el campo `close`
+  de ESPN, que aquí es el precio observado, no una cuota histórica de cierre.
+- Calce exclusivamente por `match_sources(source='espn')`. El parser no conoce la base: `act` añade el
+  match_id real. Se valida la fecha del evento y se vuelve a comprobar el inicio después del fetch;
+  no se publican capturas posteriores al kickoff.
+- Percepción de cuotas, Pinnacle, antigüedad, favoritos de usuarios y par slug/fecha de ESPN
+  (`America/New_York`). Presupuesto de 40 scoreboards por corrida; los reintentos internos son los del
+  cliente existente. Prioridad: inicio cercano, favoritos, sin cuota. TTL de seis horas, o una si
+  faltan menos de seis horas. API-Football queda reservada para la ingesta diaria, con descarte explícito.
+- Cada inserción usa una transacción con comprobación de recencia para no duplicar una captura concurrente.
+  La bitácora `agent_scout_log` conserva las decisiones y sus motivos; el reset incluye esa tabla, sin
+  borrar `odds`, preferencias ni tablas del motor.
+- `odds_comparison.py` lee SQLite directamente, toma el último precio prepartido por casa/selección y
+  usa `pro.fair_1x2` y `pro.best_prices`. Sin Pinnacle: `edge=None`, `pinnacle_fair_odds=None` y nota explícita.
+- `request_odds(match_id)` delega solo ese partido con presupuesto de un scoreboard, salvo captura ESPN
+  de menos de una hora. La herramienta informa `delegated` y `scout_reason`; ruteo, observaciones,
+  memoria de entidades y respaldo reconocen la delegación. Son **16 herramientas** en total.
+- Ciclos daily/prekickoff con importación perezosa; CLI `scripts/odds_scout.py --dry-run` y bitácora de
+  lectura `GET /api/agent/scout-log?limit=1..100`, con contratos Pydantic estrictos. No se agregó UI.
+- Solo una inserción en la base real publica revisión explícita y solicita `POST /api/refresh`. Las
+  bases temporales no tocan cachés globales ni red; la prueba de salida sin pandas/numpy sigue pasando.
+
+### Desviaciones necesarias respecto del plan
+
+1. El cliente real es `Espn`, no `EspnClient`. `scoreboard` devuelve la lista de eventos directamente.
+   El payload real consultado trae OU en `total.over/under.open/close`; se soporta además de
+   `overOdds/underOdds`. Los cuatro fixtures versionados están recortados de esa estructura real.
+2. `odds.line` es **NOT NULL**, con `0` para 1X2. Se preserva la clave UNIQUE existente y se añade
+   la comprobación transaccional de recencia; no se cambió el esquema del motor.
+3. Al verificar T6 apareció un conflicto real: el contexto web podía tomar cualquier casa como
+   referencia por fallback, incluido DraftKings. Dentro de la excepción **web/** autorizada, se
+   excluyeron DraftKings y las casas de `espn_odds` de las referencias 1X2/OU. Siguen disponibles como
+   precios ofrecidos para `pro.evaluate`. No se tocaron modelos, mercados, betting, ingest ni tracking.py.
+   El parser no admite que un proveedor ESPN se presente como la referencia Pinnacle.
+4. `DISPLAY_BOOKS` no incluía DraftKings. Se añadió en la capa web existente: el detalle ya recorre
+   dinámicamente `odds_1x2`, por lo que muestra la casa sin JS ni interfaz nueva. Comprobación real de
+   Türkiye–Belgium: DraftKings `[3.65, 3.95, 1.8]`, `market_book=null`, fuente «modelo selecciones».
+5. La primera prueba real (`runs 230–231`) encontró otra confusión de Qwen: precios correctos, pero
+   «No hay apuestas con valor» sin Pinnacle. Se reportó antes de corregirla y se agregó **un commit fix
+   independiente**: la comparación debe copiar `comparison_text` completo o pasar por reparación y
+   respaldo. No se aceptó esa primera respuesta como una prueba satisfactoria.
+6. Se extendió una prueba previa solo para incorporar `request_odds` en las opciones de `analyze_match`.
+   Las pruebas del reset ya recorren la lista cerrada completa y comprobaron también la tabla nueva.
+   En el cierre se fijó el reloj de los tests nuevos de CLI/Vigía: no dependen de la fecha del host.
+
+### Medición real antes y después
+
+Mismo conjunto inicial de **90 match_id** de la web, medido el 2026-11-10. El Ojeador percibió **142**
+partidos de su horizonte SQLite de siete días; ese total no se confunde con el denominador de la web.
+
+| Medida | Antes | Después |
+|---|---:|---:|
+| Partidos del conjunto con algún precio 1X2 | 3 de 90 | **69 de 90** |
+| Partidos del conjunto con Pinnacle | 1 de 90 | **1 de 90** |
+| Filas `source='espn_odds'` | 0 | **360** |
+| Partidos SQLite con cuota ESPN | 0 | 72 |
+| Claves de captura duplicadas | — | **0** |
+| Filas ESPN posteriores al inicio | — | **0** |
+| Filas ESPN usando Pinnacle como proveedor | — | **0** |
+
+Las 360 filas se desglosan en diez de dos delegaciones reales y 350 del ciclo general. La cobertura
+3 → 69 es de precios ofrecidos: **no significa 69 partidos con valor evaluable**. Pinnacle no aumentó.
+
+Salidas reales de la CLI:
+
+```text
+--dry-run:
+ACTUAR: 0 scoreboards; 0 filas insertadas; 112.8 ms.
+Primera corrida:
+ACTUAR: 25 scoreboards; 350 filas insertadas; 14618.2 ms.
+Segunda corrida:
+ACTUAR: 14 scoreboards; 0 filas insertadas; 9325.49 ms.
+```
+
+Las decisiones registran tanto «Captura publicada: 5 precios ofrecidos; no son referencia justa» como
+«Captura ESPN reciente: no se repite la petición», ausencia de id/slug y la reserva de API-Football.
+La segunda corrida demuestra **idempotencia de filas**, no ausencia de peticiones: se repiten grupos
+con partidos que aún no obtuvieron una captura válida. No se agregó caché negativa fuera del plan.
+El servidor normal de 8000 estaba cerrado; la revisión de datos se publicó igualmente y se verificó
+el refresco público del servidor de revisión en 8767 con respuesta 200.
+
+### Delegación real con Qwen
+
+Secuencia final, nueva conversación, datos reales, registrada en `/api/agent/runs`:
+
+| Run | Pregunta | Camino | Resultado |
+|---|---|---|---|
+| 232 | «Analiza Türkiye contra Belgium» | precarga upcoming → analyze_match(180997) | Favorito Belgium 47,5 %; sin Pinnacle. Frase accesoria impropia documentada abajo |
+| 233 | «Compara cuotas de ese partido» | precarga analyze_match → request_odds(180997) → request_odds(180997) | Una captura real; la segunda consulta reutilizó la captura reciente; respuesta canónica verificada |
+
+Respuesta final completa del comparador:
+
+```text
+Gana Türkiye: mejor 3.650 en DraftKings
+Empate: mejor 3.950 en DraftKings
+Gana Belgium: mejor 1.800 en DraftKings
+Sin Pinnacle no hay valor medible; son precios ofrecidos.
+```
+
+El Vigía se probó con una inserción sintética de `espn_odds`, lectura real de cuotas del motor y
+`pro.evaluate`: al existir Pinnacle y superar la regla, se publicó el aviso existente **value_bet**
+con DraftKings y Pinnacle en el texto. La repetición no duplicó el aviso ni creó apuestas en papel.
+No se presenta ese caso sintético como una oportunidad real actual.
+
+### Validación y límites
+
+**634 pytest**, Ruff en `src scripts tests`, sintaxis JS y **8 pruebas Node** en verde. Cobertura de
+`footy_agents`: **95,74 %** (3073 sentencias, 131 sin cubrir). No se añadieron dependencias.
+La búsqueda de usos de DraftKings confirma: precio ofrecido/parser/display/tests/docs; la única
+probabilidad justa y ventaja del comparador vienen de `pro.fair_1x2` con la clave Pinnacle.
+
+- ESPN es una API pública no documentada: puede cambiar formato, cobertura, proveedor o disponibilidad.
+- Sin precio válido se vuelve a consultar en la siguiente corrida, dentro del presupuesto. El presupuesto
+  cuenta scoreboards solicitados; un error de red puede activar los reintentos del cliente existente.
+- Los precios de distintas casas pueden tener distinta antigüedad. No se garantiza simultaneidad ni ejecución
+  de una apuesta. Son datos observados antes del inicio y seguimiento educativo.
+- El comparador está protegido por texto canónico. El lenguaje libre del Míster conserva variabilidad:
+  en run 232 añadió «se juega en el medio», frase sin utilidad que no se corrigió fuera de este alcance.
+- Para cargar el backend de esta rama hay que reiniciar el servidor. No se reemplazó una instancia del usuario,
+  no se modificaron tareas del Programador ni se integró a main.
+
+Evidencia resumida versionada: [validacion_ojeador.json](validacion_ojeador.json). Originales locales:
+`reports/ojeador/{antes,despues,dry-run,ciclo-real-1,ciclo-real-2,chat-final,runs-final,scout-log-http}.json`.
+Diagrama en [arquitectura_agente.md](../arquitectura_agente.md). CLAUDE.md §7 se actualiza solo en disco.
+
+### Commits para auditoría
+
+| Tarea | Commit | Mensaje |
+|---|---|---|
+| T1 | `25dfcbf` | feat(agents): leer cuotas ESPN con validación prepartido |
+| T2 | `610960d` | feat(agents): ejecutar el ciclo del Ojeador con presupuesto y bitácora |
+| T3 | `587005e` | feat(agents): comparar casas contra Pinnacle sin margen |
+| T4 | `61e2900` | feat(agents): delegar consultas de cuotas al Ojeador |
+| T5 | `80a51cd` | feat(agents): integrar el Ojeador al ciclo y publicar cuotas nuevas |
+| T6 | `16a2c28` | fix(agents): mantener precios ESPN fuera de la referencia y validar avisos |
+| T7 | `fd47681` | feat(agents): exponer la bitácora pública del Ojeador |
+| Bug detectado en vivo | `8b08394` | fix(agents): verificar el texto canónico de la comparación de cuotas |
+| T8 | commit de este cierre documental | docs(agents): documentar el Ojeador y su validación real |
+
+## Correcciones de auditoría del Ojeador: C1–C6 (2026-11-10)
+
+Se completaron las correcciones de `docs/plan_ojeador.md` §6 en la misma rama
+`feature/odds-scout`, un commit por corrección. Sin integración a la rama de presentación ni a main.
+
+| Corrección | Commit | Resultado |
+|---|---|---|
+| C1 | `2eb13b3` | `no_odds` dice que ninguna casa ni ESPN publica cuotas; no afirma que existan precios ofrecidos |
+| C2 | `a177398` | La intención de cuotas existe antes de conocer el partido; tras calendario/find_team se recupera con `request_odds(match_id)`; opciones de delegación en calendario específico |
+| C3 | `36a3fed` | Acepta todas las líneas del comparador junto a contexto sin cifras; conserva verificadores y rechaza afirmaciones añadidas de valor sin Pinnacle |
+| C4 | `4a2ad55` | Texto con dos decimales; datos con precisión original y precio justo sin redondeo intermedio |
+| C5 | `2b92bf7` | stdout UTF-8 al ejecutar la CLI; subprocess con salida redirigida y entorno cp1252 verificado |
+| C6 | commit de este cierre | Evidencia compactada de 162.369 a 9.090 bytes; conserva conteos, ejemplos y respuestas |
+
+Los tests previos de repetición y cifras se **extendieron** para incluir la delegación de cuotas antes de
+simular una respuesta incorrecta; siguen comprobando reparación, respaldo y ausencia de repetición.
+No se relajaron sus verificaciones. El test de observaciones conserva sus comprobaciones y añade la
+opción `request_odds` para un partido concreto sin Pinnacle.
+
+### C1 y C2 en vivo, sin memoria previa
+
+Dos conversaciones nuevas con Qwen 2.5 de 7B y herramientas reales. Evidencia completa local en
+`reports/ojeador/auditoria-c1-c2.json`; extractos en `validacion_ojeador.json`.
+
+| Caso | Run | Pregunta | Camino efectivo | Latencia | Resultado |
+|---|---:|---|---|---:|---|
+| C1 | 234 | «¿Cuánto paga Colombia contra Chile?» | precarga de calendario → request_odds(181043) | 23,473 s | Respuesta verificada sin afirmar que haya precios |
+| C2 | 235 | «¿cuánto paga Argentina contra Uruguay?» | precarga de calendario → request_odds(181042) | 23,842 s | Consulta de cuotas correcta desde un tema nuevo; respuesta verificada con precios reales |
+
+Respuesta C1:
+
+```text
+Ninguna casa publica cuotas todavía para este partido; ESPN tampoco tiene precios disponibles.
+```
+
+Respuesta C2:
+
+```text
+Gana Argentina: mejor 1.53 en DraftKings
+Empate: mejor 3.90 en DraftKings
+Gana Uruguay: mejor 5.75 en DraftKings
+Sin Pinnacle no hay valor medible; son precios ofrecidos.
+```
+
+**Ambos turnos terminaron con success=true usando el respaldo verificado.** Cada uno tuvo una recuperación
+hacia cuotas y una reparación del borrador antes del respaldo. En C2 el modelo intentó además
+`request_odds(123456)`: la herramienta lo rechazó porque no correspondía a un partido próximo. El
+respaldo conservó exclusivamente la comparación correcta de 181042. No se oculta ese intento fallido ni
+se presenta la corrida como un camino autónomo impecable.
+
+C3 se verificó con FakeLLM: introducción sin cifras + todas las líneas → success=true, **sin reparación**
+y con dos inferencias (consulta y respuesta). Líneas omitidas, cifras extra, «hay valor» y «no hay valor»
+añadidos sin Pinnacle siguen pasando por reparación. No se afirma una mejora de latencia de Qwen a
+partir de estas dos muestras: el modelo todavía puede reformular las líneas o intentar ids incorrectos.
+
+### Validación y tamaño de evidencia
+
+**651 pytest**, Ruff en `src scripts tests`, sintaxis de app.js/agent.js y **8 pruebas Node** en verde.
+Cobertura agéntica: **95,38 %** (3095 sentencias, 143 sin cubrir). Sin dependencias nuevas ni cambios en
+modelos, `tracking.py`, contratos API/SSE o interfaz.
+
+El detalle original de T1–T8 sigue disponible en el commit `8003ab8`. Para regenerar la percepción y
+las decisiones actuales sin red ni inserciones:
+
+```powershell
+.venv\Scripts\python scripts/odds_scout.py --dry-run --output reports/ojeador/percepcion.json
+```
+
+El archivo compacto conserva las mediciones históricas 3/90 → 69/90, las salidas de ambos ciclos,
+ejemplos de decisiones y las respuestas. No mezcla los 634 tests originales con los 651 del cierre de
+auditoría. CLAUDE.md §7 se actualizó solo localmente. Se publica la rama y se detiene para revisión.
+
+## C7: respuesta directa tras la delegación (2026-11-10)
+
+Se implementó la sección 7 del plan sobre `bd5c217`, conservando la corrección de Claude: «cuotas con valor»,
+ventaja y recomendaciones mantienen sus rutas; no activan el cierre directo del comparador.
+
+Cuando la intención original es consultar cuotas y `request_odds` devuelve un `comparison_text` útil,
+`run_chat` comprueba `verify_numbers` y `check_claims`, emite el texto y termina con `done.success=true`.
+No pide otra inferencia de redacción ni ejecuta llamadas posteriores del mismo lote del LLM. Las entidades
+se actualizan antes del cierre. Los pasos ya emitidos —precarga/análisis, ausencia de Pinnacle, recuperación,
+desvío y resultado de la herramienta— permanecen en `agent_runs` y en los eventos SSE.
+
+Si la herramienta falla, falta un texto útil o el texto no pasa los verificadores, no hay cierre exitoso
+automático: continúa el tratamiento existente. Si la comparación era una consulta auxiliar para otra intención,
+se mantienen la redacción y sus verificadores. No se cambian el motor, los límites ni los contratos API/SSE.
+
+### Pruebas
+
+Un FakeLLM falla expresamente si recibe una inferencia después de una comparación exitosa. Se prueban
+`no_odds`, `no_pinnacle` y `ok`, conservación de entidades/pasos, interrupción de un lote antes de un segundo
+id inventado, resultados fallidos o semánticamente incorrectos y ausencia de cierre directo para rendimiento
+y cuotas con valor. Los tests anteriores de redacción, contexto, repetición y reparación se conservan en el
+caso de una consulta **auxiliar** durante un análisis; las preguntas de cuotas ahora prueban la salida directa.
+No se quitaron las comprobaciones de cifras, reparación ni respaldo de esas pruebas.
+
+**663 pytest**, Ruff y **8 pruebas Node** en verde; sintaxis de app.js/agent.js correcta. Cobertura agéntica
+**95,39 %** (3103 sentencias, 143 sin cubrir). No se añadieron dependencias.
+
+### Qwen real: C1, seguimiento y C2
+
+| Caso | Run | Camino | Inferencias | Reparaciones | Recuperaciones | Latencia |
+|---|---:|---|---:|---:|---:|---:|
+| C1, nueva conversación | 236 | upcoming(Colombia) → request_odds(181043) → salida directa | 2 | 0 | 1 | 13,211 s |
+| Seguimiento de C1 | 237 | analyze_match(181043) → no_pinnacle → desvío → request_odds(181043) → salida directa | 2 | 0 | 1 | 14,011 s |
+| C2, nueva conversación | 238 | upcoming(Argentina) → request_odds(181042) → salida directa | 2 | 0 | 1 | 9,068 s |
+
+**3/3 respuestas verificadas, cero reparaciones, cero respaldos y ningún id inventado** en esta muestra.
+Las recuperaciones previas a la delegación siguen siendo necesarias en estos tres turnos: se mantiene al LLM
+como decisor de la consulta. Una vez completado `request_odds`, no hubo otra inferencia.
+
+C1 y su seguimiento respondieron:
+
+```text
+Ninguna casa publica cuotas todavía para este partido; ESPN tampoco tiene precios disponibles.
+```
+
+C2 respondió:
+
+```text
+Gana Argentina: mejor 1.53 en DraftKings
+Empate: mejor 3.90 en DraftKings
+Gana Uruguay: mejor 5.75 en DraftKings
+Sin Pinnacle no hay valor medible; son precios ofrecidos.
+```
+
+Frente a los runs 234–235 de la auditoría anterior (23,473 y 23,842 s), estos dos casos bajaron a 13,211 y
+9,068 s. Son observaciones de conversaciones concretas; no garantizan esa latencia ni eliminan la variabilidad
+de las decisiones anteriores a la herramienta. El texto final del comparador deja de depender de otra
+redacción del modelo.
+
+Evidencia compacta añadida a `validacion_ojeador.json` bajo `audit_c7`; eventos y bitácoras completos locales
+en `reports/ojeador/auditoria-c7.json`. Se entrega un único commit `fix(agents)` para C7 y se publica la rama,
+sin integrar a main ni a la rama de presentación. La integración corresponde a Claude según el plan.

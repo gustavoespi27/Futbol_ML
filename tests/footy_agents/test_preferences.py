@@ -74,6 +74,7 @@ def test_feed_scoring_algorithm(monkeypatch, memory_db):
     mock_matches = [
         {
             "ref": "m:100",
+            "pro": [{"p_fair": 0.5}],
             "league": "PL",
             "home": "Chelsea",
             "away": "Liverpool",
@@ -115,6 +116,9 @@ def test_feed_scoring_algorithm(monkeypatch, memory_db):
 
     # Chelsea vs Liverpool queda al final
     assert feed.items[2].match_id == 100
+    assert feed.items[2]._has_pinnacle is True
+    assert feed.items[0]._has_pinnacle is False
+    assert "_has_pinnacle" not in feed.items[2].model_dump()
 
 
 

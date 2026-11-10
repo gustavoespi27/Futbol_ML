@@ -6,15 +6,25 @@ Todos los esquemas usan extra="forbid" para mantener la consistencia estricta de
 import json
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
 from footy.db.repository import utc_now
 
 RiskProfile = Literal["conservative", "moderate", "aggressive"]
+AlertType = Literal["favorite_plays", "value_bet", "near_value", "value_combo", "near_combo"]
+DEFAULT_ALERT_TYPES: list[AlertType] = ["favorite_plays", "value_bet", "near_value", "value_combo"]
 
 
 class AgentSchema(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+
+class AgentHealth(AgentSchema):
+    autostart: bool = False
+    startup_failed: bool = False
+    llm_available: bool
+    briefing_mode: Literal["llm", "template"]
+    model: str
 
 
 class UserPreferences(AgentSchema):
@@ -36,6 +46,16 @@ class UserPreferences(AgentSchema):
         ge=1.0,
         description="Monto total del bankroll del usuario en su divisa local"
     )
+    alert_types: list[AlertType] = Field(
+        default_factory=lambda: list(DEFAULT_ALERT_TYPES),
+        description="Tipos de aviso activos (near_combo, informativo, viene desactivado)"
+    )
+    alerts_only_favorites: bool = Field(
+        default=False, description="Avisos de precio solo para equipos y ligas favoritos"
+    )
+    browser_notifications: bool = Field(
+        default=False, description="Notificaciones del navegador mientras la pestaña está abierta"
+    )
     updated_at: str = Field(
         default_factory=utc_now,
         description="Fecha y hora de última modificación en ISO-8601 UTC"
@@ -43,6 +63,8 @@ class UserPreferences(AgentSchema):
 
 
 class FeedItem(AgentSchema):
+    # Metadato interno para el resumen; no cambia el JSON ni el esquema público del feed.
+    _has_pinnacle: bool = PrivateAttr(default=False)
     match_id: int
     home_team: str
     away_team: str
@@ -76,14 +98,56 @@ class ToolCallRecord(AgentSchema):
 
 
 
+class AgentRun(AgentSchema):
+    """Un turno del chat en la bitácora: pasos en orden (herramientas, observaciones, desvíos, reparaciones)."""
+    id: int
+    started_at: str
+    message: str
+    steps: list[dict[str, Any]]
+    iterations: int
+    success: bool
+    elapsed_ms: float
+
+
 class ChatRequest(AgentSchema):
     message: str = Field(min_length=1, max_length=2000)
     user_id: str = "default"
+    conversation_id: int | None = Field(default=None, description="Conversación del historial; sin ella no se guarda")
+
+
+class Conversation(AgentSchema):
+    """Una conversación del historial del chat (título = primera pregunta)."""
+    id: int
+    title: str
+    created_at: str
+    updated_at: str
+    messages: int
+
+
+class ConversationMessage(AgentSchema):
+    role: Literal["user", "assistant"]
+    content: str
+    verified: bool
+    created_at: str
+
+
+class NewConversation(AgentSchema):
+    user_id: str = Field(default="default", min_length=1, max_length=100)
+
+
+class MemoryItem(AgentSchema):
+    """Algo que el Míster aprendió del usuario: equipo, liga o tema, con su peso y si lo dijo explícitamente."""
+    id: int
+    kind: Literal["team", "league", "topic", "name"]
+    label: str
+    weight: float
+    stated: bool
+    updated_at: str
 
 
 class ChatEvent(AgentSchema):
     """Un evento del stream SSE de /api/agent/chat (contrato con el frontend, CLAUDE.md sección 6)."""
-    event: Literal["tool_start", "tool_result", "token", "done", "error"]
+    event: Literal["step", "tool_start", "tool_result", "token", "done", "error"]
     data: dict[str, Any]
 
     def to_sse(self) -> str:

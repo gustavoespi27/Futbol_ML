@@ -535,3 +535,40 @@ mayoría de esos partidos aún no tiene cuotas, así que se muestran con el pron
 
 Los registros prospectivos no cambian: pronósticos fiables y apuestas en papel se registran solo con los partidos de
 hoy y mañana (`REGISTER_DAYS = 2`, `within_days`), para que la serie auditada mantenga la misma anticipación.
+
+## 2026-11-09 — A2: unificar el tope por apuesta en 2%
+
+Con aprobación de Gustavo se reduce `suggestions.MAX_STAKE` de 0,025 a 0,02, coincidiendo con `pro.MAX_STAKE`.
+Se conservan cuarto de Kelly y el máximo diario profesional de 10%. Los textos de índice, glosario y lectura del
+histórico se actualizan en el mismo commit; no se reescriben apuestas ni predicciones prospectivas.
+
+`scripts/regenerate_stake_reports.py` regenera la curva histórica y el informe profesional sin reentrenar ni elegir
+umbrales nuevos. Sobre los mismos datos, ambas versiones de la regla original eligen 154 apuestas y yield plano
+−5,00%; banca final 93,32 con 2,5% frente a 91,44 con 2%, caída máxima 19,50% frente a 18,91%.
+Menor tope limita exposición por apuesta, sin garantizar mayor beneficio realizado. El profesional mantiene sus
+resultados porque ya usaba 2%. Los estudios 02/03 son experimentos independientes (Kelly histórico 5% en 02,
+yield plano en 03); no se alteran sus cifras para aparentar una política que no evaluaron.
+
+Las pruebas fijan numéricamente ambos topes en 0,02 y comprueban Kelly, ausencia de valor y cuotas inválidas.
+Al actualizar una instalación se debe regenerar el artefacto y reiniciar el servidor para retirar cachés anteriores.
+
+## 2026-11-09 — A3: selecciones con Elo y Poisson, fuera del registro en papel
+
+Gustavo aprobó expresamente la excepción para ingestión, modelo y contexto internacional, manteniendo
+`tracking.py` fuera del alcance. Se incorpora el CSV CC0 de `martj42/international_results`, alias auditados,
+Elo con K por torneo, localía confirmada de 100 puntos y Poisson desde la diferencia de rating.
+La tarea diaria prepara un artefacto pequeño; la web no descarga ni entrena.
+
+El CSV no tiene hora y puede incluir prórroga. Se difiere su disponibilidad dos días UTC y se congelan los
+parámetros antes de 2022: tres encuentros de fin de 2021 no son elegibles. La prueba 2022–2026 observa
+0,8768 de log loss frente a 1,0504 trivial y 60,22 % de acierto (5.068 partidos); competitivos y amistosos se
+reportan por separado en [11_selecciones.md](analisis/11_selecciones.md).
+
+La consulta emparejada con Pinnacle sin margen está implementada y devuelve **n=0** en esta base.
+No se declara superioridad frente al mercado ni rentabilidad; el objetivo del CSV tampoco garantiza 90 minutos.
+Solo Pinnacle puede sustituir la probabilidad oficial del modelo y justificar ventaja de precio.
+
+Se excluyen juveniles, sub-23, femenino y cinco clubes mal clasificados. Los filtros de los registros web impiden
+que selecciones alimenten `pro_bets` o `daily_picks`, incluso con fuente mercado. El seguimiento existente no
+cambia. La interfaz distingue pronóstico, precio y alcance de solo consulta; la herramienta expone su fuente.
+No se añaden dependencias ni atenuador de lesiones. El mapa local de `CLAUDE.md` §3 se actualiza sin cambiar reglas.

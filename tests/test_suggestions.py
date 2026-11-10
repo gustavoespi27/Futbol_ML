@@ -5,15 +5,25 @@ La cartera oficial del apostador profesional se prueba en test_pro.py.
 
 import pytest
 
+from footy.betting import pro
 from footy.betting import suggestions as sg
 
 
 def test_kelly_stake_is_fractional_with_cap():
-    assert sg.stake_fraction(0.5, 2.2) == pytest.approx(0.25 * (0.5 * 2.2 - 1) / 1.2)
+    assert sg.stake_fraction(0.5, 2.1) == pytest.approx(0.25 * (0.5 * 2.1 - 1) / 1.1)
+    assert sg.stake_fraction(0.5, 2.2) == 0.02                  # ahora también alcanza el tope
     assert sg.stake_fraction(0.4, 2.0) == 0                      # sin valor no se apuesta
     assert sg.stake_fraction(0.9, 2.0) == sg.MAX_STAKE           # tope
     assert sg.growth(0.4, 2.0) == 0
     assert sg.growth(0.55, 2.0) > 0
+
+
+@pytest.mark.parametrize("p,odds", [(0.9, 2), (0.99, 4), (0.55, 2), (0.2, 2), (0.5, 1)])
+def test_both_rules_enforce_two_percent_cap(p, odds):
+    assert sg.MAX_STAKE == pro.MAX_STAKE == 0.02
+    expected = min(0.02, max(0, 0.25 * (p * odds - 1) / (odds - 1))) if odds > 1 else 0
+    assert sg.stake_fraction(p, odds) == pytest.approx(expected)
+    assert pro.stake(p, odds) == pytest.approx(expected)
 
 
 def test_original_rule_pick_singles_one_per_match():

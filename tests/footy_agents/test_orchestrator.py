@@ -35,12 +35,14 @@ def events(client, message="¿Qué partidos hay hoy?"):
 @pytest.fixture
 def fake_tool(monkeypatch):
     monkeypatch.setitem(tools.TOOLS_REGISTRY, "get_upcoming_matches",
-                        lambda limit=10, league=None, team=None: [{"home": "Colo Colo", "away": "Everton"}])
+                        lambda limit=10, league=None, team=None, **kwargs: [{"home": "Colo Colo", "away": "Everton",
+                                                                "has_pinnacle_price": True}])
 
 
 def test_direct_answer_streams_tokens():
-    out = events(FakeLLM([TextDelta("Hola, "), TextDelta("¿en qué te ayudo?")]))
-    assert [e.event for e in out] == ["token", "token", "done"]
+    out = events(FakeLLM([TextDelta("Hola, "), TextDelta("¿en qué te ayudo?")]), "una consulta")
+    assert [e.event for e in out] == ["token", "done"]
+    assert out[0].data["delta"] == "Hola, ¿en qué te ayudo?"
     assert out[-1].data == {"iterations": 1, "success": True}
 
 
@@ -84,7 +86,7 @@ def test_ollama_down_degrades_gracefully():
 def test_invalid_tool_arguments_reported_to_model():
     client = FakeLLM([ToolCall(id="c1", name="get_league_standings", raw_arguments="{liga: CHL")],
                      [TextDelta("No pude consultar la tabla.")])
-    out = events(client)
+    out = events(client, "¿Cómo va la tabla?")
     assert out[1].data["success"] is False and "JSON" in out[1].data["summary"]
 
 
@@ -151,7 +153,7 @@ def test_chat_endpoint_streams_sse(monkeypatch):
         conn.row_factory = sqlite3.Row
         return conn
     monkeypatch.setattr(router, "connect", memory_db)
-    resp = router.chat(ChatRequest(message="hola"), client=FakeLLM([TextDelta("¡Hola!")]))
+    resp = router.chat(ChatRequest(message="una consulta"), client=FakeLLM([TextDelta("¡Hola!")]))
     assert resp.media_type == "text/event-stream"
 
     async def collect():

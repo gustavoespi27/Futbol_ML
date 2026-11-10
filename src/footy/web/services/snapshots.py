@@ -30,6 +30,9 @@ def signature() -> str:
              config.path("processed") / "calibration.json",
              config.path("processed") / "ml/upcoming.pkl",
              config.PROJECT_ROOT / "data/cache/cross_league.pkl",
+             config.PROJECT_ROOT / "data/cache/international.pkl",
+             config.PROJECT_ROOT / "config/team_aliases.yaml",
+             config.PROJECT_ROOT / "config/international_teams.json",
              config.PROJECT_ROOT / "artifacts/ml/model.joblib",
              config.PROJECT_ROOT / "artifacts/ml/meta.json"]
     stamps = [(str(config.path("database").resolve()), version)]

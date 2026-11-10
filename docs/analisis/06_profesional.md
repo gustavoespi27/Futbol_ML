@@ -2,7 +2,7 @@
 
 *Generado por `scripts/pro_backtest.py`.*
 
-109.263 partidos de 22 ligas europeas (football-data.co.uk). Cuotas **tempranas** (días antes del partido): precio justo = Pinnacle sin margen; se apuesta a la mejor cuota entre Bet365, BetWin, William Hill y 1xBet cuando la supera en ≥ 6% (cuota ≤ 4.0), una por partido, ¼ de Kelly con tope de 2% y 10% diario. CLV contra Pinnacle al cierre. Sin Pinnacle no se apuesta (football-data dejó de publicarlo en 2025-26).
+110.117 partidos de 22 ligas europeas (football-data.co.uk). Cuotas **tempranas** (días antes del partido): precio justo = Pinnacle sin margen; se apuesta a la mejor cuota entre Bet365, BetWin, William Hill y 1xBet cuando la supera en ≥ 6% (cuota ≤ 4.0), una por partido, ¼ de Kelly con tope de 2% y 10% diario. CLV contra Pinnacle al cierre. Sin Pinnacle no se apuesta (football-data dejó de publicarlo en 2025-26).
 
 Regla elegida con 2013-2021 entre 20 combinaciones de umbral y cuota máxima (la de mejor rendimiento con ≥ 300 apuestas); por eso el rendimiento de selección está inflado. La prueba es 2022 en adelante.
 

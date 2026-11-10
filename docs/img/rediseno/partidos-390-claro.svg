@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="964" viewBox="0 0 390 964" style="--bg:#f4f4f3;--card:#ffffff;--line:#b8bab9;--text:#202522;--muted:#555e58;--soft:#e8eae7;--active:#263a30;--on:#ffffff;--warning:#fff3d6;--warning-text:#5c3500;--value:#e1efe5;--value-text:#205333" role="img" aria-labelledby="title desc"><title id="title">Wireframe de Partidos, 390 px, tema claro</title><desc id="desc">Propuesta de estructura para revisión. Los corchetes indican contenido del backend; no son estadísticas ni partidos reales. No es una implementación de la aplicación.</desc><style>text{font-family:Arial,sans-serif;fill:var(--text)}.box{fill:var(--card);stroke:var(--line);stroke-width:1}.soft{fill:var(--soft)}.muted{fill:var(--muted)}.active{fill:var(--active)}.on{fill:var(--on)}</style><rect width="100%" height="100%" fill="var(--bg)"/>
+<text x="16" y="20" font-size="13" font-weight="700" text-anchor="start" class="">Fútbol ML</text>
+<text x="16" y="48" font-size="25" font-weight="700" text-anchor="start" class="">Partidos</text>
+<text x="16" y="73" font-size="14" font-weight="400" text-anchor="start" class="muted">Partidos, probabilidades y precio justo</text>
+<rect x="16" y="88" width="173" height="44" rx="10" class="box"/>
+<text x="102.5" y="116" font-size="14" font-weight="400" text-anchor="middle" class="">Preferencias</text>
+<rect x="201" y="88" width="173" height="44" rx="10" class="box"/>
+<text x="287.5" y="116" font-size="14" font-weight="400" text-anchor="middle" class="">Asistente</text>
+<rect x="0" y="876" width="390" height="88" rx="0" class="box"/>
+<text x="39" y="908" font-size="19" font-weight="400" text-anchor="middle" class="">○</text>
+<text x="39" y="931" font-size="11.5" font-weight="400" text-anchor="middle" class="">Hoy</text>
+<rect x="82" y="885" width="70" height="56" rx="10" class="active" stroke="none"/>
+<text x="117" y="908" font-size="19" font-weight="400" text-anchor="middle" class="on">▤</text>
+<text x="117" y="931" font-size="11.5" font-weight="400" text-anchor="middle" class="on">Partidos</text>
+<text x="195" y="908" font-size="19" font-weight="400" text-anchor="middle" class="">✓</text>
+<text x="195" y="931" font-size="11.5" font-weight="400" text-anchor="middle" class="">Seguimiento</text>
+<text x="273" y="908" font-size="19" font-weight="400" text-anchor="middle" class="">◇</text>
+<text x="273" y="931" font-size="11.5" font-weight="400" text-anchor="middle" class="">Explorar</text>
+<text x="351" y="908" font-size="19" font-weight="400" text-anchor="middle" class="">···</text>
+<text x="351" y="931" font-size="11.5" font-weight="400" text-anchor="middle" class="">Más</text>
+<text x="195" y="958" font-size="10" font-weight="400" text-anchor="middle" class="muted">Área segura del dispositivo</text>
+<g transform="translate(0,64)">
+<text x="20" y="113" font-size="13" font-weight="400" text-anchor="start" class="muted">Datos [fecha] · Asistente [estado] · [versión]</text>
+<rect x="16" y="180" width="358" height="48" rx="10" class="box"/>
+<text x="30" y="210" font-size="16" font-weight="400" text-anchor="start" class="muted">Buscar equipo o competición…</text>
+<rect x="16" y="244" width="92" height="44" rx="10" class="active" stroke="none"/>
+<text x="62.0" y="272" font-size="15" font-weight="700" text-anchor="middle" class="on">Hoy</text>
+<rect x="120" y="244" width="110" height="44" rx="10" class="box"/>
+<text x="175.0" y="272" font-size="15" font-weight="400" text-anchor="middle" class="">Mañana</text>
+<rect x="242" y="244" width="132" height="44" rx="10" class="box"/>
+<text x="308.0" y="272" font-size="15" font-weight="400" text-anchor="middle" class="">Calendario</text>
+<text x="16" y="325" font-size="15" font-weight="400" text-anchor="start" class="">Todas las ligas</text>
+<rect x="260" y="304" width="114" height="44" rx="10" class="box"/>
+<text x="317.0" y="332" font-size="15" font-weight="400" text-anchor="middle" class="">Filtros</text>
+<rect x="16" y="364" width="358" height="122" rx="10" class="box"/>
+<text x="30" y="387" font-size="14" font-weight="400" text-anchor="start" class="muted">[Liga] · [hora local] · [estado]</text>
+<text x="30" y="417" font-size="16" font-weight="700" text-anchor="start" class="">Equipo local — Equipo visitante</text>
+<text x="30" y="445" font-size="14" font-weight="400" text-anchor="start" class="">Local [dato] · Empate [dato] · Visita [dato]</text>
+<text x="30" y="472" font-size="13" font-weight="400" text-anchor="start" class="muted">Fuente: [origen]</text>
+<text x="356" y="472" font-size="18" font-weight="400" text-anchor="middle" class="">→</text>
+<rect x="16" y="500" width="358" height="122" rx="10" class="box"/>
+<text x="30" y="523" font-size="14" font-weight="400" text-anchor="start" class="muted">[Liga] · [hora local] · [estado]</text>
+<text x="30" y="553" font-size="16" font-weight="700" text-anchor="start" class="">Equipo local — Equipo visitante</text>
+<text x="30" y="581" font-size="14" font-weight="400" text-anchor="start" class="">Local [dato] · Empate [dato] · Visita [dato]</text>
+<text x="30" y="608" font-size="13" font-weight="400" text-anchor="start" class="muted">Fuente: [origen]</text>
+<text x="356" y="608" font-size="18" font-weight="400" text-anchor="middle" class="">→</text>
+<rect x="16" y="636" width="358" height="122" rx="10" class="box"/>
+<text x="30" y="659" font-size="14" font-weight="400" text-anchor="start" class="muted">[Liga] · [hora local] · [estado]</text>
+<text x="30" y="689" font-size="16" font-weight="700" text-anchor="start" class="">Equipo local — Equipo visitante</text>
+<text x="30" y="717" font-size="14" font-weight="400" text-anchor="start" class="">Local [dato] · Empate [dato] · Visita [dato]</text>
+<text x="30" y="744" font-size="13" font-weight="400" text-anchor="start" class="muted">Fuente: [origen]</text>
+<text x="356" y="744" font-size="18" font-weight="400" text-anchor="middle" class="">→</text>
+</g>
+</svg>

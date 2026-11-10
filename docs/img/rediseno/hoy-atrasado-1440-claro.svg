@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" style="--bg:#f4f4f3;--card:#ffffff;--line:#b8bab9;--text:#202522;--muted:#555e58;--soft:#e8eae7;--active:#263a30;--on:#ffffff;--warning:#fff3d6;--warning-text:#5c3500;--value:#e1efe5;--value-text:#205333" role="img" aria-labelledby="title desc"><title id="title">Wireframe de Hoy, 1440 px, tema claro</title><desc id="desc">Propuesta de estructura para revisión. Los corchetes indican contenido del backend; no son estadísticas ni partidos reales. No es una implementación de la aplicación.</desc><style>text{font-family:Arial,sans-serif;fill:var(--text)}.box{fill:var(--card);stroke:var(--line);stroke-width:1}.soft{fill:var(--soft)}.muted{fill:var(--muted)}.active{fill:var(--active)}.on{fill:var(--on)}</style><rect width="100%" height="100%" fill="var(--bg)"/>
+<rect x="0" y="0" width="220" height="900" rx="0" class="box"/>
+<text x="24" y="44" font-size="23" font-weight="700" text-anchor="start" class="">Fútbol ML</text>
+<text x="24" y="70" font-size="14" font-weight="400" text-anchor="start" class="muted">Análisis de fútbol</text>
+<rect x="16" y="118" width="188" height="44" rx="10" class="active" stroke="none"/>
+<text x="32" y="146" font-size="15" font-weight="700" text-anchor="start" class="on">Hoy</text>
+<rect x="16" y="182" width="188" height="44" rx="10" class="box"/>
+<text x="32" y="210" font-size="15" font-weight="400" text-anchor="start" class="">Partidos</text>
+<rect x="16" y="246" width="188" height="44" rx="10" class="box"/>
+<text x="32" y="274" font-size="15" font-weight="400" text-anchor="start" class="">Seguimiento</text>
+<rect x="16" y="310" width="188" height="44" rx="10" class="box"/>
+<text x="32" y="338" font-size="15" font-weight="400" text-anchor="start" class="">Explorar</text>
+<rect x="16" y="374" width="188" height="44" rx="10" class="box"/>
+<text x="32" y="402" font-size="15" font-weight="400" text-anchor="start" class="">Más</text>
+<text x="24" y="831" font-size="13" font-weight="400" text-anchor="start" class="muted">Seguimiento en papel</text>
+<text x="24" y="855" font-size="13" font-weight="400" text-anchor="start" class="muted">Metodología en Más</text>
+<text x="252" y="49" font-size="28" font-weight="700" text-anchor="start" class="">Hoy</text>
+<text x="252" y="80" font-size="15" font-weight="400" text-anchor="start" class="muted">[Fecha local]</text>
+<rect x="1124" y="25" width="148" height="44" rx="10" class="box"/>
+<text x="1198.0" y="53" font-size="15" font-weight="400" text-anchor="middle" class="">Preferencias</text>
+<rect x="1284" y="25" width="124" height="44" rx="10" class="box"/>
+<text x="1346.0" y="53" font-size="15" font-weight="400" text-anchor="middle" class="">Asistente</text>
+<rect x="252" y="108" width="1156" height="76" rx="10" class="box"/>
+<rect x="252" y="108" width="1156" height="76" rx="10" fill="var(--warning)"/>
+<text x="272" y="139" font-size="16" font-weight="700" text-anchor="start" class="">Datos sin actualizar desde [fecha]</text>
+<text x="272" y="164" font-size="14" font-weight="400" text-anchor="start" class="muted">[Fecha y hora local del backend]</text>
+<text x="802" y="139" font-size="15" font-weight="400" text-anchor="start" class="">Asistente: [disponibilidad]</text>
+<text x="802" y="164" font-size="14" font-weight="400" text-anchor="start" class="muted">Resumen: [plantilla o IA]</text>
+<text x="1212" y="151" font-size="14" font-weight="400" text-anchor="start" class="muted">[Versión del modelo]</text>
+<rect x="252" y="208" width="656" height="126" rx="10" class="box"/>
+<text x="268" y="242" font-size="19" font-weight="700" text-anchor="start" class="">Tus equipos</text>
+<text x="268" y="274" font-size="16" font-weight="400" text-anchor="start" class="muted">[Favoritos guardados]</text>
+<text x="268" y="308" font-size="14" font-weight="400" text-anchor="start" class="muted">Actualización pendiente</text>
+<rect x="932" y="208" width="226" height="96" rx="10" class="box"/>
+<text x="946" y="233" font-size="14" font-weight="700" text-anchor="start" class="">Partidos de hoy</text>
+<text x="946" y="265" font-size="25" font-weight="400" text-anchor="start" class="">—</text>
+<text x="946" y="289" font-size="13" font-weight="400" text-anchor="start" class="muted">Hoy · en pausa</text>
+<rect x="1182" y="208" width="226" height="96" rx="10" class="box"/>
+<text x="1196" y="233" font-size="14" font-weight="700" text-anchor="start" class="">Con ventaja</text>
+<text x="1196" y="265" font-size="25" font-weight="400" text-anchor="start" class="">—</text>
+<text x="1196" y="289" font-size="13" font-weight="400" text-anchor="start" class="muted">Hoy · en pausa</text>
+<rect x="252" y="358" width="1156" height="208" rx="10" class="box"/>
+<text x="268" y="392" font-size="20" font-weight="700" text-anchor="start" class="">Recomendaciones en pausa</text>
+<text x="268" y="428" font-size="16" font-weight="400" text-anchor="start" class="muted">No hay datos recientes. El resumen y las oportunidades se mostrarán cuando exista información actualizada.</text>
+<rect x="268" y="504" width="290" height="44" rx="10" class="box"/>
+<text x="413.0" y="532" font-size="15" font-weight="400" text-anchor="middle" class="">Ver últimos resultados</text>
+</svg>

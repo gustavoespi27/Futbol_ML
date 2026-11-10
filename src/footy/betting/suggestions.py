@@ -28,7 +28,7 @@ MIN_ODDS = 1.30
 MAX_ODDS = 4.0
 MIN_P = 0.25
 KELLY_FRACTION = 0.25
-MAX_STAKE = 0.025          # nunca más de 2,5% del bankroll en una apuesta
+MAX_STAKE = 0.02           # nunca más de 2% del bankroll en una apuesta
 RULES = {"min_ev": MIN_EV, "min_odds": MIN_ODDS, "max_odds": MAX_ODDS, "min_p": MIN_P,
          "kelly_fraction": KELLY_FRACTION, "max_stake": MAX_STAKE}
 
