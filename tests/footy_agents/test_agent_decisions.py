@@ -84,7 +84,7 @@ def record(name, result=None, success=True, args=None, error=None):
     (record("find_team", [{"team": "A", "exact": True, "next_match": None}]), "ok", ["get_team_form"]),
     (record("get_team_form", None, success=False, error="Equipo no encontrado"), "not_found", ["find_team"]),
     (record("analyze_match", {"status": "started"}), "started", ["get_upcoming_matches"]),
-    (record("analyze_match", {"status": "no_pinnacle"}), "no_pinnacle", ["get_coverage"]),
+    (record("analyze_match", {"status": "no_pinnacle"}), "no_pinnacle", ["request_odds", "get_coverage"]),
     (record("analyze_match", None, success=False, error="no está"), "not_found",
      ["find_team", "get_upcoming_matches"]),
     (record("simulate_match", None, success=False, error="'Equipo X no encontrado'"), "not_found", ["find_team"]),

@@ -91,6 +91,7 @@ TOOL_MODELS = {
     "get_stake_limits": StakeArgs,
     "find_team": FindTeamArgs,
     "analyze_match": AnalyzeArgs,
+    "request_odds": AnalyzeArgs,
     "get_coverage": CoverageArgs,
     "get_team_form": TeamFormArgs,
     "create_watch": WatchArgs,
@@ -100,6 +101,8 @@ TOOL_MODELS = {
 }
 
 DESCRIPTIONS = {
+    "request_odds": ("Usa para «Compara cuotas de ese partido»: match_id conocido; delega al Ojeador y compara casas. "
+                     "No calcula ventaja sin Pinnacle ni inventa cuotas ausentes."),
     "create_watch": ("Usa para «Avísame si aparece Pinnacle»: un match_id conocido o team y una condición. "
                      "No inventes ids; primero find_team/analyze_match. Una llamada por condición."),
     "list_watches": ("Usa para «¿Qué vigilas?» o «mis alertas»: lista vigilancias con ids. "

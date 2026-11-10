@@ -15,7 +15,8 @@ def is_follow_up(message: str, entities: dict | None) -> bool:
                                  for phrase in ("ese partido", "este partido", "el mismo", "ahi", "favorito",
                                                 "y manana", "eso", "esa", "ese", "otro", "otra",
                                                 "otros", "otras", "mas", "esos", "esas", "estos", "estas",
-                                                "el primero", "el segundo", "la primera", "de la lista"))
+                                                "el primero", "el segundo", "la primera", "de la lista",
+                                                "compara cuotas", "cuanto paga", "que casa paga mas"))
     ):
         return False
     entities = entities or {}
@@ -53,6 +54,8 @@ def is_follow_up(message: str, entities: dict | None) -> bool:
 def intent_route(message: str, entities: dict | None = None) -> tuple[str, dict] | None:
     """Una herramienta por intención original; los argumentos desconocidos no se inventan."""
     q = normalize_name(message)
+    if entities and entities.get("match_id") and re.search(r"compara cuotas|cuanto paga|que casa paga mas", q):
+        return "request_odds", {"match_id": entities["match_id"]}
     for pattern, tool in ((r"deja de vigilar|cancela.*vigilan", "cancel_watch"),
                           (r"que vigilas|mis alertas|lista.*vigilan|mis vigilan", "list_watches"),
                           (r"agrega.*favoritos|anade.*favoritos", "add_favorite"),

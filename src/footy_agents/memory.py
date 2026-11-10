@@ -84,7 +84,7 @@ def recent_entities(conn: sqlite3.Connection, user_id: str, now: datetime | None
 def entities_from(record: ToolCallRecord) -> dict:
     """Conserva identificadores y nombres, nunca probabilidades ni precios pasados."""
     if not record.success or record.tool_name not in {
-        "analyze_match", "find_team", "simulate_match", "get_team_form", "get_upcoming_matches"
+        "analyze_match", "request_odds", "find_team", "simulate_match", "get_team_form", "get_upcoming_matches"
     }:
         return {}
     result = record.result

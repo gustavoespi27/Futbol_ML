@@ -45,6 +45,10 @@ def observe(record: ToolCallRecord) -> Observation:
     if not record.success:
         return _failed(record)
     name, result, args = record.tool_name, record.result, record.arguments
+    if name == "request_odds" and isinstance(result, dict):
+        return Observation(status="empty" if result.get("status") == "no_odds" else
+                           "no_pinnacle" if result.get("status") == "no_pinnacle" else "ok",
+                           note=result.get("note", ""))
     if name in {"create_watch", "list_watches", "cancel_watch", "add_favorite"} and isinstance(result, dict):
         return Observation(status="ok", note=result.get("note", "Objetivos consultados."),
                            options=["list_watches"] if name == "create_watch" else [])
@@ -90,7 +94,7 @@ def observe(record: ToolCallRecord) -> Observation:
         if result.get("status") == "no_pinnacle":
             return Observation(status="no_pinnacle",
                                note="Sin precio de Pinnacle: entrega probabilidades del modelo, sin hablar de ventaja.",
-                               options=["get_coverage"])
+                               options=["request_odds", "get_coverage"])
         return OK
 
     if name == "get_coverage" and result.get("stale"):

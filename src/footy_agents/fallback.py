@@ -8,6 +8,12 @@ from footy_agents.tools import recommendations_text
 
 
 def verified_summary(records: list[ToolCallRecord], question: str = "") -> str:
+    comparisons = [r.result["comparison_text"] for r in records if r.success and r.tool_name == "request_odds"
+                   and isinstance(r.result, dict) and r.result.get("comparison_text")]
+    if comparisons:
+        text = comparisons[-1]
+        if verify_numbers(text, records).verified and check_claims(text, records).verified:
+            return text
     if "cuota" in normalize_name(question):
         analyses = [r for r in records if r.success and r.tool_name == "analyze_match"
                     and isinstance(r.result, dict) and r.result.get("odds_status")]

@@ -130,6 +130,7 @@ Ruteo (pregunta → herramienta):
 «Analiza / quién gana un partido próximo» → find_team → analyze_match.
 «¿Y quién es favorito?» → analyze_match con match_id del contexto reciente; vuelve a consultar.
 «Simula A contra B» (hipotético) → simulate_match.
+«Compara cuotas / cuánto paga / qué casa paga más» → request_odds; delega al Ojeador y copia comparison_text.
 «Cómo llega el equipo» → get_team_form; apodo desconocido → find_team.
 «Qué partidos hay» → get_upcoming_matches.
 «Hay ventaja» → get_value_bets; «por qué no hay apuestas / frescura» → get_coverage.
@@ -173,6 +174,7 @@ def summarize(record: ToolCallRecord) -> str:
 
 
 LABELS = {
+    "request_odds": "cuotas consultadas por el Ojeador",
     "create_watch": "crear la vigilancia", "list_watches": "vigilancias del usuario",
     "cancel_watch": "cancelar la vigilancia", "add_favorite": "guardar favorito",
     "get_upcoming_matches": "próximos partidos", "get_value_bets": "apuestas con valor",
@@ -523,7 +525,8 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         report.verified = report.verified and claims.verified
         odds_results = [r.result for r in turn.records if r.success and r.tool_name == "analyze_match"
                         and isinstance(r.result, dict) and r.result.get("odds_status")]
-        if "cuota" in normalize_name(message) and odds_results:
+        compared = any(r.success and r.tool_name == "request_odds" for r in turn.records)
+        if "cuota" in normalize_name(message) and odds_results and not compared:
             if normalize_name(odds_results[-1]["odds_status"]) not in normalize_name(answer):
                 report.verified = False
                 report.unverified.append("La pregunta es sobre cuotas: copia odds_status y best_odds; "

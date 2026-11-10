@@ -559,6 +559,27 @@ def tool_add_favorite(team: str | None = None, league: str | None = None, user_i
     return {"status": "ok", "note": "Favorito guardado", "confirmation_text": f"Favorito guardado: {name}."}
 
 
+def tool_request_odds(match_id: int) -> dict[str, Any]:
+    """Delega solo un partido al Ojeador; compara siempre contra la base, nunca una caché."""
+    from footy_agents import odds_scout
+    from footy_agents.odds_comparison import compare
+
+    now = datetime.now(timezone.utc)
+    with closing(connect()) as conn:
+        match = next((m for m in odds_scout.upcoming(conn, now) if m["match_id"] == match_id), None)
+        if match is None:
+            raise ValueError("El partido no está en el calendario próximo o ya comenzó")
+        state = odds_scout.perceive(conn, [match], now)[0]
+        delegated = not state.last_capture or (
+            now - datetime.fromisoformat(state.last_capture.replace("Z", "+00:00"))).total_seconds() >= 3600
+        reason = "Captura ESPN de menos de una hora: se compara sin delegar"
+        if delegated:
+            result = odds_scout.run(conn, budget=1, matches=[match], refresh_hours=1)
+            reason = "; ".join(d.reason for d in result.decisions if d.source == "espn")
+        comparison = compare(conn, match_id, datetime.now(timezone.utc))
+    return {**comparison, "delegated": delegated, "scout_reason": reason}
+
+
 WRITE_TOOLS = {"create_watch", "list_watches", "cancel_watch", "add_favorite"}
 TOOLS_REGISTRY: dict[str, Any] = {
     "create_watch": tool_create_watch, "list_watches": tool_list_watches,
@@ -572,6 +593,7 @@ TOOLS_REGISTRY: dict[str, Any] = {
     "get_stake_limits": tool_get_stake_limits,
     "find_team": tool_find_team,
     "analyze_match": tool_analyze_match,
+    "request_odds": tool_request_odds,
     "get_coverage": tool_get_coverage,
     "get_team_form": tool_get_team_form,
 }
