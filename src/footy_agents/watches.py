@@ -80,8 +80,17 @@ def create_watch(conn: sqlite3.Connection, user_id: str, args: WatchArgs) -> dic
             (user_id, args.match_id, args.team, args.condition),
         ).fetchone()
     id_ = row[0]
-    target = f"partido {args.match_id}" if args.match_id is not None else args.team
-    note = "Quedó vigilando" if created else "ya estaba vigilando"
+    target = args.team
+    if args.match_id is not None:
+        # El usuario ve los equipos, no el identificador interno del partido.
+        try:
+            teams = conn.execute(
+                "SELECT h.name, a.name FROM matches m JOIN teams h ON h.id = m.home_team_id "
+                "JOIN teams a ON a.id = m.away_team_id WHERE m.id = ?", (args.match_id,)).fetchone()
+        except sqlite3.OperationalError:     # bases mínimas sin equipos enlazados: se mantiene el identificador
+            teams = None
+        target = f"{teams[0]} vs {teams[1]}" if teams else f"el partido {args.match_id}"
+    note = "quedó vigilando" if created else "ya estaba vigilando"
     return {
         "status": "ok",
         "id": id_,
