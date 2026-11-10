@@ -1645,7 +1645,8 @@ section.view > .trust-hidden { display: none; }
 .mister .fx-inner { fill: #ffd0ad; }
 .mister .fx-white { fill: #fffaf3; }
 .mister .fx-ink { fill: #2b1d16; }
-.mister .fx-blush { fill: #ff8fa0; opacity: .55; }
+.mister .fx-blush { fill: #ff8fa0; opacity: .45; }
+.mister .fx-tip { fill: #3a2620; }
 .mister .fx-paw { fill: #3a2620; stroke: #2b1d16; stroke-width: 2; }
 .mister .fx-line { stroke: #2b1d16; stroke-width: 2.3; stroke-linejoin: round; stroke-linecap: round; }
 .mister .fx-brow, .mister .fx-smile { fill: none; stroke: #2b1d16; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
