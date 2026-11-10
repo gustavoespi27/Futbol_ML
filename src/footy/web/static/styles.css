@@ -705,7 +705,7 @@ ul.clean { margin: 0; padding-left: 18px; color: var(--text-2); display: grid; g
   display: grid; justify-items: center; gap: var(--s-2); text-align: center; padding: 40px 20px;
   border: 1px dashed var(--border); border-radius: var(--radius); background: color-mix(in srgb, var(--surface) 60%, transparent);
 }
-.empty-state svg:not(.mister) { width: 44px; height: 44px; color: var(--accent); padding: 10px; border-radius: var(--radius);
+.empty-state svg { width: 44px; height: 44px; color: var(--accent); padding: 10px; border-radius: var(--radius);
   background: var(--accent-soft); box-sizing: content-box; margin-bottom: var(--s-1); }
 .empty-state b { font-family: var(--font-display); font-size: var(--fs-base); }
 .empty-state p { color: var(--muted); font-size: var(--fs-sm); max-width: 420px; }
@@ -1252,7 +1252,7 @@ section.view > .trust-hidden { display: none; }
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-3); text-align: left; padding: var(--s-2) var(--s-4); line-height: 1.35;
   border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);
 }
-.empty-state--trust svg:not(.mister) { display: none; }
+.empty-state--trust svg { display: none; }
 .empty-state--trust b { font-size: var(--fs-md); }
 .empty-state--trust p { flex: 1 1 100%; margin: 0; color: var(--text-2); max-width: none; font-size: var(--fs-base); line-height: 1.4; }
 .empty-state--trust .empty-action { margin: 0; min-height: 44px; padding: 8px 12px; background: var(--surface-2); color: var(--text); }
@@ -1542,7 +1542,7 @@ section.view > .trust-hidden { display: none; }
   border: 2px solid var(--accent); display: grid; place-items: center; cursor: pointer; overflow: hidden;
   background: var(--surface); color: var(--text); box-shadow: var(--shadow-lg); transition: transform .15s ease;
 }
-.agent-fab > span { display: grid; place-items: center; margin-top: 4px; }
+.agent-fab > span { display: grid; place-items: center; }
 .agent-fab:hover { transform: scale(1.06); }
 .agent-activity { flex: 0 1 auto; overflow-y: auto; max-height: 45%; border-bottom: 1px solid var(--border);
   padding: 6px 12px; color: var(--text); background: var(--surface); overflow-wrap: anywhere; }
@@ -1573,7 +1573,7 @@ section.view > .trust-hidden { display: none; }
 .chat-head span { font-size: var(--fs-xs); color: var(--muted); }
 .chat-head .chat-id { display: flex; align-items: center; gap: 10px; }
 .chat-head .chat-avatar { width: 42px; height: 42px; flex: none; display: grid; place-items: center; border-radius: 50%;
-  background: var(--accent-soft); border: 1px solid var(--accent); overflow: hidden; padding-top: 4px; }
+  background: var(--accent-soft); border: 1px solid var(--accent); overflow: hidden; }
 .chat-head .td-close { top: 10px; display: grid; place-items: center; font-size: var(--fs-lg); }
 .chat-log { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; overscroll-behavior: contain; }
 .msg { max-width: 88%; display: grid; gap: 6px; }
@@ -1639,67 +1639,31 @@ section.view > .trust-hidden { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .typing::after, .tool-badge .spin { animation: none; } .agent-chat { animation: none; } }
 
-/* ================= El Míster: mascota (zorro DT) ================= */
-.mister { display: block; overflow: visible; }
-.mister .fx-fur { fill: #f6852f; }
-.mister .fx-inner { fill: #ffd0ad; }
-.mister .fx-white { fill: #fffaf3; }
-.mister .fx-ink { fill: #2b1d16; }
-.mister .fx-blush { fill: #ff8fa0; opacity: .45; }
-.mister .fx-tip { fill: #3a2620; }
-.mister .fx-sclera { fill: #ffffff; stroke-width: 1.3; }
-.mister .fx-band { fill: #1f9d55; stroke-width: 1.6; }
-.mister .fx-shadow { fill: #000; opacity: .18; }
-.mister .fx-paw { fill: #3a2620; stroke: #2b1d16; stroke-width: 2; }
-.mister .fx-line { stroke: #2b1d16; stroke-width: 2.3; stroke-linejoin: round; stroke-linecap: round; }
-.mister .fx-brow, .mister .fx-smile { fill: none; stroke: #2b1d16; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
-.mister .fx-smile { stroke-width: 1.8; }
-.mister .fx-cord { fill: none; stroke: var(--accent); stroke-width: 2.6; stroke-linecap: round; }
-.mister .fx-metal { fill: #d5dde7; stroke: #2b1d16; stroke-width: 1.4; }
-.mister .fx-jacket { fill: var(--accent-fill); }
-.mister .fx-seam { fill: none; stroke: #2b1d16; stroke-width: 1.6; stroke-linejoin: round; opacity: .55; }
-.mister .fx-pitch { fill: #1f9d55; }
-.mister .fx-chalk { fill: none; stroke: #f8fafc; stroke-width: 1.5; stroke-linecap: round; }
-.mister .fx-eyes, .mister .fx-ear, .mister .fx-whistle, .mister .fx-tail { transform-box: fill-box; }
-.mister .fx-eyes { transform-origin: center; }
-.mister .fx-ear-l { transform-origin: 80% 100%; }
-.mister .fx-ear-r { transform-origin: 20% 100%; }
-.mister .fx-whistle { transform-origin: 50% 0; }
-.mister .fx-tail { transform-origin: 0% 100%; }
-
+/* ================= El Míster: mascota (zorro DT, ilustración del autor) ================= */
+.mister { display: block; object-fit: contain; }
 .msg-intro { display: flex; align-items: flex-end; gap: 10px; }
 .msg-intro .intro-mister { flex: none; }
 .msg-intro .msg-text { flex: 1; }
 @media (max-width: 560px) {
   .msg-intro { flex-direction: column; align-items: flex-start; gap: 4px; }
-  .msg-intro .intro-mister .mister { width: 92px; height: auto; }
+  .msg-intro .intro-mister .mister { width: 76px; height: auto; }
 }
-.brief-mister { display: inline-grid; place-items: center; width: 34px; height: 34px; margin-right: 8px; border-radius: 50%;
-  background: var(--accent-soft); vertical-align: middle; overflow: hidden; padding-top: 3px; }
+.brief-mister { display: inline-grid; place-items: center; width: 36px; height: 36px; margin-right: 8px; border-radius: 50%;
+  background: var(--accent-soft); vertical-align: middle; overflow: hidden; }
 #brief-title { display: flex; align-items: center; }
 .mister-quote { flex: 1 1 100%; display: flex; align-items: center; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--grid); }
 .mister-quote .mister { flex: none; }
 .mister-quote p { margin: 0; font-size: var(--fs-sm); font-style: italic; color: var(--text-2); }
 .alerts-empty .mister { margin: 0 auto 4px; }
+.mister-face { transform-origin: 50% 85%; }
 
 @media (prefers-reduced-motion: no-preference) {
-  .mister .fx-eyes { animation: fx-blink 5.5s infinite; }
-  .mister-live.is-thinking .fx-eyes { animation: fx-look 1.4s ease-in-out infinite; }
-  .mister-live.is-thinking .fx-ear-l { animation: fx-perk-l 1.4s ease-in-out infinite; }
-  .mister-live.is-thinking .fx-ear-r { animation: fx-perk-r 1.4s ease-in-out infinite; }
-  .agent-fab:hover .fx-ear-r { animation: fx-twitch .6s ease-in-out; }
-  .agent-fab:hover .fx-whistle { animation: fx-swing .8s ease-in-out; }
-  .mister-full { animation: fx-bob 4s ease-in-out infinite; }
-  .mister-full .fx-tail { animation: fx-wag 2.6s ease-in-out infinite; }
-  .mister-full .fx-whistle-body { animation: fx-swing 4s ease-in-out infinite; }
+  .mister-live.is-thinking .mister-face { animation: fx-think 1.6s ease-in-out infinite; }
+  .agent-fab:hover .mister-face { animation: fx-nod .6s ease-in-out; }
   .agent-fab .mister-face { animation: fx-pop .5s cubic-bezier(.34, 1.56, .64, 1) both; }
+  .mister-full { animation: fx-bob 4s ease-in-out infinite; }
 }
-@keyframes fx-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.12); } }
-@keyframes fx-look { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-1.6px); } 70% { transform: translateX(1.6px); } }
-@keyframes fx-perk-l { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-7deg); } }
-@keyframes fx-perk-r { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(7deg); } }
-@keyframes fx-twitch { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(12deg); } 60% { transform: rotate(-4deg); } }
-@keyframes fx-swing { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(10deg); } 75% { transform: rotate(-8deg); } }
+@keyframes fx-think { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-8deg); } 70% { transform: rotate(6deg); } }
+@keyframes fx-nod { 0%, 100% { transform: rotate(0); } 35% { transform: rotate(-10deg) scale(1.05); } 70% { transform: rotate(4deg); } }
 @keyframes fx-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-@keyframes fx-wag { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-8deg); } }
 @keyframes fx-pop { from { transform: scale(.6) translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
