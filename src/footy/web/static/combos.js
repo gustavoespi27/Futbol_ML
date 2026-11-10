@@ -16,6 +16,10 @@ function afterTicketChange() {
     document.querySelectorAll("[data-ticket-count]").forEach((b) => {
       b.classList.remove("pulse"); void b.offsetWidth; b.classList.add("pulse");
     });
+    // El botón Boleto recibe la selección: salta y una capa cae sobre el mazo.
+    document.querySelectorAll(".ticket-btn").forEach((b) => {
+      b.classList.remove("bump"); void b.offsetWidth; b.classList.add("bump");
+    });
   }
   legCount = ticket.legs.length;
   const refs = new Set(ticket.legs.map((l) => l.ref));
