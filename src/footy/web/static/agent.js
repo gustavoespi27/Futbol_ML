@@ -84,7 +84,7 @@ async function loadBriefing() {
 }
 
 /* ---------- chat con el Míster ---------- */
-const chat = { open: false, busy: false, conversationId: null, historyOpen: false };
+const chat = { open: false, busy: false, conversationId: null, historyOpen: false, stick: true };
 let chatReturnFocus = null;
 const CHAT_KEY = "mister-conversation";
 const CHAT_GREETING = "Aquí el Míster. En este equipo los números mandan, no la camiseta. Pregúntame por un partido, "
@@ -103,15 +103,37 @@ function toggleChat(force) {
   $("#agent-chat").hidden = !chat.open;
   $("#agent-fab").setAttribute("aria-expanded", String(chat.open));
   $("#more-assistant").setAttribute("aria-expanded", String(chat.open));
-  if (chat.open) chatEl("textarea").focus();
+  if (chat.open) { chatEl("textarea").focus(); scrollChat({ force: true, smooth: false }); }
   else (chatReturnFocus && chatReturnFocus.getClientRects().length ? chatReturnFocus : $("#agent-fab")).focus();
 }
 
 function chatBubble(role, html = "") {
   const log = chatEl(".chat-log");
   log.insertAdjacentHTML("beforeend", `<div class="msg ${role}"><div class="msg-text">${html}</div></div>`);
-  log.scrollTop = log.scrollHeight;
   return log.lastElementChild;
+}
+
+/* Desplazamiento: el chat sigue la conversación mientras el usuario está abajo; si sube a leer, no lo mueve y
+   aparece el botón para volver a la última consulta (con un punto si llegó algo nuevo mientras tanto). */
+const NEAR_BOTTOM = 80;
+function chatNearBottom() {
+  const log = chatEl(".chat-log");
+  return log.scrollHeight - log.scrollTop - log.clientHeight < NEAR_BOTTOM;
+}
+function scrollChat({ force = false, smooth = true } = {}) {
+  const log = chatEl(".chat-log");
+  if (!force && !chat.stick) { $("#chat-jump").classList.add("has-new"); return; }
+  chat.stick = true;
+  const animate = smooth && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  chat.autoUntil = animate ? Date.now() + 700 : 0;   // el desplazamiento suave no cuenta como «el usuario subió»
+  log.scrollTo({ top: log.scrollHeight, behavior: animate ? "smooth" : "auto" });
+}
+function updateJump() {
+  if (Date.now() < (chat.autoUntil || 0) && !chatNearBottom()) return;
+  chat.stick = chatNearBottom();
+  const jump = $("#chat-jump");
+  jump.hidden = chat.stick;
+  if (chat.stick) jump.classList.remove("has-new");
 }
 
 function resetChatLog() {
@@ -140,6 +162,7 @@ async function openConversation(id, { quiet = false } = {}) {
     chatBubble("bot", agentText(CHAT_GREETING));
     for (const m of msgs) chatBubble(m.role === "user" ? "user" : "bot", agentText(m.content));
     chatEl(".chat-suggest").hidden = msgs.length > 0;
+    scrollChat({ force: true, smooth: false });
     setConversation(id);
     toggleHistory(false);
   } catch (e) {
@@ -160,10 +183,11 @@ async function sendChat(message) {
   chatEl(".chat-suggest").hidden = true;
   chatBubble("user", agentText(message));
   const msg = chatBubble("bot");
-  const out = $(".msg-text", msg), log = chatEl(".chat-log");
+  const out = $(".msg-text", msg);
   out.innerHTML = `<span class="msg-thinking">El Míster está revisando la pizarra<i></i><i></i><i></i></span>`;
+  scrollChat({ force: true });                      // al preguntar se baja de inmediato para ver que está pensando
   let text = "";
-  const scroll = () => { log.scrollTop = log.scrollHeight; };
+  const scroll = () => scrollChat();
   try {
     if (!chat.conversationId) {
       const created = await agentApi("/api/agent/conversations", { method: "POST", body: JSON.stringify({ user_id: AGENT_USER }) });
@@ -177,9 +201,13 @@ async function sendChat(message) {
         scroll();
       },
     } });
-    if (!text && !out.querySelector(".msg-err")) out.textContent = "No tengo una respuesta para eso. Prueba preguntándolo de otra forma.";
+    if (!text && !out.querySelector(".msg-err")) {
+      out.textContent = "No tengo una respuesta para eso. Prueba preguntándolo de otra forma.";
+      scroll();
+    }
   } catch (e) {
     out.innerHTML = `<p class="msg-err">No se pudo contactar al Míster (${esc(e.message)}).</p>`;
+    scroll();
   } finally {
     chat.busy = false;
     misterThinking(false);
@@ -252,6 +280,8 @@ async function onHistoryClick(e) {
 
 function initChat() {
   resetChatLog();
+  chatEl(".chat-log").addEventListener("scroll", updateJump, { passive: true });
+  $("#chat-jump").addEventListener("click", () => { scrollChat({ force: true }); chatEl("textarea").focus({ preventScroll: true }); });
   let saved = null;
   try { saved = Number(localStorage.getItem(CHAT_KEY)) || null; } catch (e) { /* sin storage */ }
   if (saved) openConversation(saved, { quiet: true });

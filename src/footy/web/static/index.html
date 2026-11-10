@@ -489,7 +489,10 @@
     <ul class="memory-list" id="chat-memory-list"></ul>
     <p class="history-status" id="chat-history-status" role="status"></p>
   </section>
-  <div class="chat-log" aria-live="polite"></div>
+  <div class="chat-body">
+    <div class="chat-log" aria-live="polite"></div>
+    <button type="button" class="chat-jump" id="chat-jump" aria-label="Ir a la última consulta" title="Ir a la última consulta" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button>
+  </div>
   <div class="chat-suggest">
     <button type="button" class="chip">¿Qué apuestas con valor hay hoy?</button>
     <button type="button" class="chip">¿Cómo va la tabla de la liga chilena?</button>
