@@ -32,11 +32,20 @@ from footy_agents.schemas import (
     PersonalizedFeedResponse,
     UserPreferences,
 )
+from footy_agents.scout_schemas import ScoutRun
 from footy_agents.tools import execute_tool
 from footy_agents.watch_schemas import Alert, ReadAlert, Watch, WatchRun
 
 router = APIRouter(prefix="/api/agent", tags=["Agent"])
 log = logging.getLogger(__name__)
+
+
+@router.get("/scout-log", response_model=list[ScoutRun])
+def scout_log(limit: int = Query(20, ge=1, le=100)) -> list[ScoutRun]:
+    """Bitácora global de cuotas públicas; sin preferencias ni memoria privada de usuarios."""
+    from footy_agents.odds_scout import recent_logs
+    with closing(connect()) as conn:
+        return recent_logs(conn, limit)
 
 
 @router.get("/alerts", response_model=list[Alert])

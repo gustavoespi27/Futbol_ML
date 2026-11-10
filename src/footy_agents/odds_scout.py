@@ -364,3 +364,11 @@ def run_safely() -> None:
             run(conn)
     except (sqlite3.Error, ValueError, KeyError):
         log.exception("No se pudo ejecutar el Ojeador; el ciclo principal continúa")
+
+
+def recent_logs(conn: sqlite3.Connection, limit: int = 20) -> list[ScoutRun]:
+    init_tables(conn)
+    rows = conn.execute("SELECT id,run_at,perceived,decisions,actions,inserted,elapsed_ms FROM agent_scout_log "
+                        "ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    return [ScoutRun(id=r[0], run_at=r[1], perceived=r[2], decisions=json.loads(r[3]),
+                     actions=r[4], inserted=r[5], elapsed_ms=r[6]) for r in rows]
