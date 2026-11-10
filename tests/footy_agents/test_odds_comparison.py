@@ -41,6 +41,9 @@ def add(conn, book, prices, stamp="2026-11-09T00:00:00Z"):
 def test_no_odds(db):
     data = compare(db, 1, NOW)
     assert data["status"] == "no_odds" and not data["selections"]
+    assert "Ninguna casa publica cuotas todavía" in data["note"]
+    assert data["comparison_text"] == data["note"]
+    assert "precios ofrecidos" not in data["comparison_text"]
     with pytest.raises(ValueError):
         compare(db, 999, NOW)
 

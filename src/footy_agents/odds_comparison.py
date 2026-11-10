@@ -44,7 +44,9 @@ def compare(conn: sqlite3.Connection, match_id: int, now: datetime | None = None
     }
     status = "ok" if p is not None else "no_pinnacle" if books else "no_odds"
     note = (
-        "Sin Pinnacle no hay valor medible; son precios ofrecidos."
+        "Ninguna casa publica cuotas todavía para este partido; ESPN tampoco tiene precios disponibles."
+        if status == "no_odds"
+        else "Sin Pinnacle no hay valor medible; son precios ofrecidos."
         if p is None
         else "Pinnacle sin margen es la referencia; comparar precios no equivale a recomendar una apuesta."
     )
