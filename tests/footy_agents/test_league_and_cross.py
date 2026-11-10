@@ -167,3 +167,24 @@ def test_hypothetical_phrasings_are_matchups_even_after_another_match(monkeypatc
     assert intent_route("que pása si se enfrenta u de chile vs barcelona?", previous) == expected
     assert intent_route("no te pregunté por ese partido, te pregunté que si en el hipotético caso que se enfrente "
                         "u de chile vs barcelona cuáles son los porcentajes de cada uno", previous) == expected
+
+
+def test_spanish_national_team_names_are_understood(monkeypatch):
+    monkeypatch.setattr(tools.service, "upcoming", lambda: [{"ref": "m:181001", "home": "Italy", "away": "France",
+                                                             "league": "UNL"}])
+    monkeypatch.setattr(tools.service, "league_catalog", lambda: [])
+    assert tools.NICKNAMES["italia"] == "Italy" and tools.NICKNAMES["irlanda del norte"] == "Northern Ireland"
+    assert tools.upcoming_focus("¿cuánto paga Italia contra Francia?")["team"] in {"Italy", "France"}
+    assert tools.upcoming_focus("¿cuáles son los equipos más bajos de la tabla?") is None   # «bajos» ≠ Países Bajos
+
+
+def test_team_form_route_never_leaves_the_team_to_the_model(monkeypatch):
+    monkeypatch.setattr(tools.service, "upcoming", lambda: [{"ref": "m:181000", "home": "England", "away": "Croatia"}])
+    monkeypatch.setattr(tools.service, "league_catalog", lambda: [])
+    assert intent_route("¿cómo llega Inglaterra contra Croacia?", None) == ("analyze_match", {"match_id": 181000})
+    assert intent_route("¿cómo llega Inglaterra?", None) == ("get_team_form", {"team": "England"})
+    assert intent_route("como llega colo colo", None) == ("get_team_form", {"team": "Colo Colo"})
+
+
+def test_favorite_league_by_demonym():
+    assert intent_route("Añade la liga chilena a favoritos", None) == ("add_favorite", {"league": "CHL"})

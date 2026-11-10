@@ -22,7 +22,7 @@ from footy.leagues import load_params
 from footy.web import service
 from footy.web.services.catalog import league_names
 from footy.web.services.context import LOCAL_TZ
-from footy.web.team_display import presentation_payload
+from footy.web.team_display import DISPLAY_NAMES, presentation_payload
 from footy_agents.calendar import WEEKDAYS, competition_priority, local_fields, local_payload, requested_dates
 from footy_agents.names import normalize_name
 from footy_agents.schemas import ToolCallRecord
@@ -49,6 +49,11 @@ NICKNAMES = {
     "la uc": "U. Catolica",
     "los cruzados": "U. Catolica", "la catolica": "U. Catolica",
 }
+ARTICLES = {"el", "la", "los", "las", "del"}
+# Los nombres en español que muestra el sitio («Italia», «Países Bajos») también se entienden al preguntar: se
+# resuelven al nombre canónico de la base. Los más largos primero, para que «irlanda del norte» gane a «irlanda».
+for _canonical, _spanish in sorted(DISPLAY_NAMES.items(), key=lambda item: -len(item[1])):
+    NICKNAMES.setdefault(normalize_name(_spanish), _canonical)
 STANDING_KEYS = ("pos", "teams", "points", "played", "won", "drawn", "lost", "gf", "ga")
 STALE_HOURS = 30            # mismo umbral que la franja de estado del dashboard
 
@@ -127,7 +132,9 @@ def upcoming_focus(message: str) -> dict[str, Any] | None:
     matches = service.upcoming()
     teams = list(dict.fromkeys(m[k] for m in matches for k in ("home", "away")))
     for nickname, canonical in NICKNAMES.items():
-        core = nickname.split(" ", 1)[-1]       # «del cacique»: el apodo sin artículo también cuenta si es largo
+        # «del cacique»: el apodo sin artículo también cuenta si es largo; «países bajos» no se reduce a «bajos».
+        first, _, rest = nickname.partition(" ")
+        core = rest if first in ARTICLES and rest else nickname
         if canonical in teams and (f" {nickname} " in f" {query} " or (len(core) >= 5 and f" {core} " in f" {query} ")):
             return {"team": canonical, "limit": MAX_MATCHES}
     for name in teams:
