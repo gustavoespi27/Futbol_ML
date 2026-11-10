@@ -832,3 +832,75 @@ Diagrama en [arquitectura_agente.md](../arquitectura_agente.md). CLAUDE.md §7 s
 | T7 | `fd47681` | feat(agents): exponer la bitácora pública del Ojeador |
 | Bug detectado en vivo | `8b08394` | fix(agents): verificar el texto canónico de la comparación de cuotas |
 | T8 | commit de este cierre documental | docs(agents): documentar el Ojeador y su validación real |
+
+## Correcciones de auditoría del Ojeador: C1–C6 (2026-11-10)
+
+Se completaron las correcciones de `docs/plan_ojeador.md` §6 en la misma rama
+`feature/odds-scout`, un commit por corrección. Sin integración a la rama de presentación ni a main.
+
+| Corrección | Commit | Resultado |
+|---|---|---|
+| C1 | `2eb13b3` | `no_odds` dice que ninguna casa ni ESPN publica cuotas; no afirma que existan precios ofrecidos |
+| C2 | `a177398` | La intención de cuotas existe antes de conocer el partido; tras calendario/find_team se recupera con `request_odds(match_id)`; opciones de delegación en calendario específico |
+| C3 | `36a3fed` | Acepta todas las líneas del comparador junto a contexto sin cifras; conserva verificadores y rechaza afirmaciones añadidas de valor sin Pinnacle |
+| C4 | `4a2ad55` | Texto con dos decimales; datos con precisión original y precio justo sin redondeo intermedio |
+| C5 | `2b92bf7` | stdout UTF-8 al ejecutar la CLI; subprocess con salida redirigida y entorno cp1252 verificado |
+| C6 | commit de este cierre | Evidencia compactada de 162.369 a 9.090 bytes; conserva conteos, ejemplos y respuestas |
+
+Los tests previos de repetición y cifras se **extendieron** para incluir la delegación de cuotas antes de
+simular una respuesta incorrecta; siguen comprobando reparación, respaldo y ausencia de repetición.
+No se relajaron sus verificaciones. El test de observaciones conserva sus comprobaciones y añade la
+opción `request_odds` para un partido concreto sin Pinnacle.
+
+### C1 y C2 en vivo, sin memoria previa
+
+Dos conversaciones nuevas con Qwen 2.5 de 7B y herramientas reales. Evidencia completa local en
+`reports/ojeador/auditoria-c1-c2.json`; extractos en `validacion_ojeador.json`.
+
+| Caso | Run | Pregunta | Camino efectivo | Latencia | Resultado |
+|---|---:|---|---|---:|---|
+| C1 | 234 | «¿Cuánto paga Colombia contra Chile?» | precarga de calendario → request_odds(181043) | 23,473 s | Respuesta verificada sin afirmar que haya precios |
+| C2 | 235 | «¿cuánto paga Argentina contra Uruguay?» | precarga de calendario → request_odds(181042) | 23,842 s | Consulta de cuotas correcta desde un tema nuevo; respuesta verificada con precios reales |
+
+Respuesta C1:
+
+```text
+Ninguna casa publica cuotas todavía para este partido; ESPN tampoco tiene precios disponibles.
+```
+
+Respuesta C2:
+
+```text
+Gana Argentina: mejor 1.53 en DraftKings
+Empate: mejor 3.90 en DraftKings
+Gana Uruguay: mejor 5.75 en DraftKings
+Sin Pinnacle no hay valor medible; son precios ofrecidos.
+```
+
+**Ambos turnos terminaron con success=true usando el respaldo verificado.** Cada uno tuvo una recuperación
+hacia cuotas y una reparación del borrador antes del respaldo. En C2 el modelo intentó además
+`request_odds(123456)`: la herramienta lo rechazó porque no correspondía a un partido próximo. El
+respaldo conservó exclusivamente la comparación correcta de 181042. No se oculta ese intento fallido ni
+se presenta la corrida como un camino autónomo impecable.
+
+C3 se verificó con FakeLLM: introducción sin cifras + todas las líneas → success=true, **sin reparación**
+y con dos inferencias (consulta y respuesta). Líneas omitidas, cifras extra, «hay valor» y «no hay valor»
+añadidos sin Pinnacle siguen pasando por reparación. No se afirma una mejora de latencia de Qwen a
+partir de estas dos muestras: el modelo todavía puede reformular las líneas o intentar ids incorrectos.
+
+### Validación y tamaño de evidencia
+
+**651 pytest**, Ruff en `src scripts tests`, sintaxis de app.js/agent.js y **8 pruebas Node** en verde.
+Cobertura agéntica: **95,38 %** (3095 sentencias, 143 sin cubrir). Sin dependencias nuevas ni cambios en
+modelos, `tracking.py`, contratos API/SSE o interfaz.
+
+El detalle original de T1–T8 sigue disponible en el commit `8003ab8`. Para regenerar la percepción y
+las decisiones actuales sin red ni inserciones:
+
+```powershell
+.venv\Scripts\python scripts/odds_scout.py --dry-run --output reports/ojeador/percepcion.json
+```
+
+El archivo compacto conserva las mediciones históricas 3/90 → 69/90, las salidas de ambos ciclos,
+ejemplos de decisiones y las respuestas. No mezcla los 634 tests originales con los 651 del cierre de
+auditoría. CLAUDE.md §7 se actualizó solo localmente. Se publica la rama y se detiene para revisión.
