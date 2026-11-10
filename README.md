@@ -68,9 +68,9 @@ Colo Colo?»): el apelativo se quita antes de decidir la consulta. La personalid
 saludo o «¿quién eres?» recibe una presentación fija, sin LLM.
 
 Su mascota es un zorro DT, «el zorro del banco»: orejas enormes, cejas decididas, silbato con cordón verde, tablet
-táctica bajo la pata y cinta verde en la cola. Es una ilustración propia con el fondo quitado
-(`static/img/`), en dos recortes: la cabeza para tamaños chicos (botón del chat, avatar, resumen del día, avisos) y el
-cuerpo entero para el saludo. Ladea la cabeza mientras piensa la respuesta y respeta «reducir movimiento».
+táctica y cinta verde en la cola. Son ilustraciones propias con el fondo quitado (`scripts/prepare_mascot.py`), una
+por lugar: la cabeza en el botón del chat y el avatar; en el saludo mira la tablet y luego al usuario; con lentes en el
+resumen del día; y es quien da los avisos. Si una pose aún no existe, se usa la base. Respeta «reducir movimiento».
 
 ![El Míster: cuerpo entero y cabeza en distintos tamaños](docs/img/readme/el-mister.png)
 

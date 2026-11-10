@@ -50,10 +50,10 @@
       <div class="tb-actions">
         <button type="button" class="tb-btn alerts-btn" id="alerts-btn" aria-controls="alerts-panel" aria-expanded="false" aria-label="Avisos"><svg class="ico bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Avisos</span><span class="badge" id="alerts-count" hidden></span></button>
         <section class="alerts-panel" id="alerts-panel" role="dialog" aria-labelledby="alerts-title" hidden>
-          <header class="alerts-head"><h2 id="alerts-title">Avisos</h2>
+          <header class="alerts-head"><span class="alerts-mister" data-mister="alerts" data-size="56"></span><h2 id="alerts-title">Avisos del Míster</h2>
             <button type="button" class="alerts-read-all" id="alerts-read-all">Marcar todas</button>
             <button type="button" class="td-close" id="alerts-close" aria-label="Cerrar avisos">×</button></header>
-          <p class="alerts-note">Juegan tus equipos, cuotas con valor frente a Pinnacle y combinadas. Seguimiento en papel.</p>
+          <p class="alerts-note">Te aviso cuando juegan tus equipos, cuando hay cuotas con valor frente a Pinnacle y combinadas. Seguimiento en papel.</p>
           <div class="alerts-list" id="alerts-list" aria-live="polite"></div>
           <p class="alerts-status" id="alerts-status" role="status"></p>
         </section>
@@ -73,14 +73,15 @@
   <div class="grid g2" id="home-tiles" data-skel="kpi:2"></div>
   <section class="card brief-card" id="agent-brief" aria-labelledby="brief-title">
       <div class="brief-head">
-        <h2 id="brief-title"><span class="brief-mister" data-mister="face" data-size="28"></span>Tu resumen del Míster</h2>
+        <h2 id="brief-title">Tu resumen del Míster</h2>
         <div class="brief-actions">
 
           <button type="button" class="chip" id="brief-refresh" aria-label="Actualizar resumen" title="Actualizar resumen"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg></button>
         </div>
       </div>
-      <div class="brief-body" aria-live="polite"></div>
-      <div class="brief-foot"></div>
+      <div class="brief-main"><span class="brief-pose" data-mister="brief" data-size="104"></span>
+        <div class="brief-text"><div class="brief-body" aria-live="polite"></div>
+        <div class="brief-foot"></div></div></div>
     </section>
 
   <section class="home-review" aria-labelledby="review-title">
@@ -463,7 +464,7 @@
     <button type="button" class="td-close chat-close" aria-label="Cerrar el chat con el Míster">×</button>
   </header>
   <div class="chat-log" aria-live="polite">
-    <div class="msg bot msg-intro"><span class="intro-mister" data-mister="full" data-size="112"></span><div class="msg-text">Aquí el Míster. En este equipo los números mandan, no la camiseta. Pregúntame por un partido, la tabla, cómo llega un equipo o si hay alguna cuota con valor.</div></div>
+    <div class="msg bot msg-intro"><span class="intro-mister" data-mister="chat" data-size="120"></span><div class="msg-text">Aquí el Míster. En este equipo los números mandan, no la camiseta. Pregúntame por un partido, la tabla, cómo llega un equipo o si hay alguna cuota con valor.</div></div>
   </div>
   <div class="chat-suggest">
     <button type="button" class="chip">¿Qué apuestas con valor hay hoy?</button>

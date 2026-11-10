@@ -38,7 +38,7 @@ function renderAlerts() {
   $("#alerts-btn").setAttribute("aria-label", unread.length ? `Avisos, ${unread.length} sin leer` : "Avisos");
   $("#alerts-read-all").disabled = !unread.length;
   if (!alertsState.items.length) {
-    list.innerHTML = `<div class="alerts-empty">${misterFace(52)}<b>Sin avisos nuevos</b><span>Te avisaremos cuando juegue un equipo que
+    list.innerHTML = `<div class="alerts-empty">${misterImg("alerts", 88)}<b>Sin avisos nuevos</b><span>Te avisaremos cuando juegue un equipo que
       sigues o aparezca una cuota que valga la pena frente a Pinnacle.</span></div>`;
     return;
   }
