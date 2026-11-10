@@ -190,3 +190,17 @@ def test_api_types_filter_and_read_all(db, monkeypatch):
     router.read_all_alerts(router.ReadAlert(user_id="default"))
     assert router.get_alerts(user_id="default", unread=True, types="") == []
     assert json.loads(db.execute("SELECT facts FROM agent_alerts LIMIT 1").fetchone()[0])
+
+
+def test_dismissed_alerts_hide_and_do_not_come_back(db, monkeypatch):
+    watcher.run(db, ROWS, NOW, suggestions=SUGGESTIONS)
+    first = watches.alerts(db, "default")[0]
+    path = db.execute("PRAGMA database_list").fetchone()[2]
+    monkeypatch.setattr(router, "connect", lambda: sqlite3.connect(path))
+    router.dismiss_alert(first.id, router.ReadAlert(user_id="default"))
+    assert first.id not in {a.id for a in watches.alerts(db, "default")}
+    with pytest.raises(router.HTTPException):
+        router.dismiss_alert(first.id, router.ReadAlert(user_id="default"))      # ya descartado
+    watcher.run(db, ROWS, NOW, suggestions=SUGGESTIONS)                           # el vigía no lo reemite
+    assert first.id not in {a.id for a in watches.alerts(db, "default")}
+    assert len(watches.alerts(db, "default")) == 1

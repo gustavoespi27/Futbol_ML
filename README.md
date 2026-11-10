@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/gustavoespi27/Futbol_ML/actions/workflows/ci.yml/badge.svg)](https://github.com/gustavoespi27/Futbol_ML/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-3776ab)
-![Tests](https://img.shields.io/badge/tests-582%20passing-10b981)
+![Tests](https://img.shields.io/badge/tests-583%20passing-10b981)
 ![LLM](https://img.shields.io/badge/LLM-Qwen%202.5%207B%20local-7c3aed)
 ![Stack](https://img.shields.io/badge/stack-FastAPI%20%C2%B7%20SQLite%20%C2%B7%20scikit--learn-0f172a)
 
@@ -55,7 +55,7 @@ se habla y vuelve a consultar en vez de repetir cifras de memoria.</sub></p>
 | **181.114** partidos en la base (2012-2026) | **1,98 millones** de cuotas históricas y pre-partido |
 | **53** competiciones visibles, incluidas 8 de selecciones | **1.749** equipos enlazados entre fuentes de datos |
 | **8.608** partidos de examen fuera de muestra (temporada 2026) | **498** partidos auditados en vivo con pronóstico previo |
-| **14** herramientas del agente (10 de consulta, 4 de acción) | **582** pruebas automáticas; CI en Python 3.11 y 3.12 |
+| **14** herramientas del agente (10 de consulta, 4 de acción) | **583** pruebas automáticas; CI en Python 3.11 y 3.12 |
 
 ---
 
@@ -341,7 +341,7 @@ los datos no cambiaron. `scripts/automation.py` permite pausar y reanudar.
 - **Agente sin frameworks:** orquestador propio de ~450 líneas, cliente compatible con OpenAI por `requests` y
   Ollama local. Cambiar de proveedor es cambiar `base_url` y `model` en `config/settings.yaml`.
 - **Contratos estrictos:** respuestas y eventos con Pydantic v2 y `extra="forbid"`; el chat usa Server-Sent Events.
-- **Calidad:** 582 pruebas con pytest (el agente se prueba con un LLM simulado, sin red ni costo), pruebas del
+- **Calidad:** 583 pruebas con pytest (el agente se prueba con un LLM simulado, sin red ni costo), pruebas del
   frontend con `node:test`, Ruff y CI en GitHub Actions.
 - **Reproducibilidad:** fechas en UTC ISO-8601, cada pronóstico registra la versión del modelo, y las evaluaciones
   del agente guardan sus eventos completos en JSON.
@@ -448,7 +448,7 @@ src/footy_agents/    capa agéntica, desacoplada del motor
   llm.py             cliente compatible con OpenAI; ollama_runtime.py lo inicia bajo demanda
   web/router.py      /api/agent: chat y resumen por SSE, conversaciones, memoria, alertas, vigilancias, salud
 scripts/             puntos de entrada: ciclo diario, cuotas pre-partido, vigía, análisis y evaluación
-tests/               582 pruebas; tests/footy_agents usa un LLM simulado
+tests/               583 pruebas; tests/footy_agents usa un LLM simulado
 docs/                análisis 01-11, arquitectura del agente, guion de demo y registro de decisiones
 ```
 

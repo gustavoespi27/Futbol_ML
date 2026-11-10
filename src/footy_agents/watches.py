@@ -32,14 +32,21 @@ CREATE TABLE IF NOT EXISTS agent_watch_log (
 
 
 def init_tables(conn: sqlite3.Connection) -> None:
+    outer = conn.in_transaction            # dentro de la transacción del vigía no se confirma a medias
     conn.executescript(DDL)
-    if "expires_at" not in {r[1] for r in conn.execute("PRAGMA table_info(agent_alerts)")}:
+    alert_cols = {r[1] for r in conn.execute("PRAGMA table_info(agent_alerts)")}
+    if "expires_at" not in alert_cols:
         conn.execute("ALTER TABLE agent_alerts ADD COLUMN expires_at TEXT")  # inicio del partido: deja de mostrarse
+    # Descartado por el usuario: se oculta pero la fila queda, así la deduplicación no vuelve a emitir el mismo aviso.
+    if "dismissed_at" not in alert_cols:
+        conn.execute("ALTER TABLE agent_alerts ADD COLUMN dismissed_at TEXT")
     # Alertas previas a la columna: expiran con el inicio guardado en sus facts (solo toca filas sin fecha).
     conn.execute("UPDATE agent_alerts SET expires_at=json_extract(facts,'$.kickoff') "
                  "WHERE expires_at IS NULL AND json_extract(facts,'$.kickoff') IS NOT NULL")
     if "perception" not in {r[1] for r in conn.execute("PRAGMA table_info(agent_watch_log)")}:
         conn.execute("ALTER TABLE agent_watch_log ADD COLUMN perception TEXT NOT NULL DEFAULT '{}'")
+    if not outer:
+        conn.commit()                       # la migración no deja la base bloqueada para otras conexiones
 
 
 def list_watches(conn: sqlite3.Connection, user_id: str) -> list[Watch]:
@@ -112,7 +119,7 @@ def alerts(conn: sqlite3.Connection, user_id: str, unread: bool = False, types: 
     kinds = [t for t in types or [] if t]
     rows = conn.execute(
         "SELECT id,created_at,match_id,watch_id,kind,priority,facts,text,read,expires_at FROM agent_alerts "
-        "WHERE user_id=? AND (?=0 OR read=0) AND (expires_at IS NULL OR expires_at>?) "
+        "WHERE user_id=? AND (?=0 OR read=0) AND (expires_at IS NULL OR expires_at>?) AND dismissed_at IS NULL "
         f"{'AND kind IN (' + ','.join('?' * len(kinds)) + ')' if kinds else ''} "
         "ORDER BY expires_at IS NULL, expires_at, priority DESC, id DESC LIMIT 100",
         (user_id, int(unread), now or utc_now(), *kinds),
@@ -138,6 +145,14 @@ def mark_read(conn: sqlite3.Connection, user_id: str, id_: int) -> bool:
     init_tables(conn)
     with conn:
         return conn.execute("UPDATE agent_alerts SET read=1 WHERE id=? AND user_id=?", (id_, user_id)).rowcount == 1
+
+
+def dismiss(conn: sqlite3.Connection, user_id: str, id_: int) -> bool:
+    """El usuario descarta el aviso: deja de mostrarse y cuenta como leído."""
+    init_tables(conn)
+    with conn:
+        return conn.execute("UPDATE agent_alerts SET dismissed_at=?, read=1 WHERE id=? AND user_id=? "
+                            "AND dismissed_at IS NULL", (utc_now(), id_, user_id)).rowcount == 1
 
 
 def mark_all_read(conn: sqlite3.Connection, user_id: str) -> int:

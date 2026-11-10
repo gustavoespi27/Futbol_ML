@@ -54,6 +54,14 @@ def read_all_alerts(body: ReadAlert) -> None:
         watches.mark_all_read(conn, body.user_id)
 
 
+@router.post("/alerts/{id}/dismiss", status_code=204)
+def dismiss_alert(id: int, body: ReadAlert) -> None:
+    """Descarta un aviso: deja de mostrarse (no se vuelve a emitir el mismo aviso)."""
+    with closing(connect()) as conn:
+        if not watches.dismiss(conn, body.user_id, id):
+            raise HTTPException(status_code=404, detail="Alerta no encontrada")
+
+
 @router.post("/alerts/{id}/read", status_code=204)
 def read_alert(id: int, body: ReadAlert) -> None:
     with closing(connect()) as conn:

@@ -37,10 +37,18 @@ function alertWhen(a) {
 function renderAlerts() {
   const list = $("#alerts-list"), unread = alertsState.items.filter((a) => !a.read);
   const count = $("#alerts-count");
-  count.textContent = unread.length > 9 ? "9+" : String(unread.length);
-  count.hidden = !unread.length;
-  $("#alerts-btn").setAttribute("aria-label", unread.length ? `Avisos, ${unread.length} sin leer` : "Avisos");
+  // La campana muestra siempre cuántos avisos hay: en verde (y latiendo) los nuevos; en gris si ya están todos leídos.
+  const shown = unread.length || alertsState.items.length;
+  count.textContent = shown > 9 ? "9+" : String(shown);
+  count.hidden = !shown;
+  count.classList.toggle("seen", !unread.length);
+  $("#alerts-btn").setAttribute("aria-label", unread.length ? `Avisos, ${unread.length} sin leer`
+    : alertsState.items.length ? `Avisos, ${alertsState.items.length} leídos` : "Avisos");
+  $("#alerts-btn").classList.toggle("has-new", unread.length > 0);
   $("#alerts-read-all").disabled = !unread.length;
+  const total = alertsState.items.length;
+  $("#alerts-summary").innerHTML = !total ? "Sin avisos"
+    : `${total} ${total === 1 ? "aviso" : "avisos"}${unread.length ? ` · <b>${unread.length} ${unread.length === 1 ? "nuevo" : "nuevos"}</b>` : ""}`;
   if (!alertsState.items.length) {
     list.innerHTML = `<div class="alerts-empty">${misterRig("alerts", 88)}<b>Sin avisos nuevos</b><span>Te avisaremos cuando juegue un equipo que
       sigues o aparezca una cuota que valga la pena frente a Pinnacle.</span></div>`;
@@ -48,8 +56,10 @@ function renderAlerts() {
   }
   list.innerHTML = alertsState.items.map((a) => `<article class="alert-item ${a.read ? "" : "unread"}" data-kind="${esc(a.kind)}">
       <span class="alert-ico">${alertIcon(a.kind)}</span>
+      <button type="button" class="alert-dismiss" data-alert-dismiss="${a.id}" aria-label="Descartar aviso" title="Descartar">×</button>
       <div class="alert-body">
-        <span class="alert-kind">${esc(alertLabel(a.kind))}${alertWhen(a) ? ` · ${esc(alertWhen(a))}` : ""}</span>
+        <span class="alert-kind">${a.read ? "" : '<span class="alert-new">Nuevo</span>'}${esc(alertLabel(a.kind))}${
+          alertWhen(a) ? ` · ${esc(alertWhen(a))}` : ""}</span>
         <p>${esc(a.text)}</p>
         <div class="alert-actions">
           <button type="button" class="alert-open" data-alert-match="${a.match_id}">Ver partido</button>
@@ -122,6 +132,7 @@ async function loadAlertPrefs() {
 }
 
 function initAlerts() {
+  const list = $("#alerts-list");
   $("#alerts-btn").addEventListener("click", () => toggleAlerts());
   $("#alerts-close").addEventListener("click", () => toggleAlerts(false));
   $("#alerts-panel").addEventListener("keydown", (e) => { if (e.key === "Escape") toggleAlerts(false); });
@@ -129,6 +140,20 @@ function initAlerts() {
     if (alertsState.open && !e.target.closest("#alerts-panel, #alerts-btn")) toggleAlerts(false);
   });
   $("#alerts-list").addEventListener("click", async (e) => {
+    const dismiss = e.target.closest("[data-alert-dismiss]");
+    if (dismiss) {
+      const item = dismiss.closest(".alert-item");
+      dismiss.disabled = true;
+      try {
+        await postAlert(`/api/agent/alerts/${dismiss.dataset.alertDismiss}/dismiss`);
+        item.classList.add("leaving");                       // sale deslizándose antes de redibujar la lista
+        await new Promise((r) => setTimeout(r, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 260));
+        alertsState.items = alertsState.items.filter((a) => String(a.id) !== dismiss.dataset.alertDismiss);
+        renderAlerts();
+        (list.querySelector(".alert-dismiss") || $("#alerts-close")).focus();
+      } catch (err) { dismiss.disabled = false; $("#alerts-status").textContent = "No se pudo descartar el aviso. Reintenta."; }
+      return;
+    }
     const open = e.target.closest("[data-alert-match]");
     if (open) { openAlertMatch(open.dataset.alertMatch); return; }
     const read = e.target.closest("[data-alert-read]");
