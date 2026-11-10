@@ -1,47 +1,66 @@
-/* El Míster: mascota del asistente. Un zorro DT («el zorro del banco»): ilustraciones originales del autor con el
-   fondo quitado (scripts/prepare_mascot.py). Cada lugar del sitio usa su pose; si una pose aún no existe, la imagen
-   cae a la pose base (full), así el sitio nunca muestra una imagen rota.
-     face         cabeza: botón del chat, avatar, citas en estados vacíos
-     full         cuerpo entero base
-     chat-tablet  saludo del chat, mirando la tablet que sostiene ┐ se alternan: mira la tablet y luego al usuario
-     chat-look    saludo del chat, mirando al usuario           ┘
-     brief        con lentes, dando su análisis (resumen del día)
-     alerts       dando un aviso (panel de avisos)
-   Las animaciones mueven la imagen completa y solo corren sin «reducir movimiento». */
+/* El Míster: mascota del asistente, un zorro DT («el zorro del banco»), animado como títere de recortes.
+   Cada pose viene cortada en capas del mismo lienzo (scripts/rig_mascot.py): cola, cuerpo, brazo y cabeza. El CSS las
+   gira desde su articulación y la cabeza lleva párpados en SVG para parpadear. Coordenadas en píxeles de la pose
+   (las mismas que en rig_mascot.py); los pivotes se pasan a % para que escalen con el tamaño.
+     face    cabeza: botón del chat, avatar y citas (parpadea)
+     chat    saludo del chat: lee la tablet y levanta la vista hacia el usuario; mientras piensa, sigue leyendo
+     brief   resumen del día: con lentes, explica con el dedo en alto
+     alerts  avisos: toca el silbato y saluda con la pata
+   Las animaciones solo corren sin «reducir movimiento». */
 
-const MISTER_POSES = ["face", "full", "chat-tablet", "chat-look", "brief", "alerts"];
-const misterSrc = (pose) => `/static/img/mister-${MISTER_POSES.includes(pose) ? pose : "full"}.png`;
-
-function misterImg(pose, size, extra = "") {
-  const fallback = pose === "face" || pose === "full" ? "" : ` onerror="this.onerror=null;this.src='${misterSrc("full")}'"`;
-  return `<img class="mister mister-${pose} ${extra}" src="${misterSrc(pose)}" width="${size}" height="${size}"
-    alt="" decoding="async"${fallback}>`;
-}
-const misterFace = (size = 32, extra = "") => misterImg("face", size, extra);
-const misterFull = (size = 120, extra = "") => misterImg("full", size, extra);
-// Saludo del chat: dos cuadros superpuestos que se alternan (mira la tablet, luego al usuario).
-const misterChat = (size = 112) => `<span class="mister-duo mister-live" style="--duo:${size}px">
-  ${misterImg("chat-tablet", size, "duo-a")}${misterImg("chat-look", size, "duo-b")}</span>`;
-// Poses con efecto propio encima de la imagen: destello en los lentes (resumen) y ondas del silbato (avisos).
-// Las posiciones son porcentajes de la ilustración (lentes y silbato), por eso escalan con el tamaño.
-const MISTER_FX = {
-  brief: '<svg class="fx-glint" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0 14 10 24 12 14 14 12 24 10 14 0 12 10 10Z"/></svg>',
-  alerts: `<svg class="fx-waves" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7a7 7 0 0 0 0 10"/>
-    <path d="M11 4a11 11 0 0 0 0 16"/><path d="M7 1a15 15 0 0 0 0 22"/></svg>`,
+const MISTER_RIGS = {
+  face: { w: 256, h: 256, eyes: [[72, 167, 21, 25], [154, 167, 22, 25]] },
+  chat: { w: 207, h: 234, tail: [148, 192], head: [70, 150], heads: ["head-tablet", "head"],
+    eyes: [[44.5, 103, 13, 15.5], [95, 103, 13.5, 15.5]] },
+  brief: { w: 229, h: 240, tail: [164, 192], arm: [44, 166], head: [90, 156], fx: "glint",
+    eyes: [[62, 103, 11.5, 12], [112, 103, 12, 12]] },
+  alerts: { w: 215, h: 241, tail: [166, 192], arm: [140, 168], head: [86, 160], fx: "waves",
+    eyes: [[45, 98, 13.5, 15], [93, 98, 13.5, 15]] },
 };
-const misterPose = (pose, size) => `<span class="mister-pose pose-${pose}" style="--pose:${size}px">
-  ${misterImg(pose, size)}${MISTER_FX[pose] || ""}</span>`;
+const MISTER_FX = {
+  glint: '<path class="fx-glint" d="M128 80l2.6 9.4 9.4 2.6-9.4 2.6-2.6 9.4-2.6-9.4-9.4-2.6 9.4-2.6z"/>',
+  waves: '<g class="fx-waves"><path d="M30 122a16 16 0 0 0 0 30"/><path d="M21 115a26 26 0 0 0 0 44"/><path d="M12 108a36 36 0 0 0 0 58"/></g>',
+};
+// URL versionadas (?v=) desde las precargas del HTML: tras regenerar las capas el navegador no usa copias viejas.
+const MISTER_SRC = Object.fromEntries([...document.querySelectorAll('link[rel="preload"][as="image"]')]
+  .map((link) => [new URL(link.href).pathname, link.href]));
+const misterSrc = (path) => MISTER_SRC[path] || path;
+const misterLayer = (name, part) => misterSrc(`/static/img/mister-${name}-${part}.png`);
+const pivot = (rig, [x, y]) => `transform-origin:${(x / rig.w * 100).toFixed(1)}% ${(y / rig.h * 100).toFixed(1)}%`;
+
+function misterRig(name, size, extra = "") {
+  const rig = MISTER_RIGS[name], img = (src, cls, style = "") =>
+    `<img class="rig-l ${cls}" src="${src}" alt="" decoding="async" draggable="false"${style ? ` style="${style}"` : ""}>`;
+  // Párpado: elipse del color del pelaje que baja desde arriba; con el ojo cerrado aparece la curva de pestañas.
+  const lids = `<svg class="rig-l rig-lids" viewBox="0 0 ${rig.w} ${rig.h}" aria-hidden="true">${rig.eyes.map(([cx, cy, rx, ry]) =>
+    `<ellipse class="fx-lid" cx="${cx}" cy="${cy}" rx="${rx + 1}" ry="${ry + 1}"/><path class="fx-lash"
+      d="M${cx - rx} ${cy + ry * .1}Q${cx} ${cy + ry * .55} ${cx + rx} ${cy + ry * .1}"
+      style="stroke-width:${(rx / 6).toFixed(1)}"/>`).join("")}${MISTER_FX[rig.fx] || ""}</svg>`;
+  const head = name === "face" ? img(misterSrc("/static/img/mister-face.png"), "rig-face") + lids
+    : `<span class="rig-l rig-head" style="${pivot(rig, rig.head)}">${(rig.heads || ["head"]).map((part, i) =>
+      img(misterLayer(name, part), `rig-${part}${i ? " rig-alt" : ""}`)).join("")}${lids}</span>`;
+  const layers = name === "face" ? head : [
+    img(misterLayer(name, "tail"), "rig-tail", pivot(rig, rig.tail)),
+    img(misterLayer(name, "body"), "rig-body"),
+    rig.arm ? img(misterLayer(name, "arm"), "rig-arm", pivot(rig, rig.arm)) : "",
+    head,
+  ].join("");
+  return `<span class="mister mister-rig rig-${name} ${extra}" style="width:${size}px;aspect-ratio:${rig.w}/${rig.h}"
+    aria-hidden="true">${layers}</span>`;
+}
+
+const misterFace = (size = 32, extra = "") => misterRig("face", size, extra);
 // Frase con el Míster para estados vacíos: el texto lo pone quien llama (siempre un hecho del sistema, sin cifras inventadas).
 function misterQuote(text, size = 44) {
   return `<div class="mister-quote">${misterFace(size)}<p>${text}</p></div>`;
 }
-// El Míster «piensa» mientras el chat espera respuesta (ladea la cabeza).
+// Mientras el chat espera respuesta, el Míster «piensa»: en el saludo sigue leyendo la tablet y la cabeza ladea.
 function misterThinking(on) {
   document.querySelectorAll(".mister-live").forEach((el) => el.classList.toggle("is-thinking", on));
 }
 
-// Ranuras estáticas del HTML: <span data-mister="face|chat|brief|alerts|full" data-size="..."></span>
+// Ranuras estáticas del HTML: <span data-mister="face|chat|brief|alerts" data-size="..." [data-live]></span>
 document.querySelectorAll("[data-mister]").forEach((slot) => {
-  const pose = slot.dataset.mister, size = Number(slot.dataset.size) || 64;
-  slot.innerHTML = pose === "chat" ? misterChat(size) : MISTER_FX[pose] ? misterPose(pose, size) : misterImg(pose, size);
+  const name = MISTER_RIGS[slot.dataset.mister] ? slot.dataset.mister : "face";
+  slot.innerHTML = misterRig(name, Number(slot.dataset.size) || 64, slot.dataset.live !== undefined ? "mister-live" : "");
 });

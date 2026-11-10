@@ -255,8 +255,8 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 @app.get("/")
 def index():
     """index.html con la versión de cada archivo estático (?v=fecha de modificación): el navegador siempre
-    carga el JS/CSS actual después de una actualización, sin quedarse con una copia vieja en caché."""
+    carga el JS/CSS e imágenes actuales después de una actualización, sin quedarse con una copia vieja en caché."""
     html = (STATIC / "index.html").read_text(encoding="utf-8")
-    html = re.sub(r'/static/([\w.-]+\.(?:js|css))"',
+    html = re.sub(r'/static/([\w./-]+\.(?:js|css|png))"',
                   lambda m: f'/static/{m.group(1)}?v={int((STATIC / m.group(1)).stat().st_mtime)}"', html)
     return HTMLResponse(html, headers={"Cache-Control": "no-cache"})

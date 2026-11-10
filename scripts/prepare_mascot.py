@@ -1,17 +1,17 @@
-"""Prepara una pose del Míster (mascota) para el dashboard: quita el fondo blanco, recorta y exporta PNG.
+r"""Prepara una pose del Míster (mascota): quita el fondo blanco y recorta. Después se corta en capas con
+scripts/rig_mascot.py, que es lo que usa el dashboard para animarlo.
 
 Uso:
-    .venv\\Scripts\\python scripts/prepare_mascot.py imagen.png --pose chat-tablet
-    .venv\\Scripts\\python scripts/prepare_mascot.py imagen.png --pose full --face 0,0,272,292 --clear 248,206
+    .venv\Scripts\python scripts/prepare_mascot.py imagen.png --pose chat-tablet
+    .venv\Scripts\python scripts/prepare_mascot.py imagen.png --pose chat-look --face 6,0,152,158 --clear 138,124
 
-Poses (archivo src/footy/web/static/img/mister-<pose>.png):
-    full         cuerpo entero base (saludo y respaldo de todas las poses)
-    chat-tablet  sosteniendo la tablet en alto y mirándola
-    chat-look    misma pose, mirando hacia el usuario (se alterna con chat-tablet)
+Poses (fuentes en assets/mascot/<pose>.png, no se publican):
+    chat-tablet  sosteniendo la tablet y mirándola        ┐ el chat usa un cuerpo y alterna las dos cabezas
+    chat-look    misma pose, mirando hacia el usuario      ┘
     brief        con lentes, dando su análisis (resumen del día)
-    alerts       dando un aviso (panel de avisos)
+    alerts       tocando el silbato y saludando (avisos)
 --face recorta la cabeza (izquierda,arriba,derecha,abajo en píxeles de la imagen ya recortada) y genera
-mister-face.png de 256×256 con cuello desvanecido, para avatar, botón del chat y estados vacíos.
+static/img/mister-face.png de 256×256 con cuello desvanecido, para avatar, botón del chat y estados vacíos.
 --clear borra lo que asome abajo a la derecha del recorte (x,y desde la esquina del recorte), p. ej. la cola.
 """
 
@@ -20,9 +20,10 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter
 
-OUT = Path(__file__).resolve().parents[1] / "src" / "footy" / "web" / "static" / "img"
-POSES = ("full", "chat-tablet", "chat-look", "brief", "alerts")
-MAX_SIDE = 440          # 2× del mayor tamaño en pantalla (saludo del chat)
+ROOT = Path(__file__).resolve().parents[1]
+OUT = ROOT / "src" / "footy" / "web" / "static" / "img"
+SOURCES = ROOT / "assets" / "mascot"
+POSES = ("chat-tablet", "chat-look", "brief", "alerts")
 SENTINEL = (255, 0, 255)
 
 
@@ -86,8 +87,7 @@ def main() -> None:
         clear = tuple(int(v) for v in args.clear.split(",")) if args.clear else None
         face_crop(figure, box, clear).save(OUT / "mister-face.png", optimize=True)
         print(f"Cabeza: {OUT / 'mister-face.png'}")
-    figure.thumbnail((MAX_SIDE, MAX_SIDE), Image.LANCZOS)
-    target = OUT / f"mister-{args.pose}.png"
+    target = SOURCES / f"{args.pose}.png"
     figure.save(target, optimize=True)
     print(f"Pose {args.pose}: {target} ({figure.size[0]}×{figure.size[1]})")
 

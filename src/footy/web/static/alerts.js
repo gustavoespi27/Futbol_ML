@@ -38,7 +38,7 @@ function renderAlerts() {
   $("#alerts-btn").setAttribute("aria-label", unread.length ? `Avisos, ${unread.length} sin leer` : "Avisos");
   $("#alerts-read-all").disabled = !unread.length;
   if (!alertsState.items.length) {
-    list.innerHTML = `<div class="alerts-empty">${misterPose("alerts", 92)}<b>Sin avisos nuevos</b><span>Te avisaremos cuando juegue un equipo que
+    list.innerHTML = `<div class="alerts-empty">${misterRig("alerts", 88)}<b>Sin avisos nuevos</b><span>Te avisaremos cuando juegue un equipo que
       sigues o aparezca una cuota que valga la pena frente a Pinnacle.</span></div>`;
     return;
   }
@@ -77,7 +77,7 @@ async function loadAlerts() {
     if (fresh.length) {
       const btn = $("#alerts-btn");
       btn.classList.remove("ringing"); void btn.offsetWidth; btn.classList.add("ringing");
-      const coach = $(".alerts-mister .mister-pose");
+      const coach = $(".alerts-mister .mister-rig");
       if (coach) { coach.classList.remove("hop"); void coach.offsetWidth; coach.classList.add("hop"); }
       notifyBrowser(fresh);
     }

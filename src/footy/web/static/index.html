@@ -11,6 +11,20 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Capas del Míster: el servidor les agrega ?v= y mascot.js usa esas mismas URL -->
+  <link rel="preload" as="image" href="/static/img/mister-face.png">
+  <link rel="preload" as="image" href="/static/img/mister-chat-tail.png">
+  <link rel="preload" as="image" href="/static/img/mister-chat-body.png">
+  <link rel="preload" as="image" href="/static/img/mister-chat-head-tablet.png">
+  <link rel="preload" as="image" href="/static/img/mister-chat-head.png">
+  <link rel="preload" as="image" href="/static/img/mister-brief-tail.png">
+  <link rel="preload" as="image" href="/static/img/mister-brief-body.png">
+  <link rel="preload" as="image" href="/static/img/mister-brief-arm.png">
+  <link rel="preload" as="image" href="/static/img/mister-brief-head.png">
+  <link rel="preload" as="image" href="/static/img/mister-alerts-tail.png">
+  <link rel="preload" as="image" href="/static/img/mister-alerts-body.png">
+  <link rel="preload" as="image" href="/static/img/mister-alerts-arm.png">
+  <link rel="preload" as="image" href="/static/img/mister-alerts-head.png">
 </head>
 <body>
 <a href="#main" class="skip-link">Saltar al contenido</a>
@@ -50,7 +64,7 @@
       <div class="tb-actions">
         <button type="button" class="tb-btn alerts-btn" id="alerts-btn" aria-controls="alerts-panel" aria-expanded="false" aria-label="Avisos"><svg class="ico bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Avisos</span><span class="badge" id="alerts-count" hidden></span></button>
         <section class="alerts-panel" id="alerts-panel" role="dialog" aria-labelledby="alerts-title" hidden>
-          <header class="alerts-head"><span class="alerts-mister" data-mister="alerts" data-size="56"></span><h2 id="alerts-title">Avisos del Míster</h2>
+          <header class="alerts-head"><span class="alerts-mister" data-mister="alerts" data-size="52"></span><h2 id="alerts-title">Avisos del Míster</h2>
             <button type="button" class="alerts-read-all" id="alerts-read-all">Marcar todas</button>
             <button type="button" class="td-close" id="alerts-close" aria-label="Cerrar avisos">×</button></header>
           <p class="alerts-note">Te aviso cuando juegan tus equipos, cuando hay cuotas con valor frente a Pinnacle y combinadas. Seguimiento en papel.</p>
@@ -79,7 +93,7 @@
           <button type="button" class="chip" id="brief-refresh" aria-label="Actualizar resumen" title="Actualizar resumen"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg></button>
         </div>
       </div>
-      <div class="brief-main"><span class="brief-pose" data-mister="brief" data-size="104"></span>
+      <div class="brief-main"><span class="brief-pose" data-mister="brief" data-size="96"></span>
         <div class="brief-text"><div class="brief-body" aria-live="polite"></div>
         <div class="brief-foot"></div></div></div>
     </section>
@@ -456,15 +470,15 @@
 <a class="navlink" href="#mas" data-nav-group="mas"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg><span>Más</span></a>
 </nav>
 <button type="button" class="agent-fab" id="agent-fab" aria-controls="agent-chat" aria-expanded="false" aria-label="Hablar con el Míster, el asistente">
-  <span class="mister-live" data-mister="face" data-size="50"></span>
+  <span data-mister="face" data-size="50" data-live></span>
 </button>
 <section class="agent-chat" id="agent-chat" role="dialog" aria-label="El Míster, asistente de Fútbol ML" hidden>
   <header class="chat-head">
-    <div class="chat-id"><span class="chat-avatar mister-live" aria-hidden="true" data-mister="face" data-size="34"></span><div><b>El Míster</b><span>Director técnico · IA local</span></div></div>
+    <div class="chat-id"><span class="chat-avatar" aria-hidden="true" data-mister="face" data-size="34" data-live></span><div><b>El Míster</b><span>Director técnico · IA local</span></div></div>
     <button type="button" class="td-close chat-close" aria-label="Cerrar el chat con el Míster">×</button>
   </header>
   <div class="chat-log" aria-live="polite">
-    <div class="msg bot msg-intro"><span class="intro-mister" data-mister="chat" data-size="120"></span><div class="msg-text">Aquí el Míster. En este equipo los números mandan, no la camiseta. Pregúntame por un partido, la tabla, cómo llega un equipo o si hay alguna cuota con valor.</div></div>
+    <div class="msg bot msg-intro"><span class="intro-mister" data-mister="chat" data-size="112" data-live></span><div class="msg-text">Aquí el Míster. En este equipo los números mandan, no la camiseta. Pregúntame por un partido, la tabla, cómo llega un equipo o si hay alguna cuota con valor.</div></div>
   </div>
   <div class="chat-suggest">
     <button type="button" class="chip">¿Qué apuestas con valor hay hoy?</button>
