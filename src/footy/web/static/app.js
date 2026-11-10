@@ -549,7 +549,7 @@ function semRow(m) {
     <div style="color:var(--muted);font-size:var(--fs-xs)">${leagueLogo(m.league, 13)} ${esc(m.league_name)} · ${fmtDate(m.kickoff)}${m.stale ? " · ⚠ datos atrasados" : ""}</div></td>
     ${SEM_COLS.map(([k]) => `<td>${vcell(ops[k])}</td>`).join("")}
     <td>${best ? `${vchip(best.verdict)}<div style="font-size:var(--fs-sm);margin-top:4px">${esc(best.label)} a ${num(best.odds)}</div>`
-      : '<span style="color:var(--muted);font-size:var(--fs-sm)">sin cuotas aún</span>'}</td></tr>`;
+      : `<span style="color:var(--muted);font-size:var(--fs-sm)">${esc(FootyTrust.priceState(m).label)}</span>`}</td></tr>`;
 }
 
 /* ---------- INICIO ---------- */
@@ -581,7 +581,7 @@ function renderHomeReview(list) {
     || Number(homeFavoriteRefs.has(b.ref)) - Number(homeFavoriteRefs.has(a.ref)) || Date.parse(a.kickoff) - Date.parse(b.kickoff)).slice(0, 3);
   $("#home-review").innerHTML = chosen.map(m => {
     const o = best(m), level = !o ? "neutral" : o.bet ? "good" : "warn";
-    const badge = !o ? "Sin referencia de precio" : o.bet ? `Con ventaja ${signed(o.edge)} · Pinnacle` : "Sin ventaja detectada";
+    const badge = !o ? FootyTrust.priceState(m).label : o.bet ? `Con ventaja ${signed(o.edge)} · Pinnacle` : "Sin ventaja detectada";
     return `<button type="button" class="review-card" data-home-ref="${esc(m.ref)}">
       <span class="review-meta">${esc(m.league_name || m.league)} · ${esc(fmtDate(m.kickoff))}</span>
       <span class="review-teams">${matchTag(m, 24)}</span><span class="pill ${level}"><i aria-hidden="true"></i>${esc(badge)}</span>
@@ -806,7 +806,10 @@ function matchRow(m) {
   const day = new Intl.DateTimeFormat("es-CL", { weekday: "short", day: "numeric" }).format(d);
   const pm = m.p_market;
   const cell = (k, i, color) => {
-    if (!p) return `<div class="pcell"><b>–</b><span>sin datos</span></div>`;
+    if (!p) {
+      const raw = m.odds_1x2?.[FootyTrust.priceState(m).book]?.[i];
+      return `<div class="pcell"><i>${k}</i><b>${raw ? num(raw) : "–"}</b><span>sin probabilidad</span></div>`;
+    }
     const o = ops[k], v = o && priceVerdict(o);
     const tip = [v ? `${v.label}: ${v.reason}` : "", pm ? `Mercado: ${pct(pm[i])}` : ""].filter(Boolean).join(" · ");
     // Botón de cuota: etiqueta 1/X/2, la cuota en grande y la probabilidad del sistema debajo.
@@ -822,7 +825,7 @@ function matchRow(m) {
     <div class="time"><b>${time}</b><span>${esc(day)}</span>${m.round ? `<em class="stage">${esc(stageLabel(m.round))}</em>` : ""}</div>
     <div class="tm">${tag(m.home_id, m.home, fav === 0, st.home_pos)}${tag(m.away_id, m.away, fav === 2, st.away_pos)}</div>
     ${cell("1", 0, "--home")}${cell("X", 1, "--draw")}${cell("2", 2, "--away")}
-    <div class="best">${best ? `${evBadge(best) || vchip(best.verdict)}<span>${esc(best.label)} · ${num(best.odds)}</span>` : `<span>${m.stale ? "datos atrasados" : "sin cuotas aún"}</span>`}</div>
+    <div class="best">${best ? `${evBadge(best) || vchip(best.verdict)}<span>${esc(best.label)} · ${num(best.odds)}</span>` : `<span>${m.stale ? "datos atrasados" : esc(FootyTrust.priceState(m).label)}</span>`}</div>
     <svg class="chev" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
   </div>`;
 }
@@ -960,7 +963,7 @@ function predictionBlock(m) {
       <div class="row"><span></span><span>Local</span><span>Empate</span><span>Visita</span></div>
       <div class="row"><span>${esc(m.model_name === "ML historial" ? "Modelo ML" : "Modelo")}</span>${m.p_model.map((x) => `<span class="num">${pct(x)}</span>`).join("")}</div>
       <div class="row"><span>Mercado</span>${m.p_market.map((x) => `<span class="num">${pct(x)}</span>`).join("")}</div></div>` : ""}
-    ${m.p_model && !m.p_market && m.model_name === "ML historial" ? `<div class="reco"><span class="pill">pronóstico ML</span> sin cuotas aún: probabilidades del modelo entrenado con el historial de los equipos</div>` : ""}
+    ${m.p_model && !m.p_market && m.model_name === "ML historial" ? `<div class="reco"><span class="pill">pronóstico ML</span> ${esc(FootyTrust.priceState(m).label)}: probabilidades del modelo entrenado con el historial de los equipos</div>` : ""}
   </section>`;
 }
 // Tira de enfrentamientos directos: los últimos partidos entre ambos (siempre anteriores a este), con el resultado
@@ -1049,10 +1052,10 @@ async function toggleStandings(btn) {
   }
 }
 // "Market Avg" es un promedio, no una casa donde apostar: se muestra, pero no compite por la mejor cuota ni el +EV.
-const NOT_BETTABLE = new Set(["Market Avg"]);
+const NOT_BETTABLE = new Set(["Pinnacle", "Betfair Exchange", "Betfair", "Market Avg", "Market Max", "Tu casa"]);
 const BOOK_ORDER = ["Pinnacle", "Bet365", "Betfair Exchange", "Betfair", "Market Avg"];
 const MIN_EDGE = 0.06;   // mismo umbral que pro.MIN_EDGE: desde aquí el semáforo recomienda apostar
-function oddsTable(odds, p) {
+function oddsTable(odds, fair) {
   const names = Object.keys(odds).sort((a, b) => {
     const ia = BOOK_ORDER.indexOf(a), ib = BOOK_ORDER.indexOf(b);
     return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
@@ -1061,7 +1064,6 @@ function oddsTable(odds, p) {
   const bettable = real.length ? real : names;
   const best = [0, 1, 2].map((i) => Math.max(...bettable.map((b) => odds[b][i])));
   const bestBook = best.map((x, i) => bettable.find((b) => odds[b][i] === x));
-  const fair = p ? p.map((x) => 1 / x) : null;
   const payout = (o) => 1 / o.reduce((s, x) => s + 1 / x, 0);
   const cell = (b, x, i) => {
     const isBest = bettable.length > 1 && !NOT_BETTABLE.has(b) && x === best[i];
@@ -1075,12 +1077,12 @@ function oddsTable(odds, p) {
     <thead><tr><th>Casa</th><th>1</th><th>X</th><th>2</th><th class="pay">Payout</th></tr></thead>
     <tbody>${names.map((b) => {
       const o = odds[b], pay = payout(o);
-      return `<tr${NOT_BETTABLE.has(b) ? ' class="avg"' : ""}><td class="bk">${esc(b === "Market Avg" ? "Promedio mercado" : b)}</td>
+      return `<tr${NOT_BETTABLE.has(b) ? ' class="avg"' : ""}><td class="bk">${esc(b === "Market Avg" ? "Promedio mercado" : FootyTrust.bookLabel(b))}</td>
         ${o.map((x, i) => cell(b, x, i)).join("")}
         <td class="num pay" title="Margen de la casa: ${pct(1 - pay, 1)}">${pct(pay, 1)}</td></tr>`;
     }).join("")}
-    ${fair ? `<tr class="fair"><td class="bk">Cuota justa (modelo)</td>${fair.map((x) => `<td class="num">${num(x)}</td>`).join("")}<td class="num pay">100%</td></tr>` : ""}
-    <tr class="gain"><td class="bk">Si apuestas 1.000</td>${best.map((x, i) => `<td class="num" title="Con la mejor cuota (${esc(bestBook[i])})">+${Math.round(x * 1000 - 1000).toLocaleString("es-CL")}</td>`).join("")}<td></td></tr>
+    ${fair ? `<tr class="fair"><td class="bk">Precio justo Pinnacle</td>${fair.map((x) => `<td class="num">${num(x)}</td>`).join("")}<td class="num pay">100%</td></tr>` : ""}
+    ${real.length ? `<tr class="gain"><td class="bk">Si apuestas 1.000</td>${best.map((x, i) => `<td class="num" title="Con la mejor cuota (${esc(bestBook[i])})">+${Math.round(x * 1000 - 1000).toLocaleString("es-CL")}</td>`).join("")}<td></td></tr>` : ""}
     </tbody></table></div></div>`;
 }
 function matchCard(m) {
@@ -1094,18 +1096,20 @@ function matchCard(m) {
   let oddsHtml = "";
   const books = m.odds_1x2 ? Object.keys(m.odds_1x2) : [];
   if (books.length > 1) {
-    oddsHtml = oddsTable(m.odds_1x2, p);
+    oddsHtml = oddsTable(m.odds_1x2, FootyTrust.pinnacleFair(m));
   } else if (books.length) {
     const book = books[0];
     const o = m.odds_1x2[book];
-    const fair = p ? p.map((x) => 1 / x) : null;
+    const fair = FootyTrust.pinnacleFair(m);
     oddsHtml = `<div class="compare">
-      <div class="odds-row"><span>Cuota ${esc(book)}</span>${o.map((x) => `<span><b>${num(x)}</b></span>`).join("")}</div>
-      ${fair ? `<div class="odds-row"><span>Cuota justa</span>${fair.map((x, i) => `<span title="${o[i] > x ? "La casa paga más que la cuota justa" : "La casa paga menos que la cuota justa"}">${num(x)}</span>`).join("")}</div>` : ""}
+      <div class="odds-row"><span>Precio ${esc(FootyTrust.bookLabel(book))}</span>${o.map((x) => `<span><b>${num(x)}</b></span>`).join("")}</div>
+      ${fair ? `<div class="odds-row"><span>Precio justo Pinnacle</span>${fair.map((x, i) => `<span title="${o[i] > x ? "La casa paga más que el precio justo" : "La casa paga menos que el precio justo"}">${num(x)}</span>`).join("")}</div>` : ""}
       <div class="odds-row" style="color:var(--muted)"><span>Si apuestas 1.000</span>${o.map((x) => `<span>gana ${Math.round(x * 1000 - 1000).toLocaleString("es-CL")}</span>`).join("")}</div></div>`;
-  } else if (p) {
-    oddsHtml = `<div class="compare"><div class="odds-row"><span>Cuota justa</span>${p.map((x) => `<span>${num(1 / x)}</span>`).join("")}</div>
-      <div style="color:var(--muted)">Cuotas de la casa: aún no publicadas o no recolectadas.</div></div>`;
+  } else {
+    oddsHtml = `<p class="mc-note">Sin cuotas aún: no hay precios publicados o recolectados.</p>`;
+  }
+  if (!FootyTrust.priceState(m).reference && books.length) {
+    oddsHtml += '<p class="mc-note">Son precios ofrecidos; sin referencia Pinnacle no se evalúa ventaja.</p>';
   }
   return `<article class="card match">
     <div class="meta"><span class="lg">${leagueLogo(m.league, 16)}${esc(m.league_name)}</span><span>${fmtDate(m.kickoff)}</span></div>

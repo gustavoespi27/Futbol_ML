@@ -40,3 +40,18 @@ test('fecha relativa según el día de Chile, incluso al cruzar medianoche UTC',
   assert.equal(trust.updatedTime('2026-11-09T02:00:00Z',clock),'ayer a las 23:00');
   assert.match(trust.updatedTime('2026-11-07T15:00:00Z',clock),/^el 7 de noviembre de 2026$/);
 });
+
+test('precios ofrecidos y referencia Pinnacle son estados distintos',()=>{
+ assert.equal(trust.priceState({}).label,'sin cuotas aún');
+ const match={p_official:[.6,.25,.15],odds_1x2:{DraftKings:[1.53,3.9,5.75]}};
+ assert.deepEqual(trust.priceState(match),{hasOdds:true,reference:false,book:'DraftKings',label:'Precio DraftKings · sin referencia Pinnacle'});
+ assert.equal(trust.priceState({...match,odds_1x2:{...match.odds_1x2,Pinnacle:[1.5,3.8,5.5]}}).reference,true);
+ assert.equal(trust.priceState({odds_1x2:{DraftKings:[null,0,NaN]}}).hasOdds,false);
+ assert.equal(trust.priceState({...match,options:[{key:'1',odds:1.6,book:'Bet365'}]}).book,'Bet365');
+ assert.equal(trust.bookLabel('DraftKings'),'DraftKings · vía ESPN');
+});
+test('precio justo visual solo desde las cifras de Pinnacle, nunca desde el modelo',()=>{
+ assert.equal(trust.pinnacleFair({p_official:[.6,.25,.15],odds_1x2:{DraftKings:[1.53,3.9,5.75]}}),null);
+ assert.deepEqual(trust.pinnacleFair({pro:[{key:'1',fair_odds:2},{key:'X',fair_odds:3.5},{key:'2',fair_odds:4}]}),[2,3.5,4]);
+ assert.equal(trust.pinnacleFair({pro:[{key:'1',fair_odds:2}]}),null);
+});

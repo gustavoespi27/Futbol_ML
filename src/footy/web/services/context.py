@@ -306,7 +306,8 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
                     "stats": stats,
                     "p_market": _probs(pr.get("p_market")), "xg": [_f(pr["lam"], 2), _f(pr["mu"], 2)]})
         ctx["recommendation"] = paper_bet(params[code], p_off, books) if ref_book else {
-            "bet": False, "text": "Sin cuotas: no se puede evaluar valor."}
+            "bet": False, "text": "Precios ofrecidos sin referencia Pinnacle: no se puede evaluar ventaja." if books
+            else "Sin cuotas: no se puede evaluar valor."}
     elif ref_book or (cross := cross_probs if cross_probs is not None
                       else _cross_probs(code, home_id, away_id)) is not None:
         # Copas de clubes: modelo entre ligas (Elo global + ajuste por liga). Con cuotas manda Pinnacle sin margen
@@ -322,12 +323,16 @@ def _build_context(ref: str, code: str, home: str, away: str, kickoff: str | Non
         ctx.update({"source": "mercado" if ref_book else "modelo entre ligas", "xg": [_f(lam, 2), _f(mu, 2)],
                     "recommendation": {"bet": False, "text": (
                         "Sin modelo validado en esta liga: se muestra la probabilidad del mercado." if ref_book else
+                        "Precios ofrecidos sin referencia Pinnacle: pronóstico del modelo entre ligas." if books else
                         "Sin cuotas todavía: pronóstico del modelo entre ligas (Elo global + fuerza de cada liga).")}})
         if ref_book:
             ctx["p_market"] = _probs(p_off)
     else:
         ctx.update({"source": "sin datos", "p_official": None, "options": [], "suggestions": [],
-                    "recommendation": {"bet": False, "text": "Sin modelo validado ni cuotas todavía."}})
+                    "odds_1x2": {b: [round(float(x), 2) for x in v] for b, v in books.items() if b in DISPLAY_BOOKS},
+                    "recommendation": {"bet": False, "text":
+                        "Hay precios ofrecidos, pero falta un modelo validado y referencia Pinnacle." if books else
+                        "Sin modelo validado ni cuotas todavía."}})
         return ctx
     oo = _option_odds(odds)
     options = []

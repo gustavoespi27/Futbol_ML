@@ -42,7 +42,29 @@
       : `el ${new Intl.DateTimeFormat("es-CL", { ...options, day: "numeric", month: "long", year: "numeric" }).format(date)}`;
   }
 
-  const rules = { classify, emptyKind, briefingLabel, partidos, coverage, updatedTime };
+  function priceState(match) {
+    const valid = price => Number.isFinite(price) && price > 1;
+    const books = Object.entries(match.odds_1x2 || {}).filter(([, values]) =>
+      Array.isArray(values) && values.length === 3 && values.every(valid));
+    const offers = (match.options || []).filter(o => !o.estimated && valid(o.odds) && o.book);
+    const reference = Boolean(match.pro?.length || books.some(([book]) => book === "Pinnacle"));
+    const favored = match.p_official ? match.p_official.indexOf(Math.max(...match.p_official)) : 0;
+    const shown = offers.find(o => o.key === ["1", "X", "2"][favored]);
+    const house = shown?.book || books.filter(([book]) => !["Pinnacle", "Market Avg", "Market Max"].includes(book))
+      .sort((a, b) => b[1][favored] - a[1][favored])[0]?.[0] || books[0]?.[0] || offers[0]?.book;
+    const hasOdds = Boolean(books.length || offers.length);
+    const label = !hasOdds ? "sin cuotas aún" : reference ? "Referencia Pinnacle disponible"
+      : `Precio ${house} · sin referencia Pinnacle`;
+    return { hasOdds, reference, book: house || null, label };
+  }
+  function pinnacleFair(match) {
+    const all = match.pro || [];
+    const values = ["1", "X", "2"].map(key => all.find(o => o.key === key)?.fair_odds);
+    return values.every(value => Number.isFinite(value) && value > 1) ? values : null;
+  }
+  const bookLabel = book => book === "DraftKings" ? "DraftKings · vía ESPN" : book;
+
+  const rules = { classify, emptyKind, briefingLabel, partidos, coverage, updatedTime, priceState, pinnacleFair, bookLabel };
   if (typeof module !== "undefined" && module.exports) module.exports = rules;
   else root.FootyTrust = rules;
 })(typeof window !== "undefined" ? window : globalThis);
