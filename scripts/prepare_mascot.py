@@ -6,8 +6,8 @@ Uso:
     .venv\Scripts\python scripts/prepare_mascot.py imagen.png --pose chat-look --face 6,0,152,158 --clear 138,124
 
 Poses (fuentes en assets/mascot/<pose>.png, no se publican):
-    chat-tablet  sosteniendo la tablet y mirándola        ┐ el chat usa un cuerpo y alterna las dos cabezas
-    chat-look    misma pose, mirando hacia el usuario      ┘
+    chat-tablet  sosteniendo la tablet y mirándola (cabeza que lee)
+    chat-look    misma pose, mirando hacia el usuario (cuerpo del chat y cabeza que mira)
     brief        con lentes, dando su análisis (resumen del día)
     alerts       tocando el silbato y saludando (avisos)
 --face recorta la cabeza (izquierda,arriba,derecha,abajo en píxeles de la imagen ya recortada) y genera
