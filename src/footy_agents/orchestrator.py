@@ -28,6 +28,7 @@ from footy_agents.tools import (
     WRITE_TOOLS,
     execute_tool,
     recommendations_text,
+    resolve_league,
     upcoming_focus,
 )
 from footy_agents.user_memory import user_name as stated_name
@@ -80,6 +81,22 @@ def _comparison_findings(answer: str, data: dict) -> list[str]:
             r"\b(?:valor|ventaja|rentabilidad|rentable)\b", normalize_name(extra)):
         findings.append("Sin Pinnacle no puedes afirmar presencia ni ausencia de valor fuera del texto verificado.")
     return list(dict.fromkeys(findings))
+
+
+def league_reply(message: str, history: list[dict] | None) -> tuple[str, str] | None:
+    """Respuesta corta que solo nombra una liga justo después de que el Míster pidió precisarla: devuelve la pregunta
+    anterior completada con esa liga y su código. None en cualquier otro caso."""
+    if not history or len(message.split()) > 4:
+        return None
+    asked = next((m.get("content", "") for m in reversed(history) if m.get("role") == "assistant"), "")
+    question = next((m.get("content", "") for m in reversed(history) if m.get("role") == "user"), "")
+    if not question or "?" not in asked or not re.search(r"\b(?:liga|codigo)\b", normalize_name(asked)):
+        return None
+    try:
+        code = resolve_league(message)
+    except ValueError:
+        return None
+    return f"{question} (liga {code})", code
 
 
 def strip_tool_mentions(text: str) -> str:
@@ -350,6 +367,11 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         yield ChatEvent(event="token", data={"delta": greeting or intro_text(user_name)})
         yield ChatEvent(event="done", data={"iterations": 0, "success": True})
         return
+    retaken = league_reply(message, history)
+    if retaken:
+        # «chl» tras «¿qué liga?»: no es un tema nuevo, completa la pregunta anterior con la liga resuelta.
+        yield _step("observation", f"Retoma la pregunta anterior con la liga {retaken[1]}.")
+        message = retaken[0]
     route = intent_route(message, entities)
     if route and route[0] == "get_recommendations":
         # Mostrar las pestañas de Apuestas es presentar datos, no razonar: sale tal cual del sistema, completo.
@@ -424,7 +446,20 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         focus = None if entities and entities.get("match_id") else upcoming_focus(message)
     except Exception:  # noqa: BLE001 - precarga opcional; el fallo no debe impedir el chat
         focus = None
-    if entities and entities.get("match_id") and not calendar_request:
+    if route and route[0] in {"simulate_match", "get_league_standings"} and route[1] and not writing:
+        # Datos que la pregunta pide sin ambigüedad: se consultan antes de redactar. La tabla y una ambigüedad de
+        # nombres se muestran tal cual; la simulación la redacta el modelo con el resultado ya en mano.
+        call = ToolCall(id=f"preload_{route[0]}", name=route[0], arguments=route[1])
+        turn.messages.append(_assistant_calls("", [call], turn.calendar_filters))
+        yield from turn.execute(call)
+        record = turn.records[-1]
+        data = record.result if record.success and isinstance(record.result, dict) else {}
+        direct = data.get("standings_text") or (data.get("note") if data.get("status") == "ambiguous" else None)
+        if direct:
+            yield ChatEvent(event="token", data={"delta": direct})
+            yield ChatEvent(event="done", data={"iterations": 0, "success": True})
+            return
+    elif entities and entities.get("match_id") and not calendar_request:
         call = ToolCall(id="preload_analysis", name="analyze_match", arguments={"match_id": entities["match_id"]})
         turn.messages.append(_assistant_calls("", [call], turn.calendar_filters))
         yield from turn.execute(call)

@@ -77,6 +77,9 @@ def observe(record: ToolCallRecord) -> Observation:
         return Observation(status="empty", note="Ninguna selección supera la ventaja mínima frente a Pinnacle.",
                            options=["get_coverage"])
 
+    if name == "simulate_match" and isinstance(result, dict) and result.get("status") == "ambiguous":
+        return Observation(status="ambiguous", note=result.get("note", "Varios equipos coinciden; pregunta cuál."))
+
     if name == "find_team":
         if not result:
             return Observation(status="not_found", note="No hay equipos con un nombre parecido.")

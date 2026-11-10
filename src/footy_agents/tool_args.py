@@ -48,7 +48,7 @@ class RecommendationArgs(AgentSchema):
 
 
 class SimulationArgs(AgentSchema):
-    league: str = Field(min_length=1, max_length=100)
+    league: str | None = Field(default=None, min_length=1, max_length=100)
     home_team: str = Field(min_length=1, max_length=100)
     away_team: str = Field(min_length=1, max_length=100)
 
@@ -115,8 +115,8 @@ DESCRIPTIONS = {
         'ni explicar cobertura: usa analyze_match o get_coverage.'),
     'get_recommendations': ('Usa para «recomendaciones de la máquina», «más fiables» o «casi con valor»: '
         'pestañas de Apuestas con ejemplos. No para analizar un partido: usa analyze_match.'),
-    'simulate_match': ('Usa para encuentro hipotético: «Simula Colo Colo contra la U». No para un '
-        'partido del calendario con match_id: usa analyze_match.'),
+    'simulate_match': ('Usa para cruce hipotético, también entre ligas: «Simula Colo Colo contra Barcelona»; '
+        'league es opcional. No para un partido del calendario: usa analyze_match.'),
     'get_league_standings': ('Usa para posiciones: «¿Cómo va Colo Colo en la tabla?». No para pronóstico '
         'ni forma detallada.'),
     'get_system_performance': ('Usa para métricas: «¿Cuál es el rendimiento del sistema?». No para '

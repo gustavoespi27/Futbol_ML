@@ -8,7 +8,7 @@ import re
 import time
 from collections import Counter
 from contextlib import closing
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from difflib import get_close_matches
 from math import floor
 from typing import Any
@@ -20,6 +20,7 @@ from footy.config import settings
 from footy.db.connection import connect
 from footy.leagues import load_params
 from footy.web import service
+from footy.web.services.catalog import league_names
 from footy.web.services.context import LOCAL_TZ
 from footy.web.team_display import presentation_payload
 from footy_agents.calendar import WEEKDAYS, competition_priority, local_fields, local_payload, requested_dates
@@ -50,19 +51,72 @@ STANDING_KEYS = ("pos", "teams", "points", "played", "won", "drawn", "lost", "gf
 STALE_HOURS = 30            # mismo umbral que la franja de estado del dashboard
 
 
-def resolve_league(league: str) -> str:
-    """Resuelve códigos y nombres del catálogo; los alias no agregan ligas inexistentes."""
+# Gentilicios -> país del catálogo: «la liga chilena», «la inglesa», «el fútbol argentino».
+DEMONYMS = {
+    "chilena": "chile", "chileno": "chile", "argentina": "argentina", "argentino": "argentina",
+    "inglesa": "inglaterra", "ingles": "inglaterra", "espanola": "espana", "espanol": "espana",
+    "italiana": "italia", "italiano": "italia", "alemana": "alemania", "aleman": "alemania",
+    "francesa": "francia", "frances": "francia", "brasilena": "brasil", "brasileno": "brasil",
+    "mexicana": "mexico", "mexicano": "mexico", "portuguesa": "portugal", "portugues": "portugal",
+    "escocesa": "escocia", "escoces": "escocia", "holandesa": "paises bajos", "neerlandesa": "paises bajos",
+    "belga": "belgica", "turca": "turquia", "griega": "grecia", "uruguaya": "uruguay", "colombiana": "colombia",
+    "peruana": "peru", "ecuatoriana": "ecuador", "paraguaya": "paraguay", "estadounidense": "estados unidos",
+}
+LEAGUE_PREFIX = re.compile(r"^(?:(?:la|el|los|las|de la|del|de) )*(?:(?:tabla|liga|campeonato|torneo|primera division|"
+                           r"primera|futbol|division) )*(?:(?:de la|del|de|en) )*")
+
+
+def _league_index() -> tuple[dict[str, str], dict[str, str], list[dict]]:
+    """Nombres y códigos -> código, y país -> liga principal (la primera del país en settings.yaml)."""
     catalog = service.league_catalog()
+    codes = {r["code"] for r in catalog}
     names = {normalize_name(str(row[key])): row["code"] for row in catalog for key in ("code", "name")}
     aliases = {"chilean primera division": "CHL", "primera division chilena": "CHL", "liga chilena": "CHL",
-               "laliga": "SP1", "la liga espanola": "SP1", "english premier league": "E0"}
-    codes = {r["code"] for r in catalog}
+               "laliga": "SP1", "la liga": "SP1", "la liga espanola": "SP1", "english premier league": "E0",
+               "premier": "E0", "champions": "UCL", "champions league": "UCL", "libertadores": "LIB",
+               "copa libertadores": "LIB", "sudamericana": "SUD", "copa sudamericana": "SUD"}
     names.update({alias: code for alias, code in aliases.items() if code in codes})
+    leagues = {r["code"]: r for r in catalog if r.get("type") == "league"}
+    main: dict[str, str] = {}
+    for code in settings().get("competitions", {}):              # orden de settings: primero la liga principal
+        if code in leagues:
+            main.setdefault(normalize_name(str(leagues[code].get("country", ""))), code)
+    return names, main, catalog
+
+
+def resolve_league(league: str) -> str:
+    """Resuelve código, nombre, alias, país o gentilicio («la liga chilena», «chile», «la inglesa») a un código del
+    catálogo. Las copas no se eligen por país; si no se reconoce, el error lista código y nombre."""
+    names, main, catalog = _league_index()
     query = normalize_name(league)
     if query in names:
         return names[query]
-    close = list(dict.fromkeys(names[n] for n in get_close_matches(query, list(names), n=5, cutoff=.25)))[:3]
-    raise ValueError(f"Liga no reconocida: {league}. Códigos cercanos: {', '.join(close or sorted(codes)[:3])}")
+    core = LEAGUE_PREFIX.sub("", query).strip()
+    for candidate in (core, DEMONYMS.get(core, ""), " ".join(DEMONYMS.get(w, w) for w in core.split())):
+        if candidate and candidate in names:
+            return names[candidate]
+        if candidate and candidate in main:
+            return main[candidate]
+    close = list(dict.fromkeys(names[n] for n in get_close_matches(core or query, list(names), n=6, cutoff=.4)))[:3]
+    by_code = {r["code"]: r["name"] for r in catalog}
+    hints = ", ".join(f"{c} ({by_code.get(c, c)})" for c in close) or "ninguno parecido"
+    raise ValueError(f"Liga no reconocida: {league}. Códigos cercanos: {hints}")
+
+
+def league_in_text(text: str) -> str | None:
+    """Liga mencionada dentro de una frase («cómo va la tabla de la liga chilena»), o None."""
+    query = normalize_name(text)
+    words = query.split()
+    for size in range(min(5, len(words)), 0, -1):              # frases más largas primero: «primera division de chile»
+        for i in range(len(words) - size + 1):
+            phrase = " ".join(words[i:i + size])
+            if size == 1 and (len(phrase) < 3 or phrase in {"la", "el", "de", "tabla", "liga", "va", "como"}):
+                continue
+            try:
+                return resolve_league(phrase)
+            except ValueError:
+                continue
+    return None
 
 
 def upcoming_focus(message: str) -> dict[str, Any] | None:
@@ -241,39 +295,126 @@ def recommendations_text(result: dict) -> str:
     return "\n\n".join(parts)
 
 
-def _league_team(code: str, name: str) -> dict:
-    """Equipo activo de la liga por nombre canónico, apodo o coincidencia parcial única."""
+def _league_matches(code: str, name: str) -> list[dict]:
+    """Equipos activos de la liga que calzan con el nombre: exacto o apodo primero; si no, parcial o cercano."""
     roster = service.teams(code)
     query = normalize_name(NICKNAMES.get(normalize_name(name), name))
     by_name = {normalize_name(t["name"]): t for t in roster}
     if query in by_name:
-        return by_name[query]
+        return [by_name[query]]
     partial = [t for key, t in by_name.items() if query in key or key in query]
-    partial = partial or [by_name[k] for k in get_close_matches(query, list(by_name), n=1, cutoff=.75)]
-    if len(partial) != 1:
+    return partial or [by_name[k] for k in get_close_matches(query, list(by_name), n=1, cutoff=.75)]
+
+
+def _league_team(code: str, name: str) -> dict:
+    """Equipo activo de la liga por nombre canónico, apodo o coincidencia parcial única."""
+    found = _league_matches(code, name)
+    if len(found) != 1:
         raise KeyError(f"Equipo '{name}' no encontrado en {code}")
-    return partial[0]
+    return found[0]
 
 
-def tool_simulate_match(league: str, home_team: str, away_team: str) -> dict[str, Any]:
-    """Simula un partido entre dos equipos de una liga con el modelo del sistema (xG y probabilidades 1X2). Las ligas
-    sin modelo propio (p. ej. Chile) usan el modelo entre ligas, igual que el simulador del dashboard."""
-    code = resolve_league(league)
-    home, away = _league_team(code, home_team), _league_team(code, away_team)
-    if code in load_params():
-        res = service.predict(code, home["name"], away["name"], None)
+GENERIC_TOKENS = {"fc", "cf", "club", "sc", "cd", "ca", "afc", "de", "la", "el", "del", "deportivo", "sporting"}
+TEAMS_TTL = 3600
+_teams_cache: dict[str, Any] = {"at": 0.0, "rows": []}
+
+
+def _active_league_teams() -> list[dict]:
+    """Clubes con partidos de liga en el último año y su liga principal (donde más jugaron). Caché de una hora."""
+    if time.time() - _teams_cache["at"] < TEAMS_TTL and _teams_cache["rows"]:
+        return _teams_cache["rows"]
+    since = (datetime.now(timezone.utc).replace(microsecond=0) - timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with closing(connect()) as conn:
+        rows = conn.execute(
+            """SELECT t.id, t.name, c.code, COUNT(*) FROM teams t
+               JOIN matches m ON t.id IN (m.home_team_id, m.away_team_id)
+               JOIN competitions c ON c.id = m.competition_id
+               WHERE c.type = 'league' AND m.kickoff_utc >= ? GROUP BY t.id, c.code""", (since,)).fetchall()
+    best: dict[int, dict] = {}
+    for team_id, name, code, n in rows:
+        if team_id not in best or n > best[team_id]["n"]:
+            best[team_id] = {"id": team_id, "name": name, "league": code, "n": n}
+    _teams_cache.update(at=time.time(), rows=list(best.values()))
+    return _teams_cache["rows"]
+
+
+def _tokens(text: str) -> set[str]:
+    return {w for w in normalize_name(text).split() if w not in GENERIC_TOKENS}
+
+
+def find_club(name: str) -> list[dict]:
+    """Clubes de cualquier liga que calzan con el nombre o apodo: los exactos si los hay; si no, por palabras clave."""
+    query = normalize_name(NICKNAMES.get(normalize_name(name), name))
+    teams = _active_league_teams()
+    exact = [t for t in teams if normalize_name(t["name"]) == query]
+    if exact:
+        return exact
+    words = _tokens(query)
+    found = [t for t in teams if words and (words <= _tokens(t["name"]) or (_tokens(t["name"]) and
+                                                                           _tokens(t["name"]) <= words))]
+    with_model = load_params()
+    return sorted(found, key=lambda t: (t["league"] not in with_model, -t["n"], t["name"]))
+
+
+def _simulation_side(name: str, hint: str | None) -> dict:
+    """Un lado del cruce: primero en la liga sugerida; si no está ahí, en todo el catálogo de ligas."""
+    if hint:
+        found = _league_matches(hint, name)
+        if len(found) == 1:
+            return {**found[0], "league": hint}
+        if len(found) > 1:
+            raise KeyError(f"Equipo '{name}' no encontrado en {hint}: hay varios parecidos")
+    found = find_club(name)
+    if not found:
+        raise KeyError(f"Equipo '{name}' no encontrado en ninguna liga seguida")
+    if len(found) > 1:
+        return {"ambiguous": True, "query": name, "options": found[:4]}
+    return found[0]
+
+
+def tool_simulate_match(league: str | None = None, home_team: str = "", away_team: str = "") -> dict[str, Any]:
+    """Simula un partido hipotético entre dos clubes, de la misma liga o de ligas distintas (Colo Colo vs Barcelona).
+    Misma liga con modelo propio: el modelo de la liga; si no, el modelo entre ligas, igual que el simulador del
+    dashboard. `league` es solo una pista para resolver nombres; nunca obliga a que ambos sean de esa liga."""
+    hint = None
+    if league:
+        try:
+            hint = resolve_league(league)
+        except ValueError:
+            hint = None
+    home, away = _simulation_side(home_team, hint), _simulation_side(away_team, hint)
+    unclear = [side for side in (home, away) if side.get("ambiguous")]
+    if unclear:
+        names = league_names()
+        options = [{"team": t["name"], "league": t["league"], "league_name": names.get(t["league"], t["league"])}
+                   for side in unclear for t in side["options"]]
+        listed = "; ".join(f"{o['team']} ({o['league_name']})" for o in options)
+        return {"status": "ambiguous", "note": f"Hay varios equipos con ese nombre: {listed}. ¿Cuál quieres?",
+                "options": options}
+    if home["id"] == away["id"]:
+        raise ValueError("Elige dos equipos distintos")
+    same = home["league"] == away["league"]
+    if same and home["league"] in load_params():
+        res = service.predict(home["league"], home["name"], away["name"], None)
     else:
-        res = service.predict_cross(code, code, home["id"], away["id"], None)
+        res = service.predict_cross(home["league"], away["league"], home["id"], away["id"], None)
     p_home, p_draw, p_away = res["p_model"]
-    return {
+    out = {
+        "status": "ok",
         "home": res["home"],
         "away": res["away"],
-        "league": code,
+        "league": home["league"],
+        "home_league": home["league"],
+        "away_league": away["league"],
         "model": res.get("source"),
         "expected_goals": {"home": res["xg"][0], "away": res["xg"][1]},
         "probabilities_1x2": labeled_1x2(res["home"], res["away"], (p_home, p_draw, p_away)),
         "top_scores": [{"score": s, "probability": _pct(q)} for s, q in res.get("top_scores", [])[:3]],
     }
+    if not same:
+        out["note"] = ("Cruce entre ligas: simulación hipotética con el modelo entre ligas (Elo global y ajuste por "
+                       "liga); no es un partido del calendario.")
+    return out
 
 
 def tool_get_league_standings(league: str) -> dict[str, Any]:
@@ -294,6 +435,11 @@ def tool_get_league_standings(league: str) -> dict[str, Any]:
             "gd": row["gd"],
             "recent": row["recent"],
         } for row in st["rows"][:8]],
+        # Tabla lista para mostrar: la respuesta a «cómo va la tabla» es presentar datos, no redactarlos.
+        "standings_text": "\n".join(
+            [f"{st.get('league_name') or league} {st.get('season') or ''}".strip() + " · primeros 8:"]
+            + [f"{row['pos']}. {row['name']} — {row['points']} pts ({row['played']} PJ, DG {row['gd']:+d})"
+               for row in st["rows"][:8]]),
     }
 
 

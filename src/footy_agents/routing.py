@@ -4,7 +4,32 @@ import re
 
 from footy_agents.calendar import calendar_args
 from footy_agents.names import normalize_name
-from footy_agents.tools import NICKNAMES, service, upcoming_focus
+from footy_agents.tools import NICKNAMES, league_in_text, service, upcoming_focus
+
+# Cruce hipotético entre dos equipos: «¿quién ganaría Colo Colo contra el Barcelona?», «simula A vs B».
+MATCHUP = re.compile(r"(?:quien ganaria|ganaria|simula(?:r|cion)?(?: de)?|si jugaran|que pasaria si juega[n]?)\s+"
+                     r"(?:un partido entre |el partido |entre )?(.+?)\s+(?:contra|vs|versus|frente a|y)\s+(.+)$")
+ARTICLE = re.compile(r"^(?:el|la|los|las|al|a)\s+")
+
+
+def matchup(q: str) -> tuple[str, str] | None:
+    m = MATCHUP.search(q)
+    if not m:
+        return None
+    home, away = (ARTICLE.sub("", side).strip() for side in m.groups())
+    return (home, away) if home and away else None
+
+
+def _scheduled(home: str, away: str) -> int | None:
+    """Si el cruce está en el calendario, se analiza el partido real en vez de simularlo."""
+    def norm(name: str) -> str:
+        return normalize_name(NICKNAMES.get(normalize_name(name), name))
+    pair = {norm(home), norm(away)}
+    for m in service.upcoming():
+        if {normalize_name(m["home"]), normalize_name(m["away"])} == pair:
+            return int(str(m["ref"]).removeprefix("m:")) if m.get("ref") else None
+    return None
+
 
 ODDS_INTENT = re.compile(r"\b(?:cuanto paga|cuotas?|compara cuotas|que casa paga mas)\b")
 
@@ -69,6 +94,12 @@ def intent_route(message: str, entities: dict | None = None) -> tuple[str, dict]
                     args["id"] = int(id_[0])
             return tool, args
     # «Cuotas con valor» o «recomendaciones» son otra intención: no se comparan casas de un partido.
+    teams = matchup(q)
+    if teams:
+        match_id = _scheduled(*teams)
+        if match_id:
+            return "analyze_match", {"match_id": match_id}
+        return "simulate_match", {"home_team": teams[0], "away_team": teams[1]}
     if ODDS_INTENT.search(q) and not re.search(r"valor|ventaja|recomend|fiables?|semaforo", q):
         return "request_odds", {"match_id": entities["match_id"]} if entities and entities.get("match_id") else {}
     for pattern, tool in (
@@ -100,8 +131,9 @@ def intent_route(message: str, entities: dict | None = None) -> tuple[str, dict]
                     args = {"bankroll": float(raw.replace(",", "."))}
             elif tool == "get_team_form" and entities and entities.get("team"):
                 args = {"team": entities["team"]}
-            elif tool == "get_league_standings" and entities and entities.get("league"):
-                args = {"league": entities["league"]}
+            elif tool == "get_league_standings":
+                league = league_in_text(message) or (entities or {}).get("league")
+                args = {"league": league} if league else {}
             return tool, args
     if entities and entities.get("shown_ids") and re.match(r"^(?:si|dale|ok|otros?|otras?|mas)\b", q):
         return "get_upcoming_matches", calendar_args(message, entities)

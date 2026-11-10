@@ -87,7 +87,7 @@ def test_ten_turn_conversation_has_no_contamination(monkeypatch):
                     "Calendario disponible.", "Evaluación de ventaja.", "Cobertura de referencia.",
                     "Rendimiento histórico.",
                     "Topes de exposición.", "Política educativa.")[i]
-            client = FakeLLM(expected, arguments.get(expected, {}), text, preloaded=i == 1)
+            client = FakeLLM(expected, arguments.get(expected, {}), text, preloaded=i in (1, 3))
             consulted: dict = {}
             events = list(orchestrator.run_chat(client, question, UserPreferences(), history=memory.history(db, "u"),
                                                entities=memory.recent_entities(db, "u"),
@@ -100,6 +100,9 @@ def test_ten_turn_conversation_has_no_contamination(monkeypatch):
                     assert sent[-1]["role"] == "tool"
                     assert "match_id=181043" in sent[0]["content"]
                     assert any(e.event == "step" and "Continúa" in e.data.get("text", "") for e in events)
+                elif i == 3:          # cruce hipotético: la simulación se precarga, sin contexto de turnos previos
+                    assert len(sent) == 4 and "Contexto reciente" not in sent[0]["content"]
+                    assert sent[-1]["role"] == "tool" and sent[-1]["tool_call_id"] == "preload_simulate_match"
                 elif i != 0:
                     assert len(sent) == 2 and "Contexto reciente" not in sent[0]["content"]
             answer = "".join(e.data["delta"] for e in events if e.event == "token")
