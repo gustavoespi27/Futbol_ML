@@ -4,7 +4,7 @@ import re
 
 from footy_agents.calendar import calendar_args
 from footy_agents.names import normalize_name
-from footy_agents.tools import NICKNAMES, league_in_text, service, upcoming_focus
+from footy_agents.tools import NICKNAMES, find_club, league_in_text, service, upcoming_focus
 
 # Cruce hipotético entre dos equipos: «¿quién ganaría Colo Colo contra el Barcelona?», «simula A vs B».
 MATCHUP = re.compile(r"(?:quien ganaria|ganaria|simula(?:r|cion)?(?: de)?|si jugaran|que pasa(?:ria)? si juega[n]?|"
@@ -147,8 +147,21 @@ def intent_route(message: str, entities: dict | None = None) -> tuple[str, dict]
                     raw = number[0]
                     raw = re.sub(r"[.,](?=\d{3}(?:\D|$))", "", raw)
                     args = {"bankroll": float(raw.replace(",", "."))}
-            elif tool == "get_team_form" and entities and entities.get("team"):
-                args = {"team": entities["team"]}
+            elif tool == "get_team_form":
+                # «¿cómo llega Inglaterra contra Croacia?» es ese partido; con un solo equipo, se pasa explícito
+                # para que el modelo no rellene el nombre con el ejemplo de la descripción.
+                pair = re.search(r"llegan?\s+(?:al partido\s+)?(.+?)\s+(?:contra|vs|versus|frente a|y)\s+(.+)$", q)
+                match_id = _scheduled(*(TAIL.split(side, maxsplit=1)[0].strip() for side in pair.groups())) \
+                    if pair else None
+                if match_id:
+                    return "analyze_match", {"match_id": match_id}
+                focus = upcoming_focus(message)
+                team = (entities or {}).get("team") or (focus or {}).get("team")
+                named = re.search(r"llegan?\s+(.+?)\s*$", TAIL.split(q, maxsplit=1)[0])
+                if not team and named:
+                    clubs = find_club(named[1]) or find_club(ARTICLE.sub("", named[1]).strip())   # «el cacique»
+                    team = clubs[0]["name"] if len(clubs) == 1 else None
+                args = {"team": team} if team else {}
             elif tool == "get_league_standings":
                 league = league_in_text(message) or (entities or {}).get("league")
                 part = ("bottom" if re.search(r"ultimos|descenso|colista|zona baja|abajo|peores|cola", q) else
