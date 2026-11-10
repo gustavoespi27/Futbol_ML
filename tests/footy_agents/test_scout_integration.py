@@ -61,3 +61,18 @@ def test_daily_lazy_hook(monkeypatch):
     monkeypatch.setattr(odds_scout, "run_safely", lambda: calls.append("scout"))
     daily.run_odds_scout()
     assert calls == ["scout"]
+
+
+def test_redirected_console_is_utf8_even_with_windows_encoding(db):
+    import os
+    import subprocess
+    import sys
+
+    path = db.execute("PRAGMA database_list").fetchone()[2]
+    environment = {**os.environ, "PYTHONIOENCODING": "cp1252"}
+    script = Path(__file__).parents[2] / "scripts" / "odds_scout.py"
+    result = subprocess.run(
+        [sys.executable, str(script), "--dry-run", "--database", path], capture_output=True, env=environment, check=True
+    )
+    text = result.stdout.decode("utf-8")
+    assert "simulación=True" in text and "\ufffd" not in text
