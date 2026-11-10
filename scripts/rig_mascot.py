@@ -27,21 +27,26 @@ RIGS = {
     },
     "brief": {
         "source": "brief",
-        "head": [(0, 0), (229, 0), (229, 116), (166, 118), (150, 140), (132, 152), (92, 158), (52, 152), (36, 134),
-                 (28, 112), (0, 108)],
+        # El brazo pasa bajo el borde de la mejilla con margen: el contorno de la cara se queda en la cabeza.
+        "head": [(0, 0), (229, 0), (229, 116), (166, 118), (150, 140), (132, 152), (92, 158), (52, 154), (38, 138),
+                 (27, 128), (21, 119), (0, 111)],
         "tail": [(156, 116), (229, 116), (229, 206), (196, 218), (176, 206), (154, 160)],
-        "arm": [(0, 112), (26, 112), (34, 132), (48, 148), (52, 168), (38, 176), (6, 170), (0, 152)],
-        "neck": (44, 132, 140, 166),
+        "arm": [(0, 114), (17, 121), (22, 129), (31, 137), (35, 152), (48, 157), (54, 170), (38, 178), (6, 172),
+                (0, 152)],
+        "neck": (64, 140, 122, 166),          # angosto: no asoma bajo las mejillas en reposo
+        "fills": [(28, 150, 56, 178)],         # base del brazo: no queda hueco al mover el dedo
     },
     "alerts": {
         "source": "alerts",
-        # La cabeza sigue el borde de la oreja y el contorno izquierdo del brazo, que cruza sobre la mejilla.
-        "head": [(0, 0), (215, 0), (215, 40), (164, 46), (147, 86), (137, 94), (138, 112), (128, 128), (114, 148),
-                 (110, 158), (70, 164), (30, 152), (0, 132)],
-        "tail": [(152, 142), (160, 128), (166, 118), (215, 118), (215, 204), (176, 214), (164, 190), (152, 170)],
-        "arm": [(138, 92), (150, 85), (161, 83), (173, 88), (175, 100), (166, 118), (157, 133), (148, 146), (141, 159),
-                (136, 171), (118, 168), (115, 150), (129, 132), (139, 116), (136, 104)],
+        # El antebrazo cruza por delante de la mejilla: el brazo se recorta ajustado a su propio contorno (pata,
+        # pulgar y los dos bordes del antebrazo) y la cabeza se queda con todo lo demás, incluido su borde derecho.
+        "arm": [(139, 92), (146, 86), (156, 82), (166, 82), (175, 90), (175, 108), (169, 121), (153, 141), (139, 158),
+                (128, 175), (113, 175), (106, 160), (108, 150), (127, 132), (144, 117), (139, 111), (137, 100)],
+        "head": [(0, 0), (215, 0), (215, 60), (160, 62), (152, 82), (141, 92), (137, 100), (139, 111), (146, 117),
+                 (130, 133), (112, 150), (110, 158), (70, 164), (30, 152), (0, 132)],
+        "tail": [(150, 142), (158, 128), (166, 118), (215, 118), (215, 204), (176, 214), (164, 190), (150, 170)],
         "neck": (40, 134, 132, 168),
+        "fills": [(112, 142, 150, 178)],       # hombro: no queda hueco al saludar
     },
 }
 
@@ -72,13 +77,31 @@ def fur_color(image: Image.Image) -> tuple[int, int, int, int]:
 def build(name: str, rig: dict) -> None:
     image = Image.open(SOURCES / f"{rig['source']}.png").convert("RGBA")
     size = image.size
-    parts = {key: mask(size, rig[key]) for key in ("head", "tail", "arm") if key in rig}
+    # Prioridad brazo > cabeza > cola: cada capa pierde lo que ya tomó la anterior, así ningún trazo queda en dos
+    # capas (al moverse se vería duplicado) ni se pierde (al moverse quedaría un hueco en la cara).
+    parts: dict[str, Image.Image] = {}
+    taken = Image.new("L", size, 0)
+    for key in ("arm", "head", "tail"):
+        if key in rig:
+            parts[key] = ImageChops.subtract(mask(size, rig[key]), taken)
+            taken = ImageChops.lighter(taken, parts[key])
     rest = Image.new("L", size, 255)
     for m in parts.values():
         rest = ImageChops.subtract(rest, m)
     body = layer(image, rest)
     neck = Image.new("RGBA", size, (0, 0, 0, 0))
-    ImageDraw.Draw(neck).ellipse(rig["neck"], fill=fur_color(image))
+    # Rellenos tras el cuerpo, recortados a lo que tapaban cabeza y brazo (y a lo pintado del dibujo): solo aparecen
+    # en el hueco que dejan al girar, nunca sobre el fondo ni sobre la cola.
+    fill = Image.new("L", size, 0)
+    draw = ImageDraw.Draw(fill)
+    for box in [rig["neck"], *rig.get("fills", [])]:
+        draw.ellipse(box, fill=255)
+    movable = Image.new("L", size, 0)
+    for key in ("arm", "head"):
+        if key in parts:
+            movable = ImageChops.lighter(movable, parts[key])
+    covered = ImageChops.multiply(ImageChops.multiply(fill, movable), image.getchannel("A"))   # nunca sobre el fondo
+    neck.paste(fur_color(image), (0, 0), covered)
     body = Image.alpha_composite(neck, body)                 # el cuello queda detrás del cuerpo
     body.save(IMG / f"mister-{name}-body.png", optimize=True)
     for key, m in parts.items():
