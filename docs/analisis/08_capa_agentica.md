@@ -601,3 +601,25 @@ juveniles y copiaba la respuesta anterior en seguimientos sobre cuotas.
 Pendientes menores: afirmaciones de frescura sin `get_coverage` y referencias ambiguas como «sí, busca eso».
 
 Validación: **542 pytest**, Ruff, sintaxis JS y pruebas Node correctos.
+
+## Avisos fuera del chat
+
+Los avisos pasaron del panel del asistente a una campana en la barra superior (`alerts.js`), con panel en
+escritorio y hoja inferior en móvil. El vigía agrega cinco tipos deterministas (`notifications.py`), todos leídos de
+`service.current_suggestions` y del calendario, sin LLM ni matemática nueva:
+
+- `favorite_plays`: favorito en ≤ 24 h y recordatorio a ≤ 2 h.
+- `value_bet`: cada selección con ventaja ≥ 6 % frente a Pinnacle.
+- `near_value`: candidatas a ≥ 3 pp del umbral, con la cuota mínima que haría falta.
+- `value_combo`: dobles del motor, de partidos distintos.
+- `near_combo`: pares con precio de Pinnacle de partidos distintos y ventaja combinada en [0, 6 %);
+  informativo y desactivado por defecto.
+
+Los avisos se deduplican, expiran al inicio del partido y solo se repiten si la ventaja mejora ≥ 2 pp. Cada texto
+pasa `verify_numbers` contra sus propios facts. Preferencias permite activar tipos, limitar los avisos de precio a
+equipos y ligas favoritos y activar la Notification API del navegador (desactivada por defecto). Con el calendario
+del 10-11 (2 de 92 con Pinnacle, 0 selecciones elegibles y 2 candidatas «cerca» a −1,8 % y −9,7 %) no se emite
+ningún aviso de precio: el umbral de 3 pp las descarta correctamente.
+
+Validación: 11 pruebas nuevas (tipos, partidos distintos, expiración, deduplicación, reaviso, preferencias,
+migración y API) y **553 pytest** en total.

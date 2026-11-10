@@ -139,7 +139,9 @@ def alert_text(facts: dict) -> str:
     return text
 
 
-def run(conn: sqlite3.Connection, rows: list[dict] | None = None, now: datetime | None = None) -> WatchRun:
+def run(conn: sqlite3.Connection, rows: list[dict] | None = None, now: datetime | None = None,
+        suggestions: dict | None = None) -> WatchRun:
+    """`suggestions` es la salida de service.current_suggestions; sin ella solo hay avisos de favoritos."""
     start = time.perf_counter()
     now = now or datetime.now(timezone.utc)
     stamp = now.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -147,6 +149,11 @@ def run(conn: sqlite3.Connection, rows: list[dict] | None = None, now: datetime 
         from footy.web import service
 
         rows = service.upcoming()
+        if suggestions is None:
+            try:
+                suggestions = service.current_suggestions(rows)
+            except (KeyError, ValueError, TypeError):
+                logging.getLogger(__name__).exception("Sin sugerencias del motor: solo avisos de favoritos")
     current = perceive(rows)
     watches.init_tables(conn)
     init_preferences_table(conn)
@@ -220,9 +227,9 @@ def run(conn: sqlite3.Connection, rows: list[dict] | None = None, now: datetime 
                 priority = (300 if hours <= 1 else 200 if hours <= 12 else 100) + round(max(0, state["edge"]) * 100)
                 cursor = conn.execute(
                     "INSERT OR IGNORE INTO agent_alerts "
-                    "(user_id,created_at,match_id,watch_id,kind,priority,facts,text,dedup_key) "
-                    "VALUES (?,?,?,?,?,?,?,?,?)",
-                    (user, stamp, id_, watch_id, kind, priority, json.dumps(facts), text, key),
+                    "(user_id,created_at,match_id,watch_id,kind,priority,facts,text,dedup_key,expires_at) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    (user, stamp, id_, watch_id, kind, priority, json.dumps(facts), text, key, state["kickoff"]),
                 )
                 selected = cursor.rowcount == 1
                 if selected:
@@ -237,6 +244,15 @@ def run(conn: sqlite3.Connection, rows: list[dict] | None = None, now: datetime 
             decisions.append(
                 Decision(match_id=id_, watch_id=watch_id, user_id=user, kind=kind, selected=selected, reason=reason)
             )
+        # Avisos fuera del chat: favoritos, valor, casi valor y combinadas (reglas deterministas, sin LLM).
+        # Sin partidos no hay avisos: se omite la importación para que prekickoff no cargue numpy ni pandas.
+        if rows:
+            from footy_agents import notifications
+
+            for user, notice, selected, reason in notifications.run(conn, rows, suggestions or {}, users, now):
+                actions += int(selected)
+                decisions.append(Decision(match_id=notice.match_ids[0], user_id=user, kind=notice.kind,
+                                          selected=selected, reason=reason))
         for id_, state in current.items():
             if previous.get(id_, (None,))[0] != state:
                 conn.execute(

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/gustavoespi27/Futbol_ML/actions/workflows/ci.yml/badge.svg)](https://github.com/gustavoespi27/Futbol_ML/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-3776ab)
-![Tests](https://img.shields.io/badge/tests-495%20passing-10b981)
+![Tests](https://img.shields.io/badge/tests-553%20passing-10b981)
 ![LLM](https://img.shields.io/badge/LLM-Qwen%202.5%207B%20local-7c3aed)
 ![Stack](https://img.shields.io/badge/stack-FastAPI%20%C2%B7%20SQLite%20%C2%B7%20scikit--learn-0f172a)
 
@@ -55,7 +55,7 @@ se habla y vuelve a consultar en vez de repetir cifras de memoria.</sub></p>
 | **181.114** partidos en la base (2012-2026) | **1,98 millones** de cuotas históricas y pre-partido |
 | **53** competiciones visibles, incluidas 8 de selecciones | **1.749** equipos enlazados entre fuentes de datos |
 | **8.608** partidos de examen fuera de muestra (temporada 2026) | **498** partidos auditados en vivo con pronóstico previo |
-| **14** herramientas del agente (10 de consulta, 4 de acción) | **495** pruebas automáticas; CI en Python 3.11 y 3.12 |
+| **14** herramientas del agente (10 de consulta, 4 de acción) | **553** pruebas automáticas; CI en Python 3.11 y 3.12 |
 
 ---
 
@@ -127,14 +127,27 @@ los partidos) y sigue un ciclo **percibir → comparar → decidir → actuar �
   inventar una transición.
 - **Decide** con reglas globales (aparece o desaparece una ventaja, la línea de Pinnacle se mueve ≥ 5 %, un
   partido a menos de 12 h pierde cobertura) y con las vigilancias que el usuario creó desde el chat.
-- **Actúa** con alertas deduplicadas e idempotentes: dos ejecuciones seguidas no repiten alertas.
+- **Actúa** con avisos deduplicados que expiran al inicio del partido. Solo vuelve a avisar si la ventaja mejora
+  al menos 2 puntos.
 - **Registra** cada decisión, también las descartadas, con su motivo.
 
-No usa el LLM: sus textos salen de plantillas verificadas, así que funciona aunque Ollama esté apagado.
+**Avisos en la campana de la barra superior**, fuera del chat:
 
-| Alerta cumplida | Bitácora del agente |
+| Aviso | Cuándo aparece |
 |---|---|
-| ![Alerta del vigía](docs/img/agente/final-alerta-1440-dark.png) | ![Bitácora con decisiones descartadas](docs/img/agente/final-bitacora-1440-dark.png) |
+| Juega tu equipo | Un equipo o liga favoritos juega en menos de 24 h, con recordatorio a menos de 2 h |
+| Cuota con valor | Una casa paga al menos 6 % sobre el precio justo de Pinnacle (seguimiento en papel, tope 2 %) |
+| Cerca de tener valor | Le faltan menos de 3 puntos; indica desde qué cuota valdría la pena, sin monto sugerido |
+| Combinada con valor | Dos selecciones con valor de partidos distintos; la ventaja se multiplica pierna a pierna |
+| Combinada cercana | Dos selecciones con precio de Pinnacle de partidos distintos, ventaja combinada entre 0 y 6 % (informativa, desactivada por defecto) |
+
+Cada tipo se activa o desactiva en Preferencias, con la opción de limitar los avisos de precio a tus equipos y
+ligas y de recibir notificaciones del navegador. No usa el LLM: sus textos salen de plantillas verificadas, así que
+funciona aunque Ollama esté apagado.
+
+| Avisos (escritorio) | Avisos (móvil) | Bitácora del agente |
+|---|---|---|
+| ![Panel de avisos](docs/img/avisos/avisos-1440-dark.png) | ![Hoja de avisos en móvil](docs/img/avisos/avisos-390-light.png) | ![Bitácora con decisiones descartadas](docs/img/agente/final-bitacora-1440-dark.png) |
 
 ### Evaluación del agente
 
@@ -308,7 +321,7 @@ los datos no cambiaron. `scripts/automation.py` permite pausar y reanudar.
 - **Agente sin frameworks:** orquestador propio de ~450 líneas, cliente compatible con OpenAI por `requests` y
   Ollama local. Cambiar de proveedor es cambiar `base_url` y `model` en `config/settings.yaml`.
 - **Contratos estrictos:** respuestas y eventos con Pydantic v2 y `extra="forbid"`; el chat usa Server-Sent Events.
-- **Calidad:** 495 pruebas con pytest (el agente se prueba con un LLM simulado, sin red ni costo), pruebas del
+- **Calidad:** 553 pruebas con pytest (el agente se prueba con un LLM simulado, sin red ni costo), pruebas del
   frontend con `node:test`, Ruff y CI en GitHub Actions.
 - **Reproducibilidad:** fechas en UTC ISO-8601, cada pronóstico registra la versión del modelo, y las evaluaciones
   del agente guardan sus eventos completos en JSON.
@@ -408,10 +421,11 @@ src/footy_agents/    capa agéntica, desacoplada del motor
   memory.py          memoria corta, entidades y bitácora del chat
   watcher.py         vigía autónomo: percibir, comparar, decidir, actuar, registrar
   watches.py         vigilancias y alertas
+  notifications.py   avisos: favoritos, cuotas con valor o cerca, combinadas
   llm.py             cliente compatible con OpenAI; ollama_runtime.py lo inicia bajo demanda
   web/router.py      /api/agent: chat y resumen por SSE, alertas, vigilancias, bitácora, salud
 scripts/             puntos de entrada: ciclo diario, cuotas pre-partido, vigía, análisis y evaluación
-tests/               495 pruebas; tests/footy_agents usa un LLM simulado
+tests/               553 pruebas; tests/footy_agents usa un LLM simulado
 docs/                análisis 01-11, arquitectura del agente, guion de demo y registro de decisiones
 ```
 

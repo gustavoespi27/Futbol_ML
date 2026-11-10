@@ -28,6 +28,12 @@ def match(id_=181043, hours=6, pin=True, value=False):
     }
 
 
+@pytest.fixture(autouse=True)
+def fixed_clock(monkeypatch):
+    # alerts() oculta avisos de partidos ya iniciados: el reloj de lectura debe coincidir con NOW.
+    monkeypatch.setattr(watches, "utc_now", lambda: NOW.strftime("%Y-%m-%dT%H:%M:%SZ"))
+
+
 @pytest.fixture
 def db(tmp_path):
     conn = sqlite3.connect(tmp_path / "watch.sqlite")

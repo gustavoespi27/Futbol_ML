@@ -69,6 +69,7 @@ class Alert(AgentSchema):
     facts: dict[str, Any]
     text: str
     read: bool
+    expires_at: str | None = None
 
 
 class Decision(AgentSchema):

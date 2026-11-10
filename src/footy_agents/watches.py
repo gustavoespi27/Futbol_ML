@@ -33,6 +33,11 @@ CREATE TABLE IF NOT EXISTS agent_watch_log (
 
 def init_tables(conn: sqlite3.Connection) -> None:
     conn.executescript(DDL)
+    if "expires_at" not in {r[1] for r in conn.execute("PRAGMA table_info(agent_alerts)")}:
+        conn.execute("ALTER TABLE agent_alerts ADD COLUMN expires_at TEXT")  # inicio del partido: deja de mostrarse
+    # Alertas previas a la columna: expiran con el inicio guardado en sus facts (solo toca filas sin fecha).
+    conn.execute("UPDATE agent_alerts SET expires_at=json_extract(facts,'$.kickoff') "
+                 "WHERE expires_at IS NULL AND json_extract(facts,'$.kickoff') IS NOT NULL")
     if "perception" not in {r[1] for r in conn.execute("PRAGMA table_info(agent_watch_log)")}:
         conn.execute("ALTER TABLE agent_watch_log ADD COLUMN perception TEXT NOT NULL DEFAULT '{}'")
 
@@ -100,12 +105,17 @@ def cancel_watch(conn: sqlite3.Connection, user_id: str, id_: int) -> dict:
     }
 
 
-def alerts(conn: sqlite3.Connection, user_id: str, unread: bool = False) -> list[Alert]:
+def alerts(conn: sqlite3.Connection, user_id: str, unread: bool = False, types: list[str] | None = None,
+           now: str | None = None) -> list[Alert]:
+    """Vigentes (el partido no ha empezado), las más urgentes primero."""
     init_tables(conn)
+    kinds = [t for t in types or [] if t]
     rows = conn.execute(
-        "SELECT id,created_at,match_id,watch_id,kind,priority,facts,text,read FROM agent_alerts "
-        "WHERE user_id=? AND (?=0 OR read=0) ORDER BY priority DESC,id DESC LIMIT 100",
-        (user_id, int(unread)),
+        "SELECT id,created_at,match_id,watch_id,kind,priority,facts,text,read,expires_at FROM agent_alerts "
+        "WHERE user_id=? AND (?=0 OR read=0) AND (expires_at IS NULL OR expires_at>?) "
+        f"{'AND kind IN (' + ','.join('?' * len(kinds)) + ')' if kinds else ''} "
+        "ORDER BY expires_at IS NULL, expires_at, priority DESC, id DESC LIMIT 100",
+        (user_id, int(unread), now or utc_now(), *kinds),
     )
     return [
         Alert(
@@ -118,6 +128,7 @@ def alerts(conn: sqlite3.Connection, user_id: str, unread: bool = False) -> list
             facts=json.loads(r[6]),
             text=r[7],
             read=bool(r[8]),
+            expires_at=r[9],
         )
         for r in rows
     ]
@@ -127,6 +138,12 @@ def mark_read(conn: sqlite3.Connection, user_id: str, id_: int) -> bool:
     init_tables(conn)
     with conn:
         return conn.execute("UPDATE agent_alerts SET read=1 WHERE id=? AND user_id=?", (id_, user_id)).rowcount == 1
+
+
+def mark_all_read(conn: sqlite3.Connection, user_id: str) -> int:
+    init_tables(conn)
+    with conn:
+        return conn.execute("UPDATE agent_alerts SET read=1 WHERE user_id=? AND read=0", (user_id,)).rowcount
 
 
 def recent_logs(conn: sqlite3.Connection, limit: int = 20, user_id: str = "default") -> list[WatchRun]:

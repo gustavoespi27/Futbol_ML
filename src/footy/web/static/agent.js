@@ -167,10 +167,9 @@ async function sendChat(message) {
   }
 }
 
-/* ---------- alertas y bitácora: solo lecturas, no disparan el vigía ni el LLM ---------- */
+/* ---------- bitácora: solo lecturas, no dispara el vigía ni el LLM ---------- */
 let activityBusy = false;
 let activityQueued = false;
-let activityUnread = 0;
 const WATCH_LABELS = { kickoff_soon: "Inicio cercano", pinnacle_available: "Precio Pinnacle disponible",
   value_appears: "Aparece ventaja", value_disappears: "Desaparece ventaja", line_move: "Movimiento de línea",
   probability_shift: "Cambio de probabilidad", coverage_lost: "Cobertura perdida" };
@@ -179,80 +178,56 @@ function activityTime(value) {
     .format(new Date(value));
 }
 async function loadAgentActivity() {
-  if (document.hidden) return;
+  if (document.hidden || !chat.open) return;
   if (activityBusy) { activityQueued = true; return; }
   activityBusy = true;
   const query = `user_id=${encodeURIComponent(AGENT_USER)}`;
   const get = async (path) => { const r = await fetch(path); if (!r.ok) throw Error(`HTTP ${r.status}`); return r.json(); };
   try {
-    const alerts = await get(`/api/agent/alerts?${query}&unread=true`);
-    const badge = $("#agent-alert-badge");
-    badge.textContent = alerts.length ? String(alerts.length) : "";
-    badge.hidden = !alerts.length;
-    $("#agent-fab").setAttribute("aria-label", `Abrir Asistente${alerts.length ? `, ${alerts.length} alertas sin leer` : ""}`);
-    $("#agent-alerts-body").innerHTML = alerts.length ? alerts.map((a) => `<article class="agent-alert">
-      <strong>${esc(WATCH_LABELS[a.kind] || a.kind)}</strong><p>${esc(a.text)}</p>
-      <small>${esc(activityTime(a.created_at))}</small><button type="button" data-read-alert="${a.id}">Marcar leída</button>
-      </article>`).join("") : `<p class="agent-activity-empty">No hay alertas sin leer.</p>`;
-    if (alerts.length > activityUnread) $("#agent-alerts").open = true;
-    activityUnread = alerts.length;
-    if (chat.open) {
-      const [runs, watches] = await Promise.all([get(`/api/agent/runs?${query}&limit=5`),
-        get(`/api/agent/watch-log?${query}&limit=5`)]);
-      const renderRun = (r) => `<details class="agent-run" data-run-key="chat-${r.id}"><summary>Chat · ${esc(activityTime(r.started_at))}
-        · ${r.success ? "Completado" : "Con incidencias"}</summary><p>${esc(r.message)}</p><ol>${r.steps.map((s) =>
-        `<li>${esc(TOOL_LABELS[s.detail] || s.detail)}${s.summary ? ` · ${esc(s.summary)}` : ""}${s.reason ? ` · ${esc(s.reason)}` : ""}</li>`).join("")}</ol></details>`;
-      const renderWatch = (r) => `<details class="agent-run" data-run-key="watch-${r.id}"><summary>Vigía · ${esc(activityTime(r.run_at))}
-        · ${r.perceived} partidos · ${r.actions} acciones</summary>
-        <details><summary>Percepción del calendario</summary><ul>${Object.values(r.perception || {}).map((s) =>
-        `<li>${esc(s.home)} vs ${esc(s.away)} · ${s.has_pinnacle ? "con Pinnacle" : "sin Pinnacle"}
-        · ${s.value ? "con ventaja elegible" : "sin ventaja elegible"} · ${esc(s.source)}</li>`).join("")}</ul></details>
-        <ul>${r.decisions.map((d) =>
-        `<li><b>${d.selected ? "Actuar" : "Descartar"}</b> · ${esc(WATCH_LABELS[d.kind] || d.kind)}${d.match_id ? ` · partido ${d.match_id}` : ""}:
-        ${esc(d.reason)}</li>`).join("")}</ul></details>`;
-      const expanded = new Set([...document.querySelectorAll(".agent-run[open]")].map(el => el.dataset.runKey));
-      const scrollTop = chatEl(".agent-activity").scrollTop;
-      const focusedRun = document.activeElement?.closest("[data-run-key]")?.dataset.runKey;
-      $("#agent-runs-body").innerHTML = watches.map(renderWatch).join("") + runs.map(renderRun).join("")
-        || `<p class="agent-activity-empty">Aún no hay ejecuciones.</p>`;
-      for (const details of document.querySelectorAll(".agent-run")) {
-        details.open = expanded.has(details.dataset.runKey);
-        if (details.dataset.runKey === focusedRun) details.querySelector("summary").focus({preventScroll:true});
-      }
-      chatEl(".agent-activity").scrollTop = scrollTop;
+    const [runs, watches] = await Promise.all([get(`/api/agent/runs?${query}&limit=5`),
+      get(`/api/agent/watch-log?${query}&limit=5`)]);
+    const label = (kind) => (typeof ALERT_KINDS !== "undefined" && ALERT_KINDS[kind] ? ALERT_KINDS[kind].label : null)
+      || WATCH_LABELS[kind] || kind;
+    const renderRun = (r) => `<details class="agent-run" data-run-key="chat-${r.id}"><summary>Chat · ${esc(activityTime(r.started_at))}
+      · ${r.success ? "Completado" : "Con incidencias"}</summary><p>${esc(r.message)}</p><ol>${r.steps.map((s) =>
+      `<li>${esc(TOOL_LABELS[s.detail] || s.detail)}${s.summary ? ` · ${esc(s.summary)}` : ""}${s.reason ? ` · ${esc(s.reason)}` : ""}</li>`).join("")}</ol></details>`;
+    const renderWatch = (r) => `<details class="agent-run" data-run-key="watch-${r.id}"><summary>Vigía · ${esc(activityTime(r.run_at))}
+      · ${r.perceived} partidos · ${r.actions} acciones</summary>
+      <details><summary>Percepción del calendario</summary><ul>${Object.values(r.perception || {}).map((s) =>
+      `<li>${esc(s.home)} vs ${esc(s.away)} · ${s.has_pinnacle ? "con Pinnacle" : "sin Pinnacle"}
+      · ${s.value ? "con ventaja elegible" : "sin ventaja elegible"} · ${esc(s.source)}</li>`).join("")}</ul></details>
+      <ul>${r.decisions.map((d) =>
+      `<li><b>${d.selected ? "Actuar" : "Descartar"}</b> · ${esc(label(d.kind))}${d.match_id ? ` · partido ${d.match_id}` : ""}:
+      ${esc(d.reason)}</li>`).join("")}</ul></details>`;
+    const expanded = new Set([...document.querySelectorAll(".agent-run[open]")].map(el => el.dataset.runKey));
+    const scrollTop = chatEl(".agent-activity").scrollTop;
+    const focusedRun = document.activeElement?.closest("[data-run-key]")?.dataset.runKey;
+    $("#agent-runs-body").innerHTML = watches.map(renderWatch).join("") + runs.map(renderRun).join("")
+      || `<p class="agent-activity-empty">Aún no hay ejecuciones.</p>`;
+    for (const details of document.querySelectorAll(".agent-run")) {
+      details.open = expanded.has(details.dataset.runKey);
+      if (details.dataset.runKey === focusedRun) details.querySelector("summary").focus({preventScroll:true});
     }
+    chatEl(".agent-activity").scrollTop = scrollTop;
     $("#agent-activity-status").textContent = "";
   } catch (e) {
-    $("#agent-activity-status").textContent = "No se pudo actualizar la actividad. Reintenta con Actualizar actividad.";
+    $("#agent-activity-status").textContent = "No se pudo actualizar la bitácora. Reintenta con Actualizar actividad.";
   } finally {
     activityBusy = false;
     if (activityQueued) { activityQueued = false; loadAgentActivity(); }
   }
 }
 
+// Los avisos viven en la campana de la barra superior (alerts.js); aquí queda la bitácora del agente.
 function initAgentActivity() {
-  $("#agent-fab").insertAdjacentHTML("beforeend", `<span id="agent-alert-badge" class="agent-alert-badge" hidden aria-hidden="true"></span>`);
-  chatEl(".chat-head").insertAdjacentHTML("afterend", `<section class="agent-activity" aria-label="Alertas y bitácora del agente">
+  chatEl(".chat-head").insertAdjacentHTML("afterend", `<section class="agent-activity" aria-label="Bitácora del agente">
     <div class="agent-activity-actions"><button type="button" id="agent-activity-refresh">${REFRESH_ICON}Actualizar actividad</button>
     <span id="agent-activity-status" role="status"></span></div>
-    <details id="agent-alerts"><summary>Alertas sin leer</summary><div id="agent-alerts-body"></div></details>
     <details id="agent-runs"><summary>Bitácora del agente</summary><div id="agent-runs-body"></div></details></section>`);
   $("#agent-activity-refresh").addEventListener("click", (event) => spinWhile(event.currentTarget, loadAgentActivity));
-  $("#agent-alerts-body").addEventListener("click", async (event) => {
-    const button = event.target.closest("[data-read-alert]");
-    if (!button) return;
-    button.disabled = true;
-    try {
-      const r = await fetch(`/api/agent/alerts/${button.dataset.readAlert}/read`, {method:"POST",
-        headers:{"Content-Type":"application/json"}, body:JSON.stringify({user_id:AGENT_USER})});
-      if (!r.ok) throw Error(`HTTP ${r.status}`);
-      await loadAgentActivity();
-      $("#agent-alerts > summary").focus();
-    } catch (e) { button.disabled = false; $("#agent-activity-status").textContent = "No se pudo marcar la alerta. Reintenta."; }
-  });
+  $("#agent-runs").addEventListener("toggle", () => { if ($("#agent-runs").open) loadAgentActivity(); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) loadAgentActivity(); });
   setInterval(loadAgentActivity, 30000);
-  loadAgentActivity();
 }
 
 /* ---------- preferencias ---------- */
@@ -271,6 +246,9 @@ async function openPrefs() {
   $("#pref-team-list").innerHTML = names.map((n) => `<option value="${esc(n)}">`).join("");
   renderPrefTeams();
   dlg.querySelector(`input[name=risk][value=${p.risk_profile}]`).checked = true;
+  dlg.querySelectorAll("input[name=alert-type]").forEach((box) => { box.checked = p.alert_types.includes(box.value); });
+  $("#pref-alerts-favorites").checked = !!p.alerts_only_favorites;
+  $("#pref-browser-notify").checked = !!p.browser_notifications;
   dlg.showModal();
 }
 
@@ -292,10 +270,17 @@ async function savePrefs(ev) {
   const dlg = $("#agent-prefs");
   prefs.favorite_leagues = [...$("#pref-leagues").querySelectorAll(".chip.on")].map((c) => c.dataset.code);
   prefs.risk_profile = dlg.querySelector("input[name=risk]:checked").value;
+  prefs.alert_types = [...dlg.querySelectorAll("input[name=alert-type]:checked")].map((box) => box.value);
+  prefs.alerts_only_favorites = $("#pref-alerts-favorites").checked;
+  prefs.browser_notifications = $("#pref-browser-notify").checked;
+  if (prefs.browser_notifications && "Notification" in window && Notification.permission === "default") {
+    try { await Notification.requestPermission(); } catch (e) { /* sin permiso: el panel de avisos sigue igual */ }
+  }
   const r = await fetch("/api/agent/preferences", { method: "PUT", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(prefs) });
   if (!r.ok) { $("#pref-status").textContent = "No se pudieron guardar las preferencias."; return; }
   dlg.close();
+  if (typeof alertsState !== "undefined") alertsState.browser = prefs.browser_notifications;
   rendered.delete("inicio");
   if ($("#v-inicio").classList.contains("active")) route();
 }

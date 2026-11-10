@@ -11,6 +11,8 @@ from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from footy.db.repository import utc_now
 
 RiskProfile = Literal["conservative", "moderate", "aggressive"]
+AlertType = Literal["favorite_plays", "value_bet", "near_value", "value_combo", "near_combo"]
+DEFAULT_ALERT_TYPES: list[AlertType] = ["favorite_plays", "value_bet", "near_value", "value_combo"]
 
 
 class AgentSchema(BaseModel):
@@ -43,6 +45,16 @@ class UserPreferences(AgentSchema):
         default=1000.0,
         ge=1.0,
         description="Monto total del bankroll del usuario en su divisa local"
+    )
+    alert_types: list[AlertType] = Field(
+        default_factory=lambda: list(DEFAULT_ALERT_TYPES),
+        description="Tipos de aviso activos (near_combo, informativo, viene desactivado)"
+    )
+    alerts_only_favorites: bool = Field(
+        default=False, description="Avisos de precio solo para equipos y ligas favoritos"
+    )
+    browser_notifications: bool = Field(
+        default=False, description="Notificaciones del navegador mientras la pestaña está abierta"
     )
     updated_at: str = Field(
         default_factory=utc_now,

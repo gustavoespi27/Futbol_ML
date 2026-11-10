@@ -47,6 +47,15 @@
         <span class="tb-date" id="tb-date"></span>
       </div>
       <div class="tb-actions">
+        <button type="button" class="tb-btn alerts-btn" id="alerts-btn" aria-controls="alerts-panel" aria-expanded="false" aria-label="Avisos"><svg class="ico bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Avisos</span><span class="badge" id="alerts-count" hidden></span></button>
+        <section class="alerts-panel" id="alerts-panel" role="dialog" aria-labelledby="alerts-title" hidden>
+          <header class="alerts-head"><h2 id="alerts-title">Avisos</h2>
+            <button type="button" class="alerts-read-all" id="alerts-read-all">Marcar todas</button>
+            <button type="button" class="td-close" id="alerts-close" aria-label="Cerrar avisos">×</button></header>
+          <p class="alerts-note">Juegan tus equipos, cuotas con valor frente a Pinnacle y combinadas. Seguimiento en papel.</p>
+          <div class="alerts-list" id="alerts-list" aria-live="polite"></div>
+          <p class="alerts-status" id="alerts-status" role="status"></p>
+        </section>
         <a class="tb-btn" href="#combinadas" title="Tu combinada"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg><span>Boleto</span><span class="badge" data-ticket-count></span></a>
       </div>
     </header>
@@ -479,6 +488,17 @@
         <label><input type="radio" name="risk" value="aggressive"> Agresivo</label>
       </div>
     </fieldset>
+    <fieldset><legend>Avisos</legend>
+      <div class="pref-alerts" id="pref-alerts">
+        <label><input type="checkbox" name="alert-type" value="favorite_plays"> Juega uno de mis equipos o ligas</label>
+        <label><input type="checkbox" name="alert-type" value="value_bet"> Cuota con valor frente a Pinnacle</label>
+        <label><input type="checkbox" name="alert-type" value="near_value"> Cuota cerca de tener valor</label>
+        <label><input type="checkbox" name="alert-type" value="value_combo"> Combinada con valor</label>
+        <label><input type="checkbox" name="alert-type" value="near_combo"> Combinada cerca de tener valor (informativa)</label>
+        <label class="pref-alerts-sep"><input type="checkbox" id="pref-alerts-favorites"> Avisos de precio solo de mis equipos y ligas</label>
+        <label><input type="checkbox" id="pref-browser-notify"> Notificaciones del navegador mientras el panel está abierto</label>
+      </div>
+    </fieldset>
     <p class="pref-status" id="pref-status" role="status"></p>
     <div class="pref-actions">
       <button type="button" class="chip" id="pref-cancel">Cancelar</button>
@@ -494,5 +514,6 @@
 <script src="/static/combos.js"></script>
 <script src="/static/suggestions.js"></script>
 <script src="/static/agent.js"></script>
+<script src="/static/alerts.js"></script>
 </body>
 </html>

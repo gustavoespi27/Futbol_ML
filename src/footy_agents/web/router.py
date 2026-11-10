@@ -36,9 +36,17 @@ log = logging.getLogger(__name__)
 
 @router.get("/alerts", response_model=list[Alert])
 def get_alerts(user_id: str = Query("default", min_length=1, max_length=100),
-               unread: bool = Query(False)) -> list[Alert]:
+               unread: bool = Query(False),
+               types: str = Query("", max_length=200, description="Tipos separados por coma")) -> list[Alert]:
+    """Avisos vigentes, el partido más cercano primero; `types` filtra por tipo."""
     with closing(connect()) as conn:
-        return watches.alerts(conn, user_id, unread)
+        return watches.alerts(conn, user_id, unread, [t.strip() for t in types.split(",") if t.strip()])
+
+
+@router.post("/alerts/read-all", status_code=204)
+def read_all_alerts(body: ReadAlert) -> None:
+    with closing(connect()) as conn:
+        watches.mark_all_read(conn, body.user_id)
 
 
 @router.post("/alerts/{id}/read", status_code=204)
