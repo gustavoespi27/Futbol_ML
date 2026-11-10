@@ -21,6 +21,7 @@ from footy.db.connection import connect
 from footy.leagues import load_params
 from footy.web import service
 from footy.web.services.context import LOCAL_TZ
+from footy.web.team_display import presentation_payload
 from footy_agents.calendar import WEEKDAYS, competition_priority, local_fields, local_payload, requested_dates
 from footy_agents.names import normalize_name
 from footy_agents.schemas import ToolCallRecord
@@ -620,7 +621,7 @@ def execute_tool(name: str, arguments: dict[str, Any], user_id: str = "default")
         kwargs = validated.model_dump(exclude_unset=True)
         if name in WRITE_TOOLS:
             kwargs["user_id"] = user_id  # identidad del request, nunca un argumento elegido por el LLM
-        res = local_payload(func(**kwargs))
+        res = presentation_payload(local_payload(func(**kwargs)))
         elapsed = (time.perf_counter() - start_time) * 1000
         return ToolCallRecord(
             tool_name=name,

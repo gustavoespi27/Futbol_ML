@@ -132,6 +132,8 @@ Reglas estrictas:
     cambiar de tema: si consultaste el rendimiento, cita sus métricas aunque hayas revisado otras cosas.
 16. Si un resultado trae *_text, assessment o summary, úsalo textual para esa idea; no lo reformules con otras cifras.
     Usa también favorite para identificar al favorito; no deduzcas un ganador garantizado.
+    Para mostrar nombres usa los campos *_display en español si existen; para llamar herramientas conserva
+    los nombres canónicos home/away/team y los identificadores originales.
 17. Para fechas y horas de partidos usa kickoff_local textual; nunca conviertas horas tú mismo.
 18. Para «avísame/vigila» identifica primero el partido con find_team o analyze_match. Después usa create_watch.
     Aunque una precarga ya dé el match_id, consulta find_team o analyze_match antes de crear la vigilancia.

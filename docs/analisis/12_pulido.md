@@ -79,3 +79,14 @@ dos delegaciones correctas, con datos actuales sin precios y 12,982–15,535 s.
 
 Validación: **689 pytest** y Ruff. Límite conocido: una herramienta correcta no garantiza que el LLM
 logre redactar una respuesta verificable; con lista de valor vacía puede terminar en salida segura.
+
+## P1-1 — Selecciones en español
+
+Mapa único `static/team-display.json`, compartido por Python y navegador. La web traduce nodos de texto,
+incluidos historial, chat y contenido cargado después; no cambia atributos value/data, IDs, cachés ni peticiones.
+Las herramientas conservan home/away/team canónicos, añaden *_display y presentan sus frases canónicas
+en español. El prompt distingue etiquetas públicas y argumentos canónicos. No cambia la base ni el calce.
+Ejemplos: Chequia, España y Taiwán; juveniles conservan el sufijo. Mapa explícito, sin traductor ni red.
+
+Validación: **691 pytest**, Ruff, sintaxis JS y **14 Node**. Pruebas de cifras intactas, entradas sin mutación,
+límites de palabra y find_team con «la roja»/Spain conservando el mismo match_id y nombre canónico.
