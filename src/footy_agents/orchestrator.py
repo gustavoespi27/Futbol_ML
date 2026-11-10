@@ -266,7 +266,10 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
     if follows:
         subject = (f"{entities.get('home')} vs {entities.get('away')}" if entities and entities.get("home")
                    else (entities or {}).get("team", "el tema anterior"))
-        yield _step("observation", f"Continúa la conversación sobre {subject}")
+        if entities and entities.get("match_id"):
+            yield _step("observation", f"Continúa con {subject}: se consulta el análisis actualizado")
+        else:
+            yield _step("observation", f"Continúa la conversación sobre {subject}")
     context = ""
     if entities:
         context = "\nContexto reciente (solo identidad; vuelve a consultar cifras): "
@@ -298,10 +301,16 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
                      f"{json.dumps(route[1], ensure_ascii=False)}. Haz una llamada real y responde a esa pregunta."
                      if route else "Responde a la pregunta original sin inventar datos.")
     try:
-        focus = upcoming_focus(message)
+        focus = None if entities and entities.get("match_id") else upcoming_focus(message)
     except Exception:  # noqa: BLE001 - precarga opcional; el fallo no debe impedir el chat
         focus = None
-    if focus:
+    if entities and entities.get("match_id"):
+        call = ToolCall(id="preload_analysis", name="analyze_match", arguments={"match_id": entities["match_id"]})
+        turn.messages.append(_assistant_calls("", [call]))
+        yield from turn.execute(call)
+        if consulted_entities is not None and turn.entities:
+            consulted_entities.update(turn.entities)
+    elif focus:
         call = ToolCall(id="preload_upcoming", name="get_upcoming_matches", arguments=focus)
         turn.messages.append(_assistant_calls("", [call]))
         yield from turn.execute(call)

@@ -1,0 +1,736 @@
+{
+  "agent_base_commit": "61f83d0",
+  "compiled_at_utc": "2026-11-10T03:08:38Z",
+  "model": "qwen2.5:7b",
+  "method": "Tres pares secuenciales con memoria SQLite aislada por par, herramientas reales y un LLM real; sin simulaciones ni escrituras de preferencias o vigilancias.",
+  "summary": {
+    "turns": 6,
+    "completed": 6,
+    "followups_completed": 3,
+    "followup_inferences": [
+      1,
+      1,
+      1
+    ],
+    "followup_seconds": [
+      4.566,
+      4.651,
+      4.583
+    ]
+  },
+  "results": [
+    {
+      "question": "Analiza el partido de la roja",
+      "expected": "analyze_match",
+      "path": [
+        "get_upcoming_matches",
+        "analyze_match"
+      ],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": true,
+      "repairs": 1,
+      "recoveries": 1,
+      "calls": [
+        {
+          "tool": "get_upcoming_matches",
+          "args": {
+            "team": "Chile",
+            "limit": 20
+          },
+          "success": true
+        },
+        {
+          "tool": "analyze_match",
+          "args": {
+            "match_id": 181043
+          },
+          "success": true
+        }
+      ],
+      "manual_interpretation": "correcta",
+      "successful_path": [
+        "get_upcoming_matches",
+        "analyze_match"
+      ],
+      "copied_previous": false,
+      "elapsed_s": 25.873,
+      "answer": "Colombia 67.5% · empate 20.0% · Chile 12.5%\n\nFavorito: Colombia.\n\nColombia vs Chile: vie 13-11, 21:00 hora de Chile.\n\nNingún partido listado tiene precio de Pinnacle: no se puede evaluar ventaja.\n\nSin precio de Pinnacle: entrega probabilidades del modelo, sin hablar de ventaja.",
+      "done": {
+        "iterations": 4,
+        "success": true
+      },
+      "events": [
+        {
+          "event": "tool_start",
+          "data": {
+            "tool": "get_upcoming_matches",
+            "args": {
+              "team": "Chile",
+              "limit": 20
+            }
+          }
+        },
+        {
+          "event": "tool_result",
+          "data": {
+            "tool": "get_upcoming_matches",
+            "success": true,
+            "elapsed_ms": 1.82,
+            "summary": "Ningún partido listado tiene precio de Pinnacle: no se puede evaluar ventaja."
+          }
+        },
+        {
+          "event": "step",
+          "data": {
+            "kind": "observation",
+            "text": "Ningún partido listado tiene precio de Pinnacle: no se puede evaluar ventaja."
+          }
+        },
+        {
+          "event": "step",
+          "data": {
+            "kind": "recovery",
+            "text": "El agente decide consultar análisis del partido"
+          }
+        },
+        {
+          "event": "step",
+          "data": {
+            "kind": "deviation",
+            "text": "Cambio de camino: análisis del partido, porque no hay precio de Pinnacle."
+          }
+        },
+        {
+          "event": "tool_start",
+          "data": {
+            "tool": "analyze_match",
+            "args": {
+              "match_id": 181043
+            }
+          }
+        },
+        {
+          "event": "tool_result",
+          "data": {
+            "tool": "analyze_match",
+            "success": true,
+            "elapsed_ms": 2.08,
+            "summary": "Sin precio de Pinnacle: entrega probabilidades del modelo, sin hablar de ventaja."
+          }
+        },
+        {
+          "event": "step",
+          "data": {
+            "kind": "observation",
+            "text": "Sin precio de Pinnacle: entrega probabilidades del modelo, sin hablar de ventaja."
+          }
+        },
+        {
+          "event": "step",
+          "data": {
+            "kind": "repair",
+            "text": "La respuesta contiene cifras sin respaldo o una interpretación incorrecta; el agente la reescribe con los textos verificados."
+          }
+        },
+        {
+          "event": "step",
+          "data": {
+            "kind": "repair",
+            "text": "Se entrega el resumen verificado de los datos consultados"
+          }
+        },
+        {
+          "event": "token",
+          "data": {
+            "delta": "Colombia 67.5% · empate 20.0% · Chile 12.5%\n\nFavorito: Colombia.\n\nColombia vs Chile: vie 13-11, 21:00 hora de Chile.\n\nNingún partido listado tiene precio de Pinnacle: no se puede evaluar ventaja.\n\nSin precio de Pinnacle: entrega probabilidades del modelo, sin hablar de ventaja."
+          }
+        },
+        {
+          "event": "done",
+          "data": {
+            "iterations": 4,
+            "success": true
+          }
+        }
+      ],
+      "repeat": 1,
+      "turn": 1,
+      "manual_reason": "Favorito Colombia, probabilidades y ausencia de precio Pinnacle coherentes con los datos consultados."
+    },
+    {
+      "question": "¿Y quién es favorito?",
+      "expected": "analyze_match",
+      "path": [
+        "analyze_match"
+      ],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": false,
+      "repairs": 0,
+      "recoveries": 0,
+      "calls": [
+        {
+          "tool": "analyze_match",
+          "args": {
+            "match_id": 181043
+          },
+          "success": true
+        }
+      ],
+      "manual_interpretation": "correcta",
+      "successful_path": [
+        "analyze_match"
+      ],
+      "copied_previous": false,
+      "elapsed_s": 4.566,
+      "answer": "Favorito: Colombia.\n\nSin precio de Pinnacle: no se puede evaluar ventaja.",
+      "done": {
+        "iterations": 1,
+        "success": true
+      },
+      "events": [
+        {
+          "event": "step",
+          "data": {
+            "kind": "observation",
+            "text": "Continúa con Colombia vs Chile: se consulta el análisis actualizado"
+          }
+        },
+        {
+          "event": "tool_start",
+          "data": {
+            "tool": "analyze_match",
+            "args": {
+              "match_id": 181043
+            }
+          }
+        },
+        {
+          "event": "tool_result",
+          "data": {
+            "tool": "analyze_match",
+            "success": true,
+            "elapsed_ms": 1.35,
+            "summary": "Sin precio de Pinnacle: entrega probabilidades del modelo, sin hablar de ventaja."
+          }
+        },
+        {
+          "event": "step",
+          "data": {
+            "kind": "observation",
+            "text": "Sin precio de Pinnacle: entrega probabilidades del modelo, sin hablar de ventaja."
+          }
+        },
+        {
+          "event": "token",
+          "data": {
+            "delta": "Favorito: Colombia.\n\nSin precio de Pinnacle: no se puede evaluar ventaja."
+          }
+        },
+        {
+          "event": "done",
+          "data": {
+            "iterations": 1,
+            "success": true
+          }
+        }
+      ],
+      "repeat": 1,
+      "turn": 2,
+      "manual_reason": "Favorito Colombia, probabilidades y ausencia de precio Pinnacle coherentes con los datos consultados."
+    },
+    {
+      "question": "Analiza el partido de la roja",
+      "expected": "analyze_match",
+      "path": [
+        "get_upcoming_matches",
+        "analyze_match"
+      ],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": false,
+      "repairs": 0,
+      "recoveries": 1,
+      "calls": [
+        {
+          "tool": "get_upcoming_matches",
+          "args": {
+            "team": "Chile",
+            "limit": 20
+          },
+          "success": true
+        },
+        {
+          "tool": "analyze_match",
+          "args": {
+            "match_id": 181043
+          },
+          "success": true
+        }
+      ],
+      "manual_interpretation": "correcta",
+      "successful_path": [
+        "get_upcoming_matches",
+        "analyze_match"
+      ],
+      "copied_previous": false,
+      "elapsed_s": 14.867,
+      "answer": "El partido entre Colombia y Chile en amistosos internacionales el viernes 13 de noviembre a 21:00 hora de Chile tiene las siguientes probabilidades:\n\n- Colombia: 67.5%\n- Empate: 20.0%\n- Chile: 12.5%\n\nEl favorito es Colombia. Las probabilidades del modelo indican que Colombia tiene una alta probabilidad de ganar. Sin embargo, no se puede evaluar la ventaja porque no hay precio de Pinnacle disponible.",
+      "done": {
+        "iterations": 3,
+        "success": true
+      },
+      "events": [
+        {
+          "event": "tool_start",
+          "data": {
+            "tool": "get_upcoming_matches",
+            "args": {
+              "team": "Chile",
+              "limit": 20
+            }
+          }
+        },
+        {
+          "event": "tool_result",
+          "data": {
+            "tool": "get_upcoming_matches",
+            "success": true,
+            "elapsed_ms": 1.48,
+            "summary": "Ningún partido listado tiene precio de Pinnacle: no se puede evaluar ventaja."
+          }
+        },
+        {
+          "event": "step",
+          "data": {
+            "kind": "observation",
+            "text": "Ningún partido listado tiene precio de Pinnacle: no se puede evaluar ventaja."
+          }
+        },
+        {
+          "event": "step",
+          "data": {
+            "kind": "recovery",
+            "text": "El agente decide consultar análisis del partido"
+          }
+        },
+        {
+          "event": "step",
+          "data": {
+            "kind": "deviation",
+            "text": "Cambio de camino: análisis del partido, porque no hay precio de Pinnacle."
+          }
+        },
+        {
+          "event": "tool_start",
+          "data": {
+            "tool": "analyze_match",
+            "args": {
+              "match_id": 181043
+            }
+          }
+        },
+        {
+          "event": "tool_result",
+          "data": {
+            "tool": "analyze_match",
+            "success": true,
+            "elapsed_ms": 2.37,
+            "summary": "Sin precio de Pinnacle: entrega probabilidades del modelo, sin hablar de ventaja."
+          }
+        },
+        {
+          "event": "step",
+          "data": {
+            "kind": "observation",
+            "text": "Sin precio de Pinnacle: entrega probabilidades del modelo, sin hablar de ventaja."
+          }
+        },
+        {
+          "event": "token",
+          "data": {
+            "delta": "El partido entre Colombia y Chile en amistosos internacionales el viernes 13 de "
+          }
+        },
+        {
+          "event": "token",
+          "data": {
+            "delta": "noviembre a 21:00 hora de Chile tiene las siguientes probabilidades:\n\n- Colombia"
+          }
+        },
+        {
+          "event": "token",
+          "data": {
+            "delta": ": 67.5%\n- Empate: 20.0%\n- Chile: 12.5%\n\nEl favorito es Colombia. Las probabilida"
+          }
+        },
+        {
+          "event": "token",
+          "data": {
+            "delta": "des del modelo indican que Colombia tiene una alta probabilidad de ganar. Sin em"
+          }
+        },
+        {
+          "event": "token",
+          "data": {
+            "delta": "bargo, no se puede evaluar la ventaja porque no hay precio de Pinnacle disponibl"
+          }
+        },
+        {
+          "event": "token",
+          "data": {
+            "delta": "e."
+          }
+        },
+        {
+          "event": "done",
+          "data": {
+            "iterations": 3,
+            "success": true
+          }
+        }
+      ],
+      "repeat": 2,
+      "turn": 1,
+      "manual_reason": "Favorito Colombia, probabilidades y ausencia de precio Pinnacle coherentes con los datos consultados."
+    },
+    {
+      "question": "¿Y quién es favorito?",
+      "expected": "analyze_match",
+      "path": [
+        "analyze_match"
+      ],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": false,
+      "repairs": 0,
+      "recoveries": 0,
+      "calls": [
+        {
+          "tool": "analyze_match",
+          "args": {
+            "match_id": 181043
+          },
+          "success": true
+        }
+      ],
+      "manual_interpretation": "correcta",
+      "successful_path": [
+        "analyze_match"
+      ],
+      "copied_previous": false,
+      "elapsed_s": 4.651,
+      "answer": "El favorito para ganar el partido entre Colombia y Chile en amistosos internacionales es Colombia con una probabilidad del 67.5%. Sin embargo, no se puede evaluar si hay ventaja porque no hay precio de Pinnacle disponible.",
+      "done": {
+        "iterations": 1,
+        "success": true
+      },
+      "events": [
+        {
+          "event": "step",
+          "data": {
+            "kind": "observation",
+            "text": "Continúa con Colombia vs Chile: se consulta el análisis actualizado"
+          }
+        },
+        {
+          "event": "tool_start",
+          "data": {
+            "tool": "analyze_match",
+            "args": {
+              "match_id": 181043
+            }
+          }
+        },
+        {
+          "event": "tool_result",
+          "data": {
+            "tool": "analyze_match",
+            "success": true,
+            "elapsed_ms": 1.0,
+            "summary": "Sin precio de Pinnacle: entrega probabilidades del modelo, sin hablar de ventaja."
+          }
+        },
+        {
+          "event": "step",
+          "data": {
+            "kind": "observation",
+            "text": "Sin precio de Pinnacle: entrega probabilidades del modelo, sin hablar de ventaja."
+          }
+        },
+        {
+          "event": "token",
+          "data": {
+            "delta": "El favorito para ganar el partido entre Colombia y Chile en amistosos internacio"
+          }
+        },
+        {
+          "event": "token",
+          "data": {
+            "delta": "nales es Colombia con una probabilidad del 67.5%. Sin embargo, no se puede evalu"
+          }
+        },
+        {
+          "event": "token",
+          "data": {
+            "delta": "ar si hay ventaja porque no hay precio de Pinnacle disponible."
+          }
+        },
+        {
+          "event": "done",
+          "data": {
+            "iterations": 1,
+            "success": true
+          }
+        }
+      ],
+      "repeat": 2,
+      "turn": 2,
+      "manual_reason": "Favorito Colombia, probabilidades y ausencia de precio Pinnacle coherentes con los datos consultados."
+    },
+    {
+      "question": "Analiza el partido de la roja",
+      "expected": "analyze_match",
+      "path": [
+        "get_upcoming_matches",
+        "analyze_match"
+      ],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": false,
+      "repairs": 0,
+      "recoveries": 1,
+      "calls": [
+        {
+          "tool": "get_upcoming_matches",
+          "args": {
+            "team": "Chile",
+            "limit": 20
+          },
+          "success": true
+        },
+        {
+          "tool": "analyze_match",
+          "args": {
+            "match_id": 181043
+          },
+          "success": true
+        }
+      ],
+      "manual_interpretation": "correcta",
+      "successful_path": [
+        "get_upcoming_matches",
+        "analyze_match"
+      ],
+      "copied_previous": false,
+      "elapsed_s": 14.297,
+      "answer": "El análisis del partido entre Colombia y Chile en amistosos internacionales indica que la probabilidad de que gane Colombia es del 67.5%, Chile del 12.5% y el empate del 20.0%. El favorito es Colombia. No se puede evaluar si hay apuestas con valor debido a la falta de precio de Pinnacle.",
+      "done": {
+        "iterations": 3,
+        "success": true
+      },
+      "events": [
+        {
+          "event": "tool_start",
+          "data": {
+            "tool": "get_upcoming_matches",
+            "args": {
+              "team": "Chile",
+              "limit": 20
+            }
+          }
+        },
+        {
+          "event": "tool_result",
+          "data": {
+            "tool": "get_upcoming_matches",
+            "success": true,
+            "elapsed_ms": 1.22,
+            "summary": "Ningún partido listado tiene precio de Pinnacle: no se puede evaluar ventaja."
+          }
+        },
+        {
+          "event": "step",
+          "data": {
+            "kind": "observation",
+            "text": "Ningún partido listado tiene precio de Pinnacle: no se puede evaluar ventaja."
+          }
+        },
+        {
+          "event": "step",
+          "data": {
+            "kind": "recovery",
+            "text": "El agente decide consultar análisis del partido"
+          }
+        },
+        {
+          "event": "step",
+          "data": {
+            "kind": "deviation",
+            "text": "Cambio de camino: análisis del partido, porque no hay precio de Pinnacle."
+          }
+        },
+        {
+          "event": "tool_start",
+          "data": {
+            "tool": "analyze_match",
+            "args": {
+              "match_id": 181043
+            }
+          }
+        },
+        {
+          "event": "tool_result",
+          "data": {
+            "tool": "analyze_match",
+            "success": true,
+            "elapsed_ms": 1.54,
+            "summary": "Sin precio de Pinnacle: entrega probabilidades del modelo, sin hablar de ventaja."
+          }
+        },
+        {
+          "event": "step",
+          "data": {
+            "kind": "observation",
+            "text": "Sin precio de Pinnacle: entrega probabilidades del modelo, sin hablar de ventaja."
+          }
+        },
+        {
+          "event": "token",
+          "data": {
+            "delta": "El análisis del partido entre Colombia y Chile en amistosos internacionales indi"
+          }
+        },
+        {
+          "event": "token",
+          "data": {
+            "delta": "ca que la probabilidad de que gane Colombia es del 67.5%, Chile del 12.5% y el e"
+          }
+        },
+        {
+          "event": "token",
+          "data": {
+            "delta": "mpate del 20.0%. El favorito es Colombia. No se puede evaluar si hay apuestas co"
+          }
+        },
+        {
+          "event": "token",
+          "data": {
+            "delta": "n valor debido a la falta de precio de Pinnacle."
+          }
+        },
+        {
+          "event": "done",
+          "data": {
+            "iterations": 3,
+            "success": true
+          }
+        }
+      ],
+      "repeat": 3,
+      "turn": 1,
+      "manual_reason": "Favorito Colombia, probabilidades y ausencia de precio Pinnacle coherentes con los datos consultados."
+    },
+    {
+      "question": "¿Y quién es favorito?",
+      "expected": "analyze_match",
+      "path": [
+        "analyze_match"
+      ],
+      "tool_correct": true,
+      "path_correct": true,
+      "args_valid": true,
+      "fallback_used": false,
+      "repairs": 0,
+      "recoveries": 0,
+      "calls": [
+        {
+          "tool": "analyze_match",
+          "args": {
+            "match_id": 181043
+          },
+          "success": true
+        }
+      ],
+      "manual_interpretation": "correcta",
+      "successful_path": [
+        "analyze_match"
+      ],
+      "copied_previous": false,
+      "elapsed_s": 4.583,
+      "answer": "El favorito para ganar el partido entre Colombia y Chile es Colombia con una probabilidad del 67.5%. No se puede evaluar si hay apuestas con valor debido a la falta de precio de Pinnacle.",
+      "done": {
+        "iterations": 1,
+        "success": true
+      },
+      "events": [
+        {
+          "event": "step",
+          "data": {
+            "kind": "observation",
+            "text": "Continúa con Colombia vs Chile: se consulta el análisis actualizado"
+          }
+        },
+        {
+          "event": "tool_start",
+          "data": {
+            "tool": "analyze_match",
+            "args": {
+              "match_id": 181043
+            }
+          }
+        },
+        {
+          "event": "tool_result",
+          "data": {
+            "tool": "analyze_match",
+            "success": true,
+            "elapsed_ms": 1.15,
+            "summary": "Sin precio de Pinnacle: entrega probabilidades del modelo, sin hablar de ventaja."
+          }
+        },
+        {
+          "event": "step",
+          "data": {
+            "kind": "observation",
+            "text": "Sin precio de Pinnacle: entrega probabilidades del modelo, sin hablar de ventaja."
+          }
+        },
+        {
+          "event": "token",
+          "data": {
+            "delta": "El favorito para ganar el partido entre Colombia y Chile es Colombia con una pro"
+          }
+        },
+        {
+          "event": "token",
+          "data": {
+            "delta": "babilidad del 67.5%. No se puede evaluar si hay apuestas con valor debido a la f"
+          }
+        },
+        {
+          "event": "token",
+          "data": {
+            "delta": "alta de precio de Pinnacle."
+          }
+        },
+        {
+          "event": "done",
+          "data": {
+            "iterations": 1,
+            "success": true
+          }
+        }
+      ],
+      "repeat": 3,
+      "turn": 2,
+      "manual_reason": "Favorito Colombia, probabilidades y ausencia de precio Pinnacle coherentes con los datos consultados."
+    }
+  ]
+}

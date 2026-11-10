@@ -61,18 +61,14 @@ def test_exact_team_direct_analysis_and_followup(monkeypatch):
     entity = {}
     events = list(orchestrator.run_chat(first, "Analiza a la roja", UserPreferences(), consulted_entities=entity))
     assert [e.data["tool"] for e in events if e.event == "tool_start"] == ["find_team", "analyze_match"]
-    second = FakeLLM([[ToolCall("c", "analyze_match", {"match_id": 42})], [TextDelta("Colombia es favorito.")]])
+    second = FakeLLM([[TextDelta("Colombia es favorito.")]])
     events = list(orchestrator.run_chat(second, "¿Y quién es favorito?", UserPreferences(), entities=entity))
     assert "match_id=42 (Chile vs Colombia)" in second.messages[0][0]["content"]
     assert [e.data["args"] for e in events if e.event == "tool_start"] == [{"match_id": 42}]
     assert events[-1].data["success"]
 
-    recovery = FakeLLM([[TextDelta("Colombia es favorito.")],
-                        [ToolCall("d", "analyze_match", {"match_id": 42})],
-                        [TextDelta("Colombia es favorito.")]])
-    events = list(orchestrator.run_chat(recovery, "¿Y quién es favorito?", UserPreferences(), entities=entity))
-    assert '"match_id": 42' in recovery.messages[1][-1]["content"]
-    assert any(e.event == "step" and e.data["kind"] == "recovery" for e in events)
+    assert second.messages[0][-1]["role"] == "tool"
+    assert not any(e.event == "step" and e.data["kind"] == "recovery" for e in events)
     assert events[-1].data["success"]
 
 

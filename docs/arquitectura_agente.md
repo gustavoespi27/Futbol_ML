@@ -21,6 +21,7 @@ flowchart LR
 flowchart TB
     U[Usuario: chat móvil o escritorio] --> API[Router: identidad y SSE]
     API --> R[routing.py: intención y continuidad]
+    R -->|Seguimiento con match_id: precarga| T
     M[(memory.py: último turno y entidades)] --> R
     R --> L[LLM local: decide qué consultar o solicitar]
     L --> T[tools.py: argumentos Pydantic y permisos de acción]
@@ -61,6 +62,8 @@ El diagrama separa dos ciclos:
 - **Conversación:** el modelo decide dentro de las herramientas permitidas. Una escritura requiere
   intención explícita; crear una vigilancia exige identificar el objetivo. La confirmación usa el id
   persistido. La memoria conserva identidades aun tras un fallo, y solo recuerda respuestas verificadas.
+  Un seguimiento con match_id consulta el análisis actualizado antes de la primera inferencia; ese
+  resultado alimenta también el respaldo si la redacción no supera la verificación.
 - **Vigía:** compara datos actuales con su memoria y los objetivos. Registra también decisiones de no
   actuar. Una transacción publica estado, alerta y objetivo cumplido; repetir el mismo ciclo no duplica
   alertas. Los textos son plantillas verificadas y nunca inicia ni consulta Ollama.

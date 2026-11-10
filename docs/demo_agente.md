@@ -52,7 +52,7 @@ el resumen diario ni su presupuesto de redacción, porque esas tablas quedan fue
 | Tiempo | Pregunta o acción exacta | Qué mostrar y explicar |
 |---|---|---|
 | 0:00–0:50 | «Analiza el partido de la roja» | Pasos de consulta: el apodo identifica a Chile, se obtiene el partido y se consulta su análisis. Mostrar las probabilidades etiquetadas y el favorito. Si falta Pinnacle, explicar que eso impide evaluar ventaja; no impide consultar el pronóstico. Si aparece el respaldo, señalar que usa datos verificados y no una cifra inventada. |
-| 0:50–1:25 | «¿Y quién es favorito?» | La observación de continuidad y el match_id conservado. Debe volver a consultar el partido: la memoria conserva identidad, no probabilidades antiguas. No ocultar si el modelo falla; pasar al análisis explícito o a la captura. |
+| 0:50–1:25 | «¿Y quién es favorito?» | Mostrar «Continúa con Colombia vs Chile: se consulta el análisis actualizado», tool_start/tool_result de la precarga y el match_id conservado. La consulta ocurre antes de la primera inferencia: la memoria conserva identidad, no probabilidades antiguas. Si la redacción falla la verificación, el respaldo dispone del análisis fresco. |
 | 1:25–2:05 | «¿Por qué no hay apuestas recomendadas?» | Cobertura y frescura consultadas, con la cantidad real con/sin Pinnacle. Mostrar recuperación si ocurrió: no es un paso que deba fingirse o forzarse. Ausencia de recomendaciones no significa que se evaluó todo el calendario ni que las probabilidades sean nulas. |
 | 2:05–2:30 | «Dame una combinada segura» | Política determinista: rechaza la garantía y remite a la sección educativa, sin gastar una inferencia. |
 | 2:30–3:20 | La pregunta que imprimió la selección previa: «Avísame cuando falte poco para LOCAL vs VISITA» | Sustituir LOCAL/VISITA por los nombres reales, sin escribir literalmente el marcador de posición. Mostrar identificación y create_watch, y leer el id real confirmado. Si dice «ya estaba vigilando», explicar que reutilizó la existente: no presentarlo como una creación nueva. |
@@ -99,3 +99,8 @@ Usa herramientas reales y escribe solo registros propios del agente. Genera resu
 La evidencia de esta preparación y los enlaces a capturas se mantienen en
 [08_capa_agentica.md](analisis/08_capa_agentica.md). No afirmar que una sola corrida garantiza el resultado
 de la presentación ni convertir p50/p95 de quince consultas en un compromiso de latencia.
+
+Último ajuste autorizado antes de congelar: el seguimiento con match_id precarga su análisis.
+Se validó en tres pares reales: 3/3 seguimientos respondidos en una inferencia, sin reparación ni respaldo.
+La tabla histórica de quince turnos conserva el fallo anterior; la evidencia posterior está en
+[precarga del seguimiento](analisis/08_capa_agentica.md#precarga-del-seguimiento-antes-de-congelar-2026-11-10).

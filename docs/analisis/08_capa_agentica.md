@@ -1,7 +1,8 @@
 # Evaluación reproducible de la capa agéntica
 
-> Cierre vigente: [pieza 5, evaluación final y demo](#pieza-5-evaluación-final-y-cierre).
+> Evaluación general de cierre: [pieza 5, evaluación final y demo](#pieza-5-evaluación-final-y-cierre).
 > El resto del documento conserva las mediciones históricas; no son el resultado de cierre.
+> Último ajuste autorizado: [precarga del seguimiento antes de congelar](#precarga-del-seguimiento-antes-de-congelar-2026-11-10).
 
 Ficha sintética fija; 15 preguntas por modelo; inferencia local real. Una ejecución por pregunta. La primera consulta incluye carga del modelo. Tokens/s = tokens de salida / latencia total (incluye prompt y herramientas); no es velocidad pura de generación. Memoria según /api/ps, no RAM total del sistema. La verificación numérica no valida la semántica ni la pertinencia.
 
@@ -513,3 +514,51 @@ cero fallos de contraste y cero errores JavaScript. Selección para la exposici�
 Validación: **488 pytest**, Ruff, sintaxis de agent.js y ocho pruebas Node en verde; cobertura agéntica
 **95,97 %** (1937 sentencias, 78 sin cubrir). CLAUDE.md §3 actualizado/comprobado solo en disco.
 Se entrega un único test(agents) y se detiene para revisión. Sin cambios de comportamiento del agente.
+
+## Precarga del seguimiento antes de congelar (2026-11-10)
+
+`61f83d0` aprobado. Gustavo autorizó un último cambio acotado: si is_follow_up devuelve verdadero y
+las entidades conservan match_id, run_chat ejecuta analyze_match antes de la primera inferencia.
+Emite tool_start/tool_result y la observación del resultado, además de:
+«Continúa con Colombia vs Chile: se consulta el análisis actualizado».
+El par assistant/tool queda en el contexto que recibe el modelo; las entidades consultadas se conservan.
+Se omite una precarga adicional del calendario en ese seguimiento. Un tema nuevo o una entidad sin
+match_id no dispara esta precarga de análisis; la precarga habitual de próximos partidos sigue igual.
+
+No se cambiaron el modelo, el prompt, la definición de continuidad, los límites, el motor, las acciones
+ni los verificadores. Si la redacción vuelve a fallar la verificación, el respaldo existente ya dispone
+del summary/favorite del análisis actualizado. El FakeLLM comprueba el doble fallo y la entrega del
+resumen correcto sin publicar las cifras inventadas.
+
+Se ejecutó tres veces «Analiza el partido de la roja» → «¿Y quién es favorito?» contra Qwen 2.5 de 7B
+real, con herramientas reales y memoria nueva para cada par. No se mezcló la memoria entre repeticiones.
+
+| Repetición | Análisis inicial (s) | Respaldo inicial | Seguimiento (s) | Consulta del seguimiento | Inferencias | Reparaciones / recuperaciones del seguimiento | Revisión manual |
+|---|---:|---|---:|---|---:|---|---|
+| 1 | 25,873 | Sí | 4,566 | Precarga analyze_match(181043), sin otras consultas | 1 | 0 / 0 | Colombia favorita; sin Pinnacle, sin evaluar ventaja |
+| 2 | 14,867 | No | 4,651 | Precarga analyze_match(181043), sin otras consultas | 1 | 0 / 0 | Colombia favorita al 67,5 %; sin Pinnacle |
+| 3 | 14,297 | No | 4,583 | Precarga analyze_match(181043), sin otras consultas | 1 | 0 / 0 | Colombia favorita al 67,5 %; sin Pinnacle |
+
+**6/6 turnos completados y verificados; 3/3 seguimientos correctos**, cada uno con una sola inferencia,
+sin SAFE_TEXT ni respaldo en el seguimiento. Las seis respuestas se revisaron a mano. La primera
+pregunta conserva su variabilidad: una de sus tres respuestas necesitó el respaldo ya existente.
+Tres muestras no garantizan calidad semántica general ni una latencia futura. Los resultados de la
+batería de 15 turnos anterior permanecen intactos y no se recalifican retrospectivamente.
+
+Evidencia con eventos completos: [validacion_precarga_seguimiento.json](validacion_precarga_seguimiento.json).
+Ficheros originales locales: `reports/congelacion/secuencia-{1,2,3}.json`. Para repetir el sondeo:
+
+```powershell
+@'
+from pathlib import Path
+from scripts.eval_agent_routing import CONVERSATION, conversation
+for repeat in (1, 2, 3):
+    conversation(Path(f"reports/congelacion/secuencia-{repeat}.json"), cases=CONVERSATION[:2])
+'@ | .venv\Scripts\python -
+```
+
+Validación: **495 pytest**, cobertura agéntica **95,99 %** (1945 sentencias, 78 sin cubrir), Ruff,
+sintaxis de agent.js y ocho pruebas Node correctos. FakeLLM cubre ejecución previa a la primera
+inferencia, eventos y observación, ausencia de match_id, equipo nuevo, cambio a rendimiento y respaldo
+tras dos fallos. El comportamiento queda congelado hasta la presentación; se detiene tras este fix
+para revisión, sin iniciar otros cambios.

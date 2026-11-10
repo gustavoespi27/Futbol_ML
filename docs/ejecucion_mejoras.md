@@ -111,3 +111,16 @@ desbordamientos ni errores JS. Evidencia local en reports/pieza5/flujo.json.
 
 488 pytest, cobertura agéntica 95,97 %, Ruff y ocho pruebas web verdes. Se detiene tras un único
 test(agents) para revisión. No se integra a main ni se inicia trabajo adicional.
+
+## Último ajuste y congelación (2026-11-10)
+
+`61f83d0` aprobado. Único cambio de comportamiento autorizado antes de presentar: run_chat precarga
+analyze_match si is_follow_up es verdadero y existe match_id. Eventos y observación visibles, datos
+actualizados antes de la primera inferencia y disponibles para el respaldo. Sin precarga de análisis
+en un tema nuevo ni sin match_id. Sin cambios de prompt, modelo, límites, acciones, motor o interfaz.
+Tres pares reales con Qwen: 6/6 respuestas verificadas; los tres seguimientos consultaron 181043 y
+respondieron en una inferencia, sin reparación, recuperación ni respaldo, entre 4,566 y 4,651 s.
+Un análisis inicial sí necesitó respaldo; se documenta sin modificar la evaluación histórica.
+495 pytest, cobertura 95,99 %, Ruff y ocho pruebas web en verde. Evidencia y actualización del guion
+en 08_capa_agentica.md y validacion_precarga_seguimiento.json. Se entrega un único fix(agents) y se
+detiene para revisión. Comportamiento congelado hasta la presentación; sin trabajo adicional.

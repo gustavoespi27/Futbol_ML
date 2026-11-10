@@ -62,8 +62,9 @@ def test_ten_turn_conversation_has_no_contamination(monkeypatch):
     from scripts.eval_agent_routing import CONVERSATION
 
     class FakeLLM:
-        def __init__(self, name, args, text):
-            self.turns = iter([[ToolCall("t", name, args)], [TextDelta(text)]])
+        def __init__(self, name, args, text, preloaded=False):
+            self.turns = iter([[TextDelta(text)]] if preloaded else
+                              [[ToolCall("t", name, args)], [TextDelta(text)]])
             self.messages = []
 
         def stream_chat(self, messages, tools=None):
@@ -81,7 +82,7 @@ def test_ten_turn_conversation_has_no_contamination(monkeypatch):
     with sqlite3.connect(":memory:") as db:
         for i, (question, expected) in enumerate(CONVERSATION):
             text = "Respuesta " + chr(65 + i)
-            client = FakeLLM(expected, arguments.get(expected, {}), text)
+            client = FakeLLM(expected, arguments.get(expected, {}), text, preloaded=i == 1)
             consulted: dict = {}
             events = list(orchestrator.run_chat(client, question, UserPreferences(), history=memory.history(db, "u"),
                                                entities=memory.recent_entities(db, "u"),
@@ -90,7 +91,8 @@ def test_ten_turn_conversation_has_no_contamination(monkeypatch):
                 assert expected in [e.data["tool"] for e in events if e.event == "tool_start"]
                 sent = client.messages[0]
                 if i == 1:
-                    assert len(sent) == 4  # sistema, último par de mensajes y pregunta actual
+                    assert len(sent) == 6  # último turno, pregunta y par assistant/tool de la precarga
+                    assert sent[-1]["role"] == "tool"
                     assert "match_id=181043" in sent[0]["content"]
                     assert any(e.event == "step" and "Continúa" in e.data.get("text", "") for e in events)
                 elif i != 0:
