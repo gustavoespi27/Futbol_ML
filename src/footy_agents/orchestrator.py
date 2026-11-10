@@ -523,6 +523,12 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         claims = check_claims(answer, turn.records)
         report.unverified.extend(claims.unverified)
         report.verified = report.verified and claims.verified
+        comparisons = [r.result["comparison_text"] for r in turn.records if r.success and r.tool_name == "request_odds"
+                       and isinstance(r.result, dict) and r.result.get("comparison_text")]
+        if comparisons and answer.strip() != comparisons[-1].strip():
+            report.verified = False
+            report.unverified.append("Copia comparison_text completo, sin añadir conclusiones ni reformularlo. "
+                                     "Sin Pinnacle no puedes afirmar presencia ni ausencia de valor.")
         odds_results = [r.result for r in turn.records if r.success and r.tool_name == "analyze_match"
                         and isinstance(r.result, dict) and r.result.get("odds_status")]
         compared = any(r.success and r.tool_name == "request_odds" for r in turn.records)

@@ -108,3 +108,41 @@ def test_fake_llm_delegates_and_preserves_verified_comparison(db, delegated, mon
     assert "DraftKings" in text and "Sin Pinnacle" in text and "9999" not in text
     assert events[-1].data["success"] and delegated
     assert any(e.event == "tool_start" and e.data["tool"] == "request_odds" for e in events)
+
+
+def test_comparison_canonical_text_prevents_false_absence_of_value(monkeypatch):
+    data = {
+        "match_id": 1,
+        "home": "Armenia",
+        "away": "Cyprus",
+        "status": "no_pinnacle",
+        "comparison_text": "Gana Armenia: mejor 2.3 en DraftKings. Sin Pinnacle no hay valor medible.",
+        "note": "Sin Pinnacle no hay valor medible.",
+    }
+    monkeypatch.setattr(tools.service, "upcoming", lambda: [])
+    monkeypatch.setitem(tools.TOOLS_REGISTRY, "analyze_match", lambda **_: {"match_id": 1})
+    monkeypatch.setitem(tools.TOOLS_REGISTRY, "request_odds", lambda **_: data)
+
+    class FakeLLM:
+        def __init__(self):
+            self.turns = iter(
+                [
+                    [ToolCall("r", "request_odds", {"match_id": 1})],
+                    [TextDelta("No hay apuestas con valor en este partido.")],
+                    [TextDelta(data["comparison_text"])],
+                ]
+            )
+
+        def stream_chat(self, messages, tools=None):
+            yield from next(self.turns)
+
+    events = list(
+        orchestrator.run_chat(
+            FakeLLM(),
+            "compara cuotas",
+            UserPreferences(),
+            entities={"match_id": 1, "home": "Armenia", "away": "Cyprus"},
+        )
+    )
+    assert "".join(e.data["delta"] for e in events if e.event == "token") == data["comparison_text"]
+    assert any(e.event == "step" and e.data["kind"] == "repair" for e in events)
