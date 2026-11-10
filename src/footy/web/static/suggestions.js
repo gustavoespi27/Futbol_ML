@@ -34,7 +34,7 @@ async function renderRuleHistory() {
 }
 
 function drawCurrent(d) {
-  if (systemState.kind !== "fresh") { gateView($("#v-partidos"), systemState.kind); return; }
+  if (systemState.kind !== "fresh") { gateView($("#v-apuestas"), systemState.kind); return; }
   const bank = getBank();
   const r = d.rules;
   const matches = cache["/api/upcoming"] || [];

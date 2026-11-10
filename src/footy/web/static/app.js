@@ -75,7 +75,7 @@ async function api(path, opts) {
 
 /* ---------- estado compartido: fallar cerrado para recomendaciones ---------- */
 const systemState = { overview: null, health: null, kind: "loading", checked: 0, pending: null };
-const prospectiveViews = new Set(["inicio", "partidos", "combinadas", "simulador"]);
+const prospectiveViews = new Set(["inicio", "partidos", "apuestas", "combinadas", "simulador"]);
 
 async function loadSystemStatus(force = false) {
   if (systemState.pending) return systemState.pending;
@@ -223,9 +223,9 @@ $("#more-prefs").addEventListener("click", async () => {
 });
 
 /* ---------- navegación ---------- */
-const views = { inicio: renderHome, partidos: renderMatches, combinadas: () => renderCombos(), resultados: renderTracking,
+const views = { inicio: renderHome, partidos: renderMatches, apuestas: renderBets, combinadas: () => renderCombos(), resultados: renderTracking,
     rendimiento: renderBacktest, simulador: renderSimulator, "como-funciona": () => {}, explorar: () => {}, mas: () => {} };
-const pageTitles = { inicio: "Hoy", partidos: "Partidos", resultados: "Seguimiento", combinadas: "Combinadas",
+const pageTitles = { inicio: "Hoy", partidos: "Partidos", apuestas: "Apuestas", resultados: "Seguimiento", combinadas: "Combinadas",
   simulador: "Simulador de partido", rendimiento: "¿Qué tan fiable es?", "como-funciona": "Cómo funciona", explorar: "Explorar", mas: "Más" };
 const navGroups = { combinadas: "explorar", simulador: "explorar", rendimiento: "mas", "como-funciona": "mas" };
 const rendered = new Set();
@@ -520,7 +520,7 @@ let semSel = { type: "all" }, semDate = { type: "all" };
 async function renderSemaphore() {
   const [list, catalog] = await Promise.all([api("/api/upcoming"), leagueCatalog()]);
   const draw = () => {
-    if (systemState.kind !== "fresh") { gateView($("#v-partidos"), systemState.kind); return; }
+    if (systemState.kind !== "fresh") { gateView($("#v-apuestas"), systemState.kind); return; }
     const shown = list.filter((m) => leagueSelMatch(semSel, m, catalog) && dateSelMatch(semDate, m.kickoff));
     if (!shown.length) return emptyMatches($("#semaforo"), isFiltered(semSel, semDate), reset, semSel, catalog);
     $("#semaforo").innerHTML = `<table class="sem"><thead><tr><th>Partido</th>${SEM_COLS.map(([, n]) => `<th style="text-align:center">${n}</th>`).join("")}
@@ -591,20 +591,10 @@ $("#v-inicio").addEventListener("click", async e => {
   if (button.hasAttribute("data-home-retry")) { await renderHomeFavorites(cache["/api/upcoming"] || []); renderHomeReview(cache["/api/upcoming"] || []); }
   if (button.hasAttribute("data-home-prefs")) $("#brief-prefs").click();
 });
-function setupMatchAnalysis() {
-  const details = $("#match-analysis"); details.dataset.loaded = "";
-  details.ontoggle = async () => {
-    if (!details.open || details.dataset.loaded || systemState.kind !== "fresh") return;
-    details.dataset.loaded = "loading";
-    try {
-      await Promise.all([renderSuggestions(), renderReliable({ current: true }), renderSemaphore()]);
-      details.dataset.loaded = "true"; $("#analysis-error")?.remove();
-    } catch (e) {
-      details.dataset.loaded = "";
-      if (!$("#analysis-error")) details.insertAdjacentHTML("afterbegin", '<p id="analysis-error" role="alert">No se pudo cargar el análisis. Cierra y vuelve a abrir para reintentar.</p>');
-    }
-  };
-  if (details.open) details.ontoggle();
+// Apuestas: recomendaciones con valor, más fiables y semáforo, como destino propio (antes plegado en Partidos).
+async function renderBets() {
+  await api("/api/upcoming");                       // drawCurrent lee el calendario desde la caché
+  await Promise.all([renderSuggestions(), renderReliable({ current: true }), renderSemaphore()]);
 }
 async function renderHome() {
   $("#home-date").textContent = new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", weekday: "long", day: "numeric", month: "long" }).format(new Date());
@@ -731,7 +721,6 @@ async function renderMatches() {
     e.preventDefault(); toggle(e.target);
   };
   draw();
-  setupMatchAnalysis();
 }
 function matchGroups(list) {
   const groups = new Map();

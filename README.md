@@ -285,7 +285,7 @@ Superar la cuota de cierre 3 de cada 4 veces es la firma de un apostador con ven
 ## Producto: el dashboard
 
 Interfaz web local en español, sin frameworks ni compilación, con tema claro y oscuro, contraste AA, navegación por
-teclado y diseño para móvil. Cinco destinos: **Hoy, Partidos, Seguimiento, Explorar y Más**, y el asistente siempre
+teclado y diseño para móvil. Seis destinos: **Hoy, Partidos, Apuestas, Seguimiento, Explorar y Más**, y el asistente siempre
 a mano.
 
 ![Hoy: estado de los datos, resumen del día y partidos para revisar](docs/img/readme/hoy-1440.png)
@@ -294,9 +294,12 @@ a mano.
 |---|---|
 | **Hoy** | Franja de estado (frescura de datos, asistente y modelo), tus equipos primero, resumen del día y partidos para revisar con probabilidades compactas |
 | **Partidos** | Calendario filtrable por día y liga con probabilidades 1X2, mejor opción y detalle de cada partido: probabilidades, fuente del pronóstico, ventaja de precio, forma, tabla y comparador de cuotas |
+| **Apuestas** | Recomendaciones con valor frente a Pinnacle (monto ¼ Kelly sobre tu banca), las más fiables, las que están cerca de tener valor y el semáforo de cada mercado por partido. Accesible desde el menú, desde Hoy y desde Partidos |
 | **Seguimiento** | Pronósticos registrados vs resultado real, marcadores en vivo y apuestas en papel con CLV |
 | **Explorar** | Simulador de cualquier cruce (incluso entre ligas y países) y constructor de combinadas educativo |
 | **Más** | Fiabilidad (calibración, ajuste automático, respaldo histórico), cómo funciona, preferencias y tema |
+
+![Apuestas: recomendaciones con valor y semáforo de cada mercado](docs/img/readme/apuestas-1440.png)
 
 | Partidos | Detalle de un partido |
 |---|---|

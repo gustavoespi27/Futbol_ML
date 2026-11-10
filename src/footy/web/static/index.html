@@ -28,6 +28,7 @@
     <nav id="nav" aria-label="Navegación principal">
 <a class="navlink" href="#inicio" data-nav-group="inicio"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg><span>Hoy</span></a>
 <a class="navlink" href="#partidos" data-nav-group="partidos"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Partidos</span></a>
+<a class="navlink" href="#apuestas" data-nav-group="apuestas"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="7" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="17" r="1.5"/></svg><span>Apuestas</span></a>
 <a class="navlink" href="#resultados" data-nav-group="resultados"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Seguimiento</span></a>
 <a class="navlink" href="#explorar" data-nav-group="explorar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6 6-2z"/></svg><span>Explorar</span></a><div class="nav-subsections" data-parent="explorar" hidden><a href="#simulador">Simulador</a><a href="#combinadas">Combinadas</a></div>
 <a class="navlink" href="#mas" data-nav-group="mas"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg><span>Más</span></a><div class="nav-subsections" data-parent="mas" hidden><a href="#rendimiento">Fiabilidad</a><a href="#como-funciona">Cómo funciona</a></div>
@@ -83,7 +84,7 @@
     </section>
 
   <section class="home-review" aria-labelledby="review-title">
-    <div class="reco-head"><h2 id="review-title">Para revisar hoy</h2><a href="#partidos">Ver todos los partidos</a></div>
+    <div class="reco-head"><h2 id="review-title">Para revisar hoy</h2><span class="reco-links"><a href="#apuestas">Ver apuestas y semáforo</a><a href="#partidos">Ver todos los partidos</a></span></div>
     <div id="home-review" class="home-review-grid" data-skel="cards:3"></div>
   </section>
 </section>
@@ -95,8 +96,16 @@
     </div>
     <div class="match-filter-actions"><button type="button" class="chip" id="match-filter-open" aria-haspopup="dialog" aria-controls="match-filters">Filtrar partidos</button><span id="match-selection" role="status"></span><button type="button" class="chip" id="match-clear">Limpiar</button></div><div id="match-filter-slot"><div class="toolbar" id="match-toolbar"><div class="filters" id="league-filter"></div><div id="match-date"></div></div></div>
     <div class="qchips" id="match-chips"></div>
+    <a class="bets-link" href="#apuestas"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="7" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="17" r="1.5"/></svg><span><b>Apuestas y semáforo</b><small>Qué tiene valor frente a Pinnacle y el veredicto de cada mercado.</small></span><span class="bets-link-go" aria-hidden="true">→</span></a>
     <div id="matches" data-skel="rows:6"></div>
-  <details id="match-analysis" class="match-analysis"><summary>Recomendaciones y semáforo</summary><div class="card reco-card" style="margin-top:16px">
+  </section>
+
+  <!-- APUESTAS: RECOMENDACIONES Y SEMÁFORO -->
+  <section class="view" id="v-apuestas">
+    <div class="view-head">
+      <h1 tabindex="-1">Apuestas</h1><p>Recomendaciones con valor frente a Pinnacle, las más fiables y el semáforo de cada partido</p>
+    </div>
+    <div class="card reco-card">
       <div class="reco-head">
         <div><h2>Recomendaciones de la máquina</h2>
           <p class="sub" style="margin:2px 0 0">Lo que el sistema encontró para los próximos partidos y por qué.</p></div>
@@ -135,9 +144,7 @@
         <span class="vchip yellow"><b>Neutral</b> precio cercano al justo o paga muy poco</span>
         <span class="vchip red"><b>No apostar</b> probabilidad muy baja, cuota muy alta o paga mucho menos de lo que vale</span>
       </div></div>
-
-    </details>
-</section>
+  </section>
 
   <!-- COMBINADAS -->
   <section class="view" id="v-combinadas">
@@ -442,6 +449,7 @@
 <nav class="bottomnav" aria-label="Navegación principal móvil">
 <a class="navlink" href="#inicio" data-nav-group="inicio"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/></svg><span>Hoy</span></a>
 <a class="navlink" href="#partidos" data-nav-group="partidos"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Partidos</span></a>
+<a class="navlink" href="#apuestas" data-nav-group="apuestas"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="7" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="17" r="1.5"/></svg><span>Apuestas</span></a>
 <a class="navlink" href="#resultados" data-nav-group="resultados"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Seguimiento</span></a>
 <a class="navlink" href="#explorar" data-nav-group="explorar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6 6-2z"/></svg><span>Explorar</span></a>
 <a class="navlink" href="#mas" data-nav-group="mas"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg><span>Más</span></a>

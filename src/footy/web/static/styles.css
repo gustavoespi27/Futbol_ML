@@ -407,8 +407,19 @@ footer { color: var(--muted); font-size: var(--fs-xs); padding: 18px 28px 28px; 
 .review-card .pill { white-space: normal; justify-self: start; }
 .review-card .pill i { width: 8px; height: 8px; background: currentColor; border-radius: 50%; flex: none; }
 .review-action { font-size: var(--fs-sm); color: var(--accent-text); }
-.match-analysis { margin-top: var(--s-5); }
-.match-analysis > summary { min-height: 44px; cursor: pointer; padding: var(--s-3); color: var(--accent-text); }
+/* Acceso a Apuestas desde Partidos: visible, no escondido al final de la lista */
+.bets-link { display: flex; align-items: center; gap: 12px; margin: 0 0 var(--s-4); padding: 12px 16px; border-radius: var(--radius);
+  border: 1px solid var(--accent); background: var(--accent-soft); color: var(--text); text-decoration: none;
+  transition: background-color .2s ease, transform .15s ease; }
+.bets-link > .ico { width: 22px; height: 22px; flex: none; color: var(--accent); }
+.bets-link span:not(.bets-link-go) { display: grid; gap: 2px; min-width: 0; }
+.bets-link small { color: var(--text-2); font-size: var(--fs-xs); }
+.bets-link-go { margin-left: auto; color: var(--accent); font-weight: 700; transition: transform .2s ease; }
+.bets-link:hover { background: var(--surface-2); }
+.bets-link:hover .bets-link-go { transform: translateX(4px); }
+.bets-link:active { transform: scale(.99); }
+.bets-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.reco-links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 #home-history > .stack { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-4); margin-bottom: var(--s-5); }
 #paper-ledger { margin-bottom: var(--s-5); }
 #paper-summary { margin-bottom: var(--s-3); color: var(--text-2); }
@@ -802,10 +813,10 @@ table.sem td.m:hover .team span { color: var(--accent); }
   main { padding: 16px 16px 92px; }
   footer { padding: 16px 16px 90px; }
   .bottomnav {
-    display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    display: grid; grid-template-columns: repeat(6, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
     background: var(--surface); border-top: 1px solid var(--border); padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
     height: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom));
-    grid-template-columns: 1fr 1fr minmax(76px, 1.15fr) 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr minmax(70px, 1.2fr) 1fr 1fr;
   }
   .bottomnav .navlink { flex-direction: column; gap: 4px; min-width: 0; min-height: 44px; font-size: var(--fs-xs); font-weight: 400; padding: 4px 0; justify-content: center; }
   .bottomnav .navlink span { white-space: nowrap; letter-spacing: -0.01em; }
