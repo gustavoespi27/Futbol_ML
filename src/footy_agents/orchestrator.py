@@ -499,6 +499,10 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
             yield from _fallback(turn.records, iteration, message)
             return
         unsupported = ASKS_INSTEAD.search(answer) or DOMAIN_CLAIM.search(answer)
+        if route and route[0] == "request_odds" and turn.entities.get("match_id"):
+            route = intent_route(message, turn.entities)
+            recovery_hint = (f"La pregunta original pide cuotas: consulta request_odds con argumentos "
+                             f"{json.dumps(route[1])}. No respondas solo con probabilidades.")
         completed = {r.arguments.get("condition") for r in turn.records if r.success and r.tool_name == "create_watch"}
         missing_route = route and (route[0] not in turn.used or bool(conditions - completed))
         if writing and conditions - completed:

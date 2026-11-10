@@ -73,7 +73,8 @@ def record(name, result=None, success=True, args=None, error=None):
 @pytest.mark.parametrize("rec,status,options", [
     (record("get_upcoming_matches", [], args={"team": "Colito"}), "not_found", ["find_team"]),
     (record("get_upcoming_matches", []), "empty", ["get_coverage"]),
-    (record("get_upcoming_matches", [{"has_pinnacle_price": False}]), "no_pinnacle", ["analyze_match", "get_coverage"]),
+    (record("get_upcoming_matches", [{"has_pinnacle_price": False}]), "no_pinnacle",
+         ["request_odds", "analyze_match", "get_coverage"]),
     (record("get_upcoming_matches", [{"has_pinnacle_price": True}]), "ok", []),
     (record("get_value_bets", []), "empty", ["get_coverage"]),
     (record("find_team", []), "not_found", []),

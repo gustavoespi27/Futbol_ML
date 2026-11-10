@@ -6,6 +6,8 @@ from footy_agents.calendar import calendar_args
 from footy_agents.names import normalize_name
 from footy_agents.tools import NICKNAMES, service, upcoming_focus
 
+ODDS_INTENT = re.compile(r"\b(?:cuanto paga|cuotas?|compara cuotas|que casa paga mas)\b")
+
 
 def is_follow_up(message: str, entities: dict | None) -> bool:
     """Solo referencias cortas sin un equipo o liga distintos conservan memoria."""
@@ -16,7 +18,8 @@ def is_follow_up(message: str, entities: dict | None) -> bool:
                                                 "y manana", "eso", "esa", "ese", "otro", "otra",
                                                 "otros", "otras", "mas", "esos", "esas", "estos", "estas",
                                                 "el primero", "el segundo", "la primera", "de la lista",
-                                                "compara cuotas", "cuanto paga", "que casa paga mas"))
+                                                "compara cuotas", "cuanto paga", "que casa paga mas",
+                                                "cuota", "cuotas"))
     ):
         return False
     entities = entities or {}
@@ -54,8 +57,6 @@ def is_follow_up(message: str, entities: dict | None) -> bool:
 def intent_route(message: str, entities: dict | None = None) -> tuple[str, dict] | None:
     """Una herramienta por intención original; los argumentos desconocidos no se inventan."""
     q = normalize_name(message)
-    if entities and entities.get("match_id") and re.search(r"compara cuotas|cuanto paga|que casa paga mas", q):
-        return "request_odds", {"match_id": entities["match_id"]}
     for pattern, tool in ((r"deja de vigilar|cancela.*vigilan", "cancel_watch"),
                           (r"que vigilas|mis alertas|lista.*vigilan|mis vigilan", "list_watches"),
                           (r"agrega.*favoritos|anade.*favoritos", "add_favorite"),
@@ -67,6 +68,8 @@ def intent_route(message: str, entities: dict | None = None) -> tuple[str, dict]
                 if id_:
                     args["id"] = int(id_[0])
             return tool, args
+    if ODDS_INTENT.search(q):
+        return "request_odds", {"match_id": entities["match_id"]} if entities and entities.get("match_id") else {}
     for pattern, tool in (
         (r"recomendacion|mas fiables?|casi con valor|cerca de tener valor|"
          r"secciones? de apuestas|donde (?:estan|veo|encuentro).*apuestas", "get_recommendations"),

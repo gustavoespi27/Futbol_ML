@@ -36,6 +36,8 @@ def controlled(monkeypatch):
     monkeypatch.setattr(tools.service, "upcoming", lambda: [MATCH])
     monkeypatch.setattr(tools.service, "league_catalog", lambda: [])
     monkeypatch.setattr(orchestrator, "upcoming_focus", lambda _: None)
+    monkeypatch.setitem(tools.TOOLS_REGISTRY, "request_odds", lambda **_: {
+        **ENTITY, "status": "no_odds", "comparison_text": "Colombia vs Chile: sin cuotas de ninguna casa todavía."})
 
 
 def record(data, name="analyze_match", args=None):
@@ -206,7 +208,8 @@ def test_calendar_filter_cannot_be_overridden_by_llm():
 
 def test_repeated_answer_repaired_specific_question():
     answer = "Colombia es favorito, sin precio de Pinnacle no se puede evaluar la ventaja."
-    client = FakeLLM([TextDelta(answer)], [TextDelta("Colombia vs Chile: sin cuotas de ninguna casa todavía.")])
+    client = FakeLLM([ToolCall("r", "request_odds", {"match_id": 181043})],
+                     [TextDelta(answer)], [TextDelta("Colombia vs Chile: sin cuotas de ninguna casa todavía.")])
     events = list(
         orchestrator.run_chat(
             client,
@@ -226,7 +229,8 @@ def test_duplicate_repair_failure_uses_odds_fallback():
     answer = "Colombia es favorito, sin precio de Pinnacle no se puede evaluar la ventaja."
     events = list(
         orchestrator.run_chat(
-            FakeLLM([TextDelta(answer)], [TextDelta(answer)]),
+            FakeLLM([ToolCall("r", "request_odds", {"match_id": 181043})],
+                    [TextDelta(answer)], [TextDelta(answer)]),
             "y no tienes datos de las posibles cuotas?",
             UserPreferences(),
             history=[{"role": "assistant", "content": answer}],
@@ -372,7 +376,8 @@ def test_odds_question_requires_canonical_odds_status():
     wrong = "Colombia es favorito, con probabilidades de 67.5%."
     events = list(
         orchestrator.run_chat(
-            FakeLLM([TextDelta(wrong)], [TextDelta(wrong)]), "¿Y las cuotas?", UserPreferences(), entities=ENTITY
+            FakeLLM([ToolCall("r", "request_odds", {"match_id": 181043})],
+                    [TextDelta(wrong)], [TextDelta(wrong)]), "¿Y las cuotas?", UserPreferences(), entities=ENTITY
         )
     )
     emitted = "".join(e.data["delta"] for e in events if e.event == "token")

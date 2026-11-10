@@ -65,9 +65,12 @@ def observe(record: ToolCallRecord) -> Observation:
             return Observation(status="empty", note="No hay partidos próximos con ese filtro.",
                                options=["get_coverage"])
         if not any(row.get("has_pinnacle_price") for row in result):
+            options = ["analyze_match", "get_coverage"]
+            if len(result) == 1 or args.get("team"):
+                options.insert(0, "request_odds")
             return Observation(status="no_pinnacle",
                                note="Ningún partido listado tiene precio de Pinnacle: no se puede evaluar ventaja.",
-                               options=["analyze_match", "get_coverage"])
+                               options=options)
         return OK
 
     if name == "get_value_bets" and not result:
