@@ -4,6 +4,7 @@ import json
 import sqlite3
 
 from footy.db.repository import utc_now
+from footy_agents.migrate import add_column
 from footy_agents.watch_schemas import CONDITION_LABELS, Alert, Watch, WatchArgs, WatchRun
 
 DDL = """
@@ -34,17 +35,13 @@ CREATE TABLE IF NOT EXISTS agent_watch_log (
 def init_tables(conn: sqlite3.Connection) -> None:
     outer = conn.in_transaction            # dentro de la transacción del vigía no se confirma a medias
     conn.executescript(DDL)
-    alert_cols = {r[1] for r in conn.execute("PRAGMA table_info(agent_alerts)")}
-    if "expires_at" not in alert_cols:
-        conn.execute("ALTER TABLE agent_alerts ADD COLUMN expires_at TEXT")  # inicio del partido: deja de mostrarse
+    add_column(conn, "agent_alerts", "expires_at", "TEXT")  # inicio del partido: deja de mostrarse
     # Descartado por el usuario: se oculta pero la fila queda, así la deduplicación no vuelve a emitir el mismo aviso.
-    if "dismissed_at" not in alert_cols:
-        conn.execute("ALTER TABLE agent_alerts ADD COLUMN dismissed_at TEXT")
+    add_column(conn, "agent_alerts", "dismissed_at", "TEXT")
     # Alertas previas a la columna: expiran con el inicio guardado en sus facts (solo toca filas sin fecha).
     conn.execute("UPDATE agent_alerts SET expires_at=json_extract(facts,'$.kickoff') "
                  "WHERE expires_at IS NULL AND json_extract(facts,'$.kickoff') IS NOT NULL")
-    if "perception" not in {r[1] for r in conn.execute("PRAGMA table_info(agent_watch_log)")}:
-        conn.execute("ALTER TABLE agent_watch_log ADD COLUMN perception TEXT NOT NULL DEFAULT '{}'")
+    add_column(conn, "agent_watch_log", "perception", "TEXT NOT NULL DEFAULT '{}'")
     if not outer:
         conn.commit()                       # la migración no deja la base bloqueada para otras conexiones
 

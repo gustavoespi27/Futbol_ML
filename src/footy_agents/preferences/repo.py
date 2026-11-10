@@ -8,6 +8,7 @@ import json
 import sqlite3
 
 from footy.db.repository import utc_now
+from footy_agents.migrate import add_column
 from footy_agents.schemas import DEFAULT_ALERT_TYPES, UserPreferences
 
 TABLE_DDL = """
@@ -32,10 +33,8 @@ ALERT_COLUMNS = {
 def init_preferences_table(conn: sqlite3.Connection) -> None:
     """Crea la tabla de preferencias si no existe y agrega las columnas de avisos (migración idempotente)."""
     conn.execute(TABLE_DDL)
-    existing = {row[1] for row in conn.execute("PRAGMA table_info(agent_user_preferences)")}
     for column, ddl in ALERT_COLUMNS.items():
-        if column not in existing:
-            conn.execute(f"ALTER TABLE agent_user_preferences ADD COLUMN {column} {ddl}")
+        add_column(conn, "agent_user_preferences", column, ddl)
     conn.commit()
 
 
