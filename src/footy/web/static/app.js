@@ -872,6 +872,8 @@ const TEAM_HIT = ".team, .teams .t, .h2h-team, .rf-opp, .st-head > span";
 document.addEventListener("click", (e) => {
   const hit = e.target.closest(TEAM_HIT);
   if (!hit || hit.closest(".mrow")) return;
+  // En la cabecera del partido el bloque del equipo es ancho: solo cuentan el escudo y el nombre.
+  if (hit.matches(".teams .t") && !e.target.closest(".teams .t > span, .teams .t [data-team]")) return;
   const logo = hit.querySelector("[data-team]") || (e.target.dataset && e.target.dataset.team ? e.target : null);
   if (!logo) return;
   e.preventDefault(); e.stopPropagation();
