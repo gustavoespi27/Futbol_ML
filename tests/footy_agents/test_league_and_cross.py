@@ -184,3 +184,7 @@ def test_team_form_route_never_leaves_the_team_to_the_model(monkeypatch):
     assert intent_route("¿cómo llega Inglaterra contra Croacia?", None) == ("analyze_match", {"match_id": 181000})
     assert intent_route("¿cómo llega Inglaterra?", None) == ("get_team_form", {"team": "England"})
     assert intent_route("como llega colo colo", None) == ("get_team_form", {"team": "Colo Colo"})
+
+
+def test_favorite_league_by_demonym():
+    assert intent_route("Añade la liga chilena a favoritos", None) == ("add_favorite", {"league": "CHL"})

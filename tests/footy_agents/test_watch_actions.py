@@ -96,7 +96,8 @@ def test_real_write_tools_and_observation(database):
         ("Mis alertas", "list_watches", {}),
         ("Deja de vigilar el id 12", "cancel_watch", {"id": 12}),
         ("Cancela la vigilancia", "cancel_watch", {}),
-        ("Agrega a favoritos Chile", "add_favorite", {}),
+        ("Agrega a favoritos Chile", "add_favorite", {"team": "chile"}),
+        ("Agrega al cacique a mis favoritos", "add_favorite", {"team": "el cacique"}),
     ],
 )
 def test_action_routing(message, name, args):
@@ -255,3 +256,34 @@ def test_creation_requires_resolving_before_writing(database, monkeypatch):
     assert events[-1].data["success"]
     with database() as conn:
         assert len(watches.list_watches(conn, "u")) == 1
+
+
+def test_favorite_with_a_name_is_saved_without_llm(database, monkeypatch):
+    saved = []
+    monkeypatch.setitem(tools.TOOLS_REGISTRY, "add_favorite", lambda team=None, league=None, user_id="default": (
+        saved.append((team, user_id)) or {"status": "ok", "confirmation_text": "Favorito guardado: Chile."}))
+
+    class NoLLM:
+        def stream_chat(self, messages, tools=None):
+            raise AssertionError("una acción con nombre no necesita inferencia")
+
+    events = list(orchestrator.run_chat(NoLLM(), "Agrega a Chile a mis favoritos", UserPreferences(user_id="u")))
+    assert saved == [("chile", "u")]
+    assert "".join(e.data["delta"] for e in events if e.event == "token") == "Favorito guardado: Chile."
+
+
+def test_a_write_the_model_only_claims_is_never_confirmed(database, monkeypatch):
+    from footy_agents.llm import TextDelta
+    monkeypatch.setattr(orchestrator, "upcoming_focus", lambda _: None)
+
+    class Claims:
+        def stream_chat(self, messages, tools=None):
+            yield TextDelta("Listo, quedó vigilando el partido.")       # nunca llama a create_watch
+
+    events = list(orchestrator.run_chat(Claims(), "Avísame si aparece valor en Colombia vs Chile",
+                                        UserPreferences(user_id="u")))
+    text = "".join(e.data["delta"] for e in events if e.event == "token")
+    assert "no se guardó ningún cambio" in text and "Listo" not in text
+    assert events[-1].data["success"] is False
+    with database() as conn:
+        assert not watches.list_watches(conn, "u")

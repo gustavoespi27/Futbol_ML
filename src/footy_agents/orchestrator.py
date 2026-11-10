@@ -482,6 +482,17 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
         focus = None if entities and entities.get("match_id") else upcoming_focus(message)
     except Exception:  # noqa: BLE001 - precarga opcional; el fallo no debe impedir el chat
         focus = None
+    if route and route[0] == "add_favorite" and route[1]:
+        # Guardar un favorito ya nombrado es una acción, no una redacción: se ejecuta y se confirma lo que devolvió.
+        yield _step("policy", "Acción directa: guardar el favorito con el nombre indicado, sin redacción.")
+        yield from turn.execute(ToolCall(id="direct_add_favorite", name="add_favorite", arguments=route[1]))
+        record = turn.records[-1]
+        saved = record.success and isinstance(record.result, dict) and record.result.get("confirmation_text")
+        yield ChatEvent(event="token", data={"delta": saved or (
+            f"No guardé ningún favorito: {record.error_message or 'no encontré ese nombre'}. "
+            "Dime el nombre exacto del equipo o de la liga.")})
+        yield ChatEvent(event="done", data={"iterations": 0, "success": bool(saved)})
+        return
     if route and not writing and (route[0] == "get_league_standings" and route[1].get("league")
                                   or route[0] == "simulate_match" and route[1].get("home_team")):
         # Datos que la pregunta pide sin ambigüedad: se consultan antes de redactar. La tabla y una ambigüedad de
@@ -629,6 +640,15 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
                 f"Antes de responder: la observación sugiere {pending} y aún no lo usaste. "
                 "Úsalo con el nombre que dio el usuario y luego responde."}])
             continue
+        if writing and not any(r.success and r.tool_name == route[0] for r in turn.records):
+            # Nunca se confirma una escritura que no ocurrió: el texto del modelo se descarta.
+            yield _step("repair", f"La acción pedida ({LABELS.get(route[0], route[0])}) no se ejecutó; "
+                                  "no se confirma lo que no se guardó.")
+            yield ChatEvent(event="token", data={"delta":
+                f"No alcancé a {LABELS.get(route[0], route[0])}: no se guardó ningún cambio. "
+                "Prueba de nuevo indicando el nombre exacto del equipo o del partido."})
+            yield ChatEvent(event="done", data={"iterations": iteration, "success": False})
+            return
         report = verify_numbers(answer, turn.records, user_message=message)
         claims = check_claims(answer, turn.records)
         report.unverified.extend(claims.unverified)

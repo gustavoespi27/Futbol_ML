@@ -106,6 +106,15 @@ def intent_route(message: str, entities: dict | None = None) -> tuple[str, dict]
                           (r"avisame|vigila|alerta", "create_watch")):
         if re.search(pattern, q):
             args: dict = {}
+            if tool == "add_favorite":
+                # «Agrega a Vietnam a mis favoritos», «añade la liga chilena a favoritos»: el nombre sale del texto.
+                named = re.search(r"(?:agrega|anade)\s+(?:a\s+)?(.+?)\s+(?:a|en)\s+(?:mis\s+)?favoritos", q) or \
+                    re.search(r"favoritos\s+(?:a\s+)?(.+?)\s*$", q)
+                if named:
+                    league = league_in_text(named[1]) if re.search(r"\bliga|torneo|campeonato\b", named[1]) else None
+                    raw = re.sub(r"^al\s+", "el ", named[1].strip())              # «al cacique» → «el cacique»
+                    args = {"league": league} if league else {
+                        "team": raw if raw in NICKNAMES else ARTICLE.sub("", raw).strip()}
             if tool == "cancel_watch":
                 id_ = re.search(r"\b\d+\b", q)
                 if id_:
