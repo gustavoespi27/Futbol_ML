@@ -78,6 +78,7 @@ def work() -> int:
     conn.commit()
     steps = [
         ("espn", lambda: log.info("ESPN: %s", run_espn(conn))),
+        ("odds_scout", run_odds_scout),
         ("api_football", lambda: log.info("Resumen API: %s", run_daily(conn, ApiFootball(conn)))),
         ("football_data", lambda: update_current_season(conn)),
         ("international", lambda: log.info("Selecciones: %s", international.prepare(conn))),
@@ -129,6 +130,11 @@ def work() -> int:
         log.exception("No se pudo ejecutar el vigía")
     conn.close()
     return 1 if failed else 0
+
+
+def run_odds_scout() -> None:
+    from footy_agents.odds_scout import run_safely
+    run_safely()
 
 
 def publish_snapshot(refresh: bool = False) -> None:

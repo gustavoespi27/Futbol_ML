@@ -9,6 +9,7 @@ import time
 from collections.abc import Callable
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -331,7 +332,27 @@ def run(
                 ),
             )
             result.id = cursor.lastrowid
+        if result.inserted:
+            publish_changes(conn)
     return result
+
+
+def publish_changes(conn: sqlite3.Connection) -> None:
+    """Invalida solo la base real; una prueba o CLI aislada nunca toca la caché global ni la red."""
+    filename = conn.execute("PRAGMA database_list").fetchone()[2]
+    if not filename or Path(filename).resolve() != config.path("database").resolve():
+        return
+    import requests
+
+    from footy.web import service
+    from footy.web.services import snapshots
+
+    try:
+        snapshots.advance_revision()
+        service.clear_caches()
+        requests.post("http://127.0.0.1:8000/api/refresh", timeout=3)
+    except (OSError, requests.RequestException):
+        log.warning("Cuotas publicadas; panel cerrado o refresco diferido", exc_info=True)
 
 
 def run_safely() -> None:

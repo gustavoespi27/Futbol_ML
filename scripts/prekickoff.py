@@ -59,6 +59,11 @@ def main() -> int:
     finally:
         conn.close()
         try:
+            from footy_agents.odds_scout import run_safely as scout_safely
+            scout_safely()
+        except (ImportError, sqlite3.Error, ValueError, KeyError):
+            log.exception("No se pudo ejecutar el Ojeador")
+        try:
             from footy_agents.watcher import run_safely
             run_safely()
         except Exception:  # noqa: BLE001 - ni un fallo al importar el vigía rompe el pipeline
