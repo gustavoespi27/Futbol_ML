@@ -15,7 +15,13 @@ def db(tmp_path):
     yield from cycle.db.__wrapped__(tmp_path)
 
 
-def test_cli_dry_run_changes_no_rows(db, capsys, tmp_path):
+def test_cli_dry_run_changes_no_rows(db, capsys, tmp_path, monkeypatch):
+    class Clock(odds_scout.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cycle.NOW
+
+    monkeypatch.setattr(odds_scout, "datetime", Clock)
     before = list(db.iterdump())
     path = Path(db.execute("PRAGMA database_list").fetchone()[2])
     output = tmp_path / "dry.json"

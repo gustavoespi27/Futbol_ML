@@ -680,3 +680,155 @@ partido próximo o programado, y la respuesta se repara.
   `get_system_performance`; «más fiables» va a las recomendaciones.
 - La migración que agrega el tipo `name` a la memoria corre en una transacción exclusiva: en la primera versión, el
   navegador consultando en paralelo pudo perder filas durante la reconstrucción de la tabla.
+
+## Multiagente: el Ojeador (2026-11-10)
+
+Se ejecutó T1–T8 de `docs/plan_ojeador.md` en `feature/odds-scout`, desde `e011b03` de
+`feature/agent-ui-redesign`. El diseño es adecuado: un solo LLM, delegación directa por herramientas y
+un tablero SQLite compartido. El Míster decide qué consultar; el Ojeador obtiene y compara precios sin
+LLM; el Vigía detecta cambios y publica los avisos existentes. No se integra a main: Claude audita la rama.
+
+**DraftKings es precio ofrecido; Pinnacle sin margen es la única referencia de precio justo.**
+Tener más cuotas no aumenta por sí solo la cobertura de Pinnacle ni demuestra una ventaja.
+
+### Implementación y decisiones
+
+- `odds_scout.py`: parser de americano a decimal, 1X2 completo con suma de probabilidades implícitas entre
+  1,00 y 1,25, OU solo con ambos precios y línea consistente; `is_closing=0` también para el campo `close`
+  de ESPN, que aquí es el precio observado, no una cuota histórica de cierre.
+- Calce exclusivamente por `match_sources(source='espn')`. El parser no conoce la base: `act` añade el
+  match_id real. Se valida la fecha del evento y se vuelve a comprobar el inicio después del fetch;
+  no se publican capturas posteriores al kickoff.
+- Percepción de cuotas, Pinnacle, antigüedad, favoritos de usuarios y par slug/fecha de ESPN
+  (`America/New_York`). Presupuesto de 40 scoreboards por corrida; los reintentos internos son los del
+  cliente existente. Prioridad: inicio cercano, favoritos, sin cuota. TTL de seis horas, o una si
+  faltan menos de seis horas. API-Football queda reservada para la ingesta diaria, con descarte explícito.
+- Cada inserción usa una transacción con comprobación de recencia para no duplicar una captura concurrente.
+  La bitácora `agent_scout_log` conserva las decisiones y sus motivos; el reset incluye esa tabla, sin
+  borrar `odds`, preferencias ni tablas del motor.
+- `odds_comparison.py` lee SQLite directamente, toma el último precio prepartido por casa/selección y
+  usa `pro.fair_1x2` y `pro.best_prices`. Sin Pinnacle: `edge=None`, `pinnacle_fair_odds=None` y nota explícita.
+- `request_odds(match_id)` delega solo ese partido con presupuesto de un scoreboard, salvo captura ESPN
+  de menos de una hora. La herramienta informa `delegated` y `scout_reason`; ruteo, observaciones,
+  memoria de entidades y respaldo reconocen la delegación. Son **16 herramientas** en total.
+- Ciclos daily/prekickoff con importación perezosa; CLI `scripts/odds_scout.py --dry-run` y bitácora de
+  lectura `GET /api/agent/scout-log?limit=1..100`, con contratos Pydantic estrictos. No se agregó UI.
+- Solo una inserción en la base real publica revisión explícita y solicita `POST /api/refresh`. Las
+  bases temporales no tocan cachés globales ni red; la prueba de salida sin pandas/numpy sigue pasando.
+
+### Desviaciones necesarias respecto del plan
+
+1. El cliente real es `Espn`, no `EspnClient`. `scoreboard` devuelve la lista de eventos directamente.
+   El payload real consultado trae OU en `total.over/under.open/close`; se soporta además de
+   `overOdds/underOdds`. Los cuatro fixtures versionados están recortados de esa estructura real.
+2. `odds.line` es **NOT NULL**, con `0` para 1X2. Se preserva la clave UNIQUE existente y se añade
+   la comprobación transaccional de recencia; no se cambió el esquema del motor.
+3. Al verificar T6 apareció un conflicto real: el contexto web podía tomar cualquier casa como
+   referencia por fallback, incluido DraftKings. Dentro de la excepción **web/** autorizada, se
+   excluyeron DraftKings y las casas de `espn_odds` de las referencias 1X2/OU. Siguen disponibles como
+   precios ofrecidos para `pro.evaluate`. No se tocaron modelos, mercados, betting, ingest ni tracking.py.
+   El parser no admite que un proveedor ESPN se presente como la referencia Pinnacle.
+4. `DISPLAY_BOOKS` no incluía DraftKings. Se añadió en la capa web existente: el detalle ya recorre
+   dinámicamente `odds_1x2`, por lo que muestra la casa sin JS ni interfaz nueva. Comprobación real de
+   Türkiye–Belgium: DraftKings `[3.65, 3.95, 1.8]`, `market_book=null`, fuente «modelo selecciones».
+5. La primera prueba real (`runs 230–231`) encontró otra confusión de Qwen: precios correctos, pero
+   «No hay apuestas con valor» sin Pinnacle. Se reportó antes de corregirla y se agregó **un commit fix
+   independiente**: la comparación debe copiar `comparison_text` completo o pasar por reparación y
+   respaldo. No se aceptó esa primera respuesta como una prueba satisfactoria.
+6. Se extendió una prueba previa solo para incorporar `request_odds` en las opciones de `analyze_match`.
+   Las pruebas del reset ya recorren la lista cerrada completa y comprobaron también la tabla nueva.
+   En el cierre se fijó el reloj de los tests nuevos de CLI/Vigía: no dependen de la fecha del host.
+
+### Medición real antes y después
+
+Mismo conjunto inicial de **90 match_id** de la web, medido el 2026-11-10. El Ojeador percibió **142**
+partidos de su horizonte SQLite de siete días; ese total no se confunde con el denominador de la web.
+
+| Medida | Antes | Después |
+|---|---:|---:|
+| Partidos del conjunto con algún precio 1X2 | 3 de 90 | **69 de 90** |
+| Partidos del conjunto con Pinnacle | 1 de 90 | **1 de 90** |
+| Filas `source='espn_odds'` | 0 | **360** |
+| Partidos SQLite con cuota ESPN | 0 | 72 |
+| Claves de captura duplicadas | — | **0** |
+| Filas ESPN posteriores al inicio | — | **0** |
+| Filas ESPN usando Pinnacle como proveedor | — | **0** |
+
+Las 360 filas se desglosan en diez de dos delegaciones reales y 350 del ciclo general. La cobertura
+3 → 69 es de precios ofrecidos: **no significa 69 partidos con valor evaluable**. Pinnacle no aumentó.
+
+Salidas reales de la CLI:
+
+```text
+--dry-run:
+ACTUAR: 0 scoreboards; 0 filas insertadas; 112.8 ms.
+Primera corrida:
+ACTUAR: 25 scoreboards; 350 filas insertadas; 14618.2 ms.
+Segunda corrida:
+ACTUAR: 14 scoreboards; 0 filas insertadas; 9325.49 ms.
+```
+
+Las decisiones registran tanto «Captura publicada: 5 precios ofrecidos; no son referencia justa» como
+«Captura ESPN reciente: no se repite la petición», ausencia de id/slug y la reserva de API-Football.
+La segunda corrida demuestra **idempotencia de filas**, no ausencia de peticiones: se repiten grupos
+con partidos que aún no obtuvieron una captura válida. No se agregó caché negativa fuera del plan.
+El servidor normal de 8000 estaba cerrado; la revisión de datos se publicó igualmente y se verificó
+el refresco público del servidor de revisión en 8767 con respuesta 200.
+
+### Delegación real con Qwen
+
+Secuencia final, nueva conversación, datos reales, registrada en `/api/agent/runs`:
+
+| Run | Pregunta | Camino | Resultado |
+|---|---|---|---|
+| 232 | «Analiza Türkiye contra Belgium» | precarga upcoming → analyze_match(180997) | Favorito Belgium 47,5 %; sin Pinnacle. Frase accesoria impropia documentada abajo |
+| 233 | «Compara cuotas de ese partido» | precarga analyze_match → request_odds(180997) → request_odds(180997) | Una captura real; la segunda consulta reutilizó la captura reciente; respuesta canónica verificada |
+
+Respuesta final completa del comparador:
+
+```text
+Gana Türkiye: mejor 3.650 en DraftKings
+Empate: mejor 3.950 en DraftKings
+Gana Belgium: mejor 1.800 en DraftKings
+Sin Pinnacle no hay valor medible; son precios ofrecidos.
+```
+
+El Vigía se probó con una inserción sintética de `espn_odds`, lectura real de cuotas del motor y
+`pro.evaluate`: al existir Pinnacle y superar la regla, se publicó el aviso existente **value_bet**
+con DraftKings y Pinnacle en el texto. La repetición no duplicó el aviso ni creó apuestas en papel.
+No se presenta ese caso sintético como una oportunidad real actual.
+
+### Validación y límites
+
+**634 pytest**, Ruff en `src scripts tests`, sintaxis JS y **8 pruebas Node** en verde. Cobertura de
+`footy_agents`: **95,74 %** (3073 sentencias, 131 sin cubrir). No se añadieron dependencias.
+La búsqueda de usos de DraftKings confirma: precio ofrecido/parser/display/tests/docs; la única
+probabilidad justa y ventaja del comparador vienen de `pro.fair_1x2` con la clave Pinnacle.
+
+- ESPN es una API pública no documentada: puede cambiar formato, cobertura, proveedor o disponibilidad.
+- Sin precio válido se vuelve a consultar en la siguiente corrida, dentro del presupuesto. El presupuesto
+  cuenta scoreboards solicitados; un error de red puede activar los reintentos del cliente existente.
+- Los precios de distintas casas pueden tener distinta antigüedad. No se garantiza simultaneidad ni ejecución
+  de una apuesta. Son datos observados antes del inicio y seguimiento educativo.
+- El comparador está protegido por texto canónico. El lenguaje libre del Míster conserva variabilidad:
+  en run 232 añadió «se juega en el medio», frase sin utilidad que no se corrigió fuera de este alcance.
+- Para cargar el backend de esta rama hay que reiniciar el servidor. No se reemplazó una instancia del usuario,
+  no se modificaron tareas del Programador ni se integró a main.
+
+Evidencia resumida versionada: [validacion_ojeador.json](validacion_ojeador.json). Originales locales:
+`reports/ojeador/{antes,despues,dry-run,ciclo-real-1,ciclo-real-2,chat-final,runs-final,scout-log-http}.json`.
+Diagrama en [arquitectura_agente.md](../arquitectura_agente.md). CLAUDE.md §7 se actualiza solo en disco.
+
+### Commits para auditoría
+
+| Tarea | Commit | Mensaje |
+|---|---|---|
+| T1 | `25dfcbf` | feat(agents): leer cuotas ESPN con validación prepartido |
+| T2 | `610960d` | feat(agents): ejecutar el ciclo del Ojeador con presupuesto y bitácora |
+| T3 | `587005e` | feat(agents): comparar casas contra Pinnacle sin margen |
+| T4 | `61e2900` | feat(agents): delegar consultas de cuotas al Ojeador |
+| T5 | `80a51cd` | feat(agents): integrar el Ojeador al ciclo y publicar cuotas nuevas |
+| T6 | `16a2c28` | fix(agents): mantener precios ESPN fuera de la referencia y validar avisos |
+| T7 | `fd47681` | feat(agents): exponer la bitácora pública del Ojeador |
+| Bug detectado en vivo | `8b08394` | fix(agents): verificar el texto canónico de la comparación de cuotas |
+| T8 | commit de este cierre documental | docs(agents): documentar el Ojeador y su validación real |

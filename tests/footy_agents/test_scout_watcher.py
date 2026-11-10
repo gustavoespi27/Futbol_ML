@@ -36,7 +36,8 @@ def snapshot(db):
     }
 
 
-def test_espn_ingestion_reaches_existing_value_bet_notice(db):
+def test_espn_ingestion_reaches_existing_value_bet_notice(db, monkeypatch):
+    monkeypatch.setattr(betting.repo, "utc_now", lambda: cycle.NOW.strftime("%Y-%m-%dT%H:%M:%SZ"))
     add(db, "Pinnacle", [2, 3.5, 4])
     before = snapshot(db)
     watcher.run(db, [before], cycle.NOW, suggestions=betting.current_suggestions([before]))

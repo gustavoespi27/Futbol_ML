@@ -82,3 +82,28 @@ Código: [orquestador](../src/footy_agents/orchestrator.py), [ruteo](../src/foot
 [respaldo](../src/footy_agents/fallback.py), [vigía](../src/footy_agents/watcher.py),
 [persistencia](../src/footy_agents/watches.py). Evidencia y límites en
 [08_capa_agentica.md](analisis/08_capa_agentica.md).
+
+
+## Ojeador: delegación y tablero de cuotas
+
+```mermaid
+flowchart LR
+    U[Usuario] --> M[El Míster: Qwen elige herramientas]
+    M -->|request_odds con match_id real| O[El Ojeador: sin LLM]
+    J[daily / prekickoff / CLI] --> O
+    O --> P[Percibir: cobertura, favoritos, ids ESPN y antigüedad]
+    P --> D[Decidir: agrupar liga-fecha y aplicar presupuesto]
+    D -->|Seleccionados| E[Scoreboard ESPN: precios ofrecidos]
+    D -->|Descartados con motivo| L[(agent_scout_log)]
+    E -->|Calce exacto match_sources y validación prepartido| DB[(odds: tablero compartido)]
+    E --> L
+    DB --> C[Comparador: Pinnacle sin margen como única referencia]
+    C -->|comparison_text verificado| M
+    DB --> W[El Vigía: avisos existentes, sin LLM]
+```
+
+El Ojeador no consulta API-Football: registra que queda reservada para la ingesta diaria. La respuesta del
+comparador usa su texto canónico completo o reparación/respaldo. Las casas publicadas por `espn_odds` se
+excluyen de las referencias 1X2 y OU del contexto web; conservan su función de precio ofrecido para el motor profesional.
+La revisión de datos se publica tras una inserción real y el panel recibe el refresco público. Una base temporal
+no toca los cachés globales ni hace ese POST. `--dry-run` no consulta ESPN ni escribe la bitácora.

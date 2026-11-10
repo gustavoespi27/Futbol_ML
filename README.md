@@ -55,7 +55,7 @@ se habla y vuelve a consultar en vez de repetir cifras de memoria.</sub></p>
 | **181.114** partidos en la base (2012-2026) | **1,98 millones** de cuotas históricas y pre-partido |
 | **53** competiciones visibles, incluidas 8 de selecciones | **1.749** equipos enlazados entre fuentes de datos |
 | **8.608** partidos de examen fuera de muestra (temporada 2026) | **498** partidos auditados en vivo con pronóstico previo |
-| **15** herramientas del agente (11 de consulta, 4 de acción) | **597** pruebas automáticas; CI en Python 3.11 y 3.12 |
+| **16** herramientas del agente (11 de consulta, 4 de acción y 1 de delegación) | **634** pruebas automáticas; CI en Python 3.11 y 3.12 |
 
 ---
 
@@ -75,6 +75,20 @@ nuevo. Las capas se generan con `scripts/prepare_mascot.py` y `scripts/rig_masco
 respeta «reducir movimiento».
 
 ![El Míster: cuerpo entero y cabeza en distintos tamaños](docs/img/readme/el-mister.png)
+
+### Tres agentes sobre un tablero compartido
+
+| Agente | Qué decide y hace | Usa LLM |
+|---|---|---|
+| **El Míster** | Resuelve la pregunta, consulta herramientas y delega `request_odds` si necesita comparar cuotas | Sí, Qwen local |
+| **El Ojeador** | Percibe cobertura, agrupa peticiones ESPN por liga y fecha, captura precios y registra descartes | No |
+| **El Vigía** | Detecta cambios en el tablero y publica avisos con plantillas verificadas | No |
+
+**DraftKings es precio ofrecido; Pinnacle sin margen es la única referencia de precio justo.**
+Sin Pinnacle, el comparador muestra precios y casas, sin calcular ventaja. La delegación reutiliza las
+capturas ESPN de menos de una hora; el ciclo general usa una ventana de seis horas, o una si el inicio está a menos de seis.
+El presupuesto máximo es de 40 scoreboards por corrida, no una llamada por partido. La bitácora pública queda en
+`/api/agent/scout-log`; la decisión de delegar del Míster, en `/api/agent/runs`.
 
 ### Qué lo hace un agente y no un chatbot
 
@@ -115,11 +129,12 @@ flowchart TD
   FB --> OK
 ```
 
-**Herramientas.** Las 15 herramientas envuelven al motor sin modificarlo y validan sus argumentos con Pydantic:
+**Herramientas.** Las 16 herramientas validan sus argumentos con Pydantic. `request_odds(match_id)` delega la
+captura de precios en el Ojeador y devuelve `comparison_text`, sin convertir DraftKings en referencia:
 
-| Consulta | Acción |
-|---|---|
-| `find_team` (nombres y apodos: «la roja», «el cacique») · `analyze_match` · `get_team_form` · `simulate_match` · `get_upcoming_matches` · `get_league_standings` · `get_value_bets` · `get_recommendations` (las tres pestañas de Apuestas) · `get_coverage` · `get_system_performance` · `get_stake_limits` | `create_watch` · `list_watches` · `cancel_watch` · `add_favorite` |
+| Consulta | Acción | Delegación |
+|---|---|---|
+| `find_team` (nombres y apodos: «la roja», «el cacique») · `analyze_match` · `get_team_form` · `simulate_match` · `get_upcoming_matches` · `get_league_standings` · `get_value_bets` · `get_recommendations` (las tres pestañas de Apuestas) · `get_coverage` · `get_system_performance` · `get_stake_limits` | `create_watch` · `list_watches` · `cancel_watch` · `add_favorite` | `request_odds` (Ojeador y comparador) |
 
 **Protecciones** (*guardrails*):
 
@@ -341,7 +356,7 @@ los datos no cambiaron. `scripts/automation.py` permite pausar y reanudar.
 - **Agente sin frameworks:** orquestador propio de ~450 líneas, cliente compatible con OpenAI por `requests` y
   Ollama local. Cambiar de proveedor es cambiar `base_url` y `model` en `config/settings.yaml`.
 - **Contratos estrictos:** respuestas y eventos con Pydantic v2 y `extra="forbid"`; el chat usa Server-Sent Events.
-- **Calidad:** 597 pruebas con pytest (el agente se prueba con un LLM simulado, sin red ni costo), pruebas del
+- **Calidad:** 634 pruebas con pytest (el agente se prueba con un LLM simulado, sin red ni costo), pruebas del
   frontend con `node:test`, Ruff y CI en GitHub Actions.
 - **Reproducibilidad:** fechas en UTC ISO-8601, cada pronóstico registra la versión del modelo, y las evaluaciones
   del agente guardan sus eventos completos en JSON.
@@ -398,8 +413,9 @@ La clave de API vive solo en `.env`, que no se versiona.
 | Script | Descripción |
 |---|---|
 | `scripts/serve.py` | Dashboard web local |
-| `scripts/daily.py` | Ciclo diario completo (incluye el vigía) |
+| `scripts/daily.py` | Ciclo diario completo (ESPN → Ojeador → modelos → Vigía) |
 | `scripts/prekickoff.py` | Cuota y pronóstico final en las 2 h previas a cada partido (incluye el vigía) |
+| `scripts/odds_scout.py [--dry-run] [--budget 40]` | Percepción, decisiones y captura de cuotas ESPN; simulación sin red ni inserciones |
 | `scripts/agent_watch.py` | Ejecuta el vigía y muestra percepción, decisiones y acciones |
 | `scripts/automation.py status \| pausa 2h \| reanudar` | Estado y pausa de las tareas automáticas |
 | `scripts/register_task.ps1` | Registra las tareas en el Programador de tareas de Windows |
@@ -436,19 +452,22 @@ src/footy_agents/    capa agéntica, desacoplada del motor
   persona.py         nombre y voz de DT del Míster; apelativo y presentación sin LLM
   observations.py    clasificación tipada de cada resultado de herramienta
   routing.py         continuidad de la conversación e intención para recuperar
-  tools.py           15 herramientas tipadas sobre el motor
+  tools.py           16 herramientas tipadas; request_odds delega en el Ojeador
   grounding.py       verificación de cifras, fechas e interpretaciones
   fallback.py        respuesta de respaldo con frases canónicas verificadas
   memory.py          memoria corta, entidades y registro interno de cada turno
   conversations.py   historial de conversaciones: retomar con su contexto o borrar
   user_memory.py     memoria personalizada: equipos, ligas y temas aprendidos del usuario
+  odds_scout.py      Ojeador: parser ESPN, percepción, presupuesto, captura y bitácora
+  odds_comparison.py comparación directa de SQLite, precio justo solo de Pinnacle
+  scout_schemas.py   contratos de percepción, decisiones y bitácora del Ojeador
   watcher.py         vigía autónomo: percibir, comparar, decidir, actuar, registrar
   watches.py         vigilancias y alertas
   notifications.py   avisos: favoritos, cuotas con valor o cerca, combinadas
   llm.py             cliente compatible con OpenAI; ollama_runtime.py lo inicia bajo demanda
-  web/router.py      /api/agent: chat y resumen por SSE, conversaciones, memoria, alertas, vigilancias, salud
+  web/router.py      /api/agent: chat y resumen por SSE, conversaciones, memoria, alertas, vigilancias, scout-log, salud
 scripts/             puntos de entrada: ciclo diario, cuotas pre-partido, vigía, análisis y evaluación
-tests/               597 pruebas; tests/footy_agents usa un LLM simulado
+tests/               634 pruebas; tests/footy_agents usa un LLM simulado
 docs/                análisis 01-11, arquitectura del agente, guion de demo y registro de decisiones
 ```
 
