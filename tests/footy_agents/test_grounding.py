@@ -40,7 +40,7 @@ def test_unsupported_answer_uses_existing_error_contract():
     class Invented:
         def stream_chat(self, *_):
             yield TextDelta("La cuota es 9,99.")
-    events = list(run_chat(Invented(), "hola", UserPreferences()))
+    events = list(run_chat(Invented(), "una consulta", UserPreferences()))
     # sin datos del turno, primero consulta; si insiste en la cifra, repara una vez y luego mantiene el error
     assert [e.event for e in events] == ["step", "step", "error", "token", "done"]
     assert [e.data["kind"] for e in events[:2]] == ["recovery", "repair"]

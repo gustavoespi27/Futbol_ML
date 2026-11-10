@@ -75,14 +75,14 @@ def test_steps_summary():
 
 def test_chat_remembers_verified_answers_and_logs_runs(db):
     first = FakeLLM([TextDelta("Hola, soy el asistente.")])
-    assert "event: done" in chat("hola", first)
+    assert "event: done" in chat("una consulta", first)
     second = FakeLLM([TextDelta("Sigo aquí.")])
     chat("¿y ahora?", second)
     sent = second.calls[0]
-    assert [m["content"] for m in sent[1:]] == ["hola", "Hola, soy el asistente.", "¿y ahora?"]
+    assert [m["content"] for m in sent[1:]] == ["una consulta", "Hola, soy el asistente.", "¿y ahora?"]
 
     runs = router.runs(user_id="default", limit=5)
-    assert [r.message for r in runs] == ["¿y ahora?", "hola"]
+    assert [r.message for r in runs] == ["¿y ahora?", "una consulta"]
     assert runs[0].success and runs[0].iterations == 1 and runs[0].elapsed_ms >= 0
     assert runs[0].steps[0] == {"kind": "memory", "detail": "Último turno y entidades"}
     assert runs[1].steps[0] == {"kind": "memory", "detail": "Tema nuevo: sin historial ni entidades"}
@@ -90,7 +90,7 @@ def test_chat_remembers_verified_answers_and_logs_runs(db):
 
 def test_failed_answer_is_logged_but_not_remembered(db):
     invented = [TextDelta("La cuota es 9,99.")]
-    chat("hola", FakeLLM(invented, invented, invented))
+    chat("una consulta", FakeLLM(invented, invented, invented))
     run = router.runs(user_id="default", limit=1)[0]
     assert not run.success and [s["kind"] for s in run.steps] == ["memory", "recovery", "repair", "error"]
     assert memory.history(db(), "default") == []
@@ -105,5 +105,5 @@ def test_logging_failure_does_not_break_stream(monkeypatch):
             raise sqlite3.OperationalError("disco lleno")
         return sqlite3.connect(":memory:")
     monkeypatch.setattr(router, "connect", connect)
-    body = chat("hola", FakeLLM([TextDelta("Hola.")]))
+    body = chat("una consulta", FakeLLM([TextDelta("Hola.")]))
     assert "event: done" in body and len(opened) == 2

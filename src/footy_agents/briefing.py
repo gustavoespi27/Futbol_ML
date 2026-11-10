@@ -11,12 +11,14 @@ from datetime import datetime, timedelta, timezone
 
 from footy.web.services.context import LOCAL_TZ
 from footy_agents.llm import LLMClient, LLMUnavailable, TextDelta
+from footy_agents.persona import NAME, ROLE
 from footy_agents.schemas import ChatEvent, FeedItem, PersonalizedFeedResponse, UserPreferences
 
 HORIZON_HOURS = 24
 MAX_ITEMS = 5
 
-BRIEFING_PROMPT = """Eres el asistente de Futbol_ML. Escribe en español un resumen breve (3 a 5 oraciones, un solo
+BRIEFING_PROMPT = f"Eres {NAME}, el {ROLE} de Futbol_ML: tono cercano y futbolero, sin emojis ni exageraciones. " + """
+Escribe en español un resumen breve (3 a 5 oraciones, un solo
 párrafo, sin listas ni títulos) de lo que le interesa hoy al usuario, usando SOLO la ficha de hechos en JSON.
 Reglas estrictas:
 - No agregues partidos, equipos, cifras, cuotas, probabilidades ni resultados que no estén en la ficha.

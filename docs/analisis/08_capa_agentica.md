@@ -623,3 +623,18 @@ ningún aviso de precio: el umbral de 3 pp las descarta correctamente.
 
 Validación: 11 pruebas nuevas (tipos, partidos distintos, expiración, deduplicación, reaviso, preferencias,
 migración y API) y **553 pytest** en total.
+
+## Identidad: Pizarra
+
+El asistente se llama **Pizarra**, un analista de fútbol veterano: tutea, es directo, usa como máximo una
+expresión futbolera por respuesta y desconfía de las corazonadas. Nombre, rol y personalidad viven en
+`footy_agents/persona.py`; el prompt del chat y el del resumen la anteponen, y declaran que **las reglas mandan sobre
+la personalidad**: no se inventan historia, títulos ni anécdotas, y las cifras siguen saliendo solo de herramientas.
+
+Un saludo o «¿quién eres?» sin otra pregunta recibe una presentación fija (`policy`, 0 inferencias). Antes, el
+orquestador forzaba una consulta de datos y el modelo terminaba pidiendo contexto.
+
+Al probar la personalidad aparecieron dos falsos positivos de la verificación, ya corregidos: «viernes 21:00» se
+leía como el día 21, y la línea «2.5 goles» (que viene en el campo `over_2_5`) contaba como cifra sin respaldo. Con la
+corrección, el análisis de Colombia–Chile pasó de 3/3 respuestas reparadas a 4/4 limpias; una hora inventada
+(«17:00») se sigue detectando. Validación: **566 pytest**.

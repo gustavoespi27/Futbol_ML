@@ -106,7 +106,7 @@ def test_busy_emits_error_and_done():
     class Busy:
         def stream_chat(self, *_):
             raise LLMBusy("El asistente está atendiendo otra consulta")
-    out = list(orchestrator.run_chat(Busy(), "hola", UserPreferences()))
+    out = list(orchestrator.run_chat(Busy(), "una consulta", UserPreferences()))
     assert [e.event for e in out] == ["error", "done"]
     assert out[-1].data["success"] is False
 

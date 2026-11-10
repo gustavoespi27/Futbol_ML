@@ -18,7 +18,7 @@ class FakeLLM:
         yield from self.turns.pop(0)
 
 
-def run(client, message="hola"):
+def run(client, message="una consulta"):
     return list(orchestrator.run_chat(client, message, UserPreferences()))
 
 
@@ -35,7 +35,7 @@ def test_verifies_entire_answer_before_first_token():
             consumed.append(True)
             yield TextDelta("La cuota inventada es 9,99.")
 
-    output = orchestrator.run_chat(Stream(), "hola", UserPreferences())
+    output = orchestrator.run_chat(Stream(), "una consulta", UserPreferences())
     first = next(output)
     assert consumed and first.event == "step" and first.data["kind"] in {"recovery", "repair"}
     remaining = list(output)

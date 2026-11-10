@@ -19,6 +19,7 @@ from footy_agents.llm import LLMBusy, LLMClient, LLMUnavailable, TextDelta, Tool
 from footy_agents.memory import entities_from
 from footy_agents.names import normalize_name
 from footy_agents.observations import RECOVERABLE, Observation, observe
+from footy_agents.persona import INTRO_TEXT, NAME, PERSONA, is_intro
 from footy_agents.routing import intent_route, is_follow_up
 from footy_agents.schemas import ChatEvent, ToolCallRecord, UserPreferences
 from footy_agents.tools import OPENAI_TOOLS_SPEC, TOOL_MODELS, WRITE_TOOLS, execute_tool, upcoming_focus
@@ -57,11 +58,13 @@ def strip_tool_mentions(text: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", "".join(kept)).strip()
 MAX_TOOL_CHARS = 6000          # resultado de una herramienta que se le pasa al LLM (protege la ventana de contexto)
 
-UNAVAILABLE_TEXT = ("El motor de IA local no está disponible en este momento (Ollama no responde). "
+UNAVAILABLE_TEXT = (f"{NAME} no está disponible en este momento: el motor de IA local (Ollama) no responde. "
                     "El feed personalizado, las predicciones y las estadísticas del panel siguen operativos.")
 
-SYSTEM_PROMPT = """Eres el asistente de Futbol_ML, un sistema cuantitativo de predicción de fútbol y apuestas de valor.
-Responde siempre en español, de forma breve y directa.
+SYSTEM_PROMPT = PERSONA + """
+
+Trabajas en Futbol_ML, un sistema cuantitativo de predicción de fútbol y apuestas de valor.
+Responde siempre en español, de forma breve y directa. Las reglas estrictas mandan sobre tu personalidad.
 
 Reglas estrictas:
 1. NUNCA inventes probabilidades, cuotas, marcadores, goles esperados, posiciones ni métricas. Toda cifra que cites
@@ -278,6 +281,11 @@ def run_chat(client: LLMClient, message: str, prefs: UserPreferences,
     if SAFE_BET.search(message):
         yield _step("policy", "Premisa rechazada: no existen apuestas seguras; responde la regla de riesgo.")
         yield ChatEvent(event="token", data={"delta": SAFE_BET_TEXT})
+        yield ChatEvent(event="done", data={"iterations": 0, "success": True})
+        return
+    if is_intro(message):
+        yield _step("policy", f"Saludo sin consulta de datos: {NAME} se presenta sin usar herramientas.")
+        yield ChatEvent(event="token", data={"delta": INTRO_TEXT})
         yield ChatEvent(event="done", data={"iterations": 0, "success": True})
         return
     previous_answer = next((m.get("content", "") for m in reversed(history or []) if m.get("role") == "assistant"), "")

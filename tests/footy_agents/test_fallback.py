@@ -53,7 +53,7 @@ def test_double_failure_returns_verified_canonical_data(monkeypatch):
 
 def test_double_failure_without_data_stays_safe():
     bad = [TextDelta("La cuota es 99.99.")]
-    events = list(orchestrator.run_chat(FakeLLM(bad, bad, bad), "hola", UserPreferences()))
+    events = list(orchestrator.run_chat(FakeLLM(bad, bad, bad), "una consulta", UserPreferences()))
     assert answer(events) == orchestrator.SAFE_TEXT and not events[-1].data["success"]
 
 

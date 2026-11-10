@@ -1,5 +1,6 @@
 """Procedencia numérica y comprobaciones acotadas de confusiones semánticas conocidas."""
 
+import json
 import re
 from datetime import date, datetime, timezone
 from typing import Any
@@ -68,6 +69,7 @@ def _values(value: Any) -> list[float]:
     return []
 
 
+MARKET_LINE = re.compile(r'"(?:over|under)_(\d)_(\d)"')
 ISO_DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}")
 LOCAL_KICKOFF = re.compile(r"\b(?:lun|mar|mié|jue|vie|sáb|dom) \d{2}-\d{2}, \d{2}:\d{2} hora de Chile", re.I)
 
@@ -100,6 +102,9 @@ def verify_numbers(answer: str, records: list[ToolCallRecord], user_message: str
     known = [n for record in records if record.success for n in _values(local_payload(record.result))]
     known.extend([pro.KELLY_FRACTION, pro.MAX_STAKE, pro.MAX_DAILY, pro.MIN_EDGE])
     known.extend(value for _, value, _ in _numbers(user_message))
+    # La línea del mercado de goles viene en el nombre del campo (over_2_5), no como valor: también tiene respaldo.
+    known.extend(float(f"{a}.{b}") for r in records if r.success
+                 for a, b in MARKET_LINE.findall(json.dumps(r.result, default=str)))
     missing = list(dict.fromkeys(raw for raw, value, tolerance in _numbers(answer)
                                 if not any(abs(value - candidate) <= tolerance + 1e-12 for candidate in known)))
     known_local = {d for r in records if r.success for d in _local_kickoffs(r.result)}
@@ -121,7 +126,8 @@ def check_claims(answer: str, records: list[ToolCallRecord]) -> GroundingReport:
     local_dates = {d for r in records if r.success for d in _local_dates(local_payload(r.result))}
     q = normalize_name(answer)
     weekdays = "|".join(normalize_name(day) for day in WEEKDAYS)
-    for match in re.finditer(r"\b(" + weekdays + r")\s+(?:el\s+)?(\d{1,2})\b", q):
+    # «viernes 21:00» es una hora, no el día 21 (normalize_name deja «21 00»): se excluye el número seguido de minutos.
+    for match in re.finditer(r"\b(" + weekdays + r")\s+(?:el\s+)?(\d{1,2})\b(?!\s\d{2}\b)", q):
         if not any(normalize_name(WEEKDAYS[d.weekday()]) == match[1] and d.day == int(match[2]) for d in local_dates):
             findings.append(f"Fecha local incorrecta: {match[0]}; copia kickoff_local y weekday.")
     months = ("enero", "febrero", "marzo", "abril", "mayo", "junio",

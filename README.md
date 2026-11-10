@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/gustavoespi27/Futbol_ML/actions/workflows/ci.yml/badge.svg)](https://github.com/gustavoespi27/Futbol_ML/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-3776ab)
-![Tests](https://img.shields.io/badge/tests-553%20passing-10b981)
+![Tests](https://img.shields.io/badge/tests-566%20passing-10b981)
 ![LLM](https://img.shields.io/badge/LLM-Qwen%202.5%207B%20local-7c3aed)
 ![Stack](https://img.shields.io/badge/stack-FastAPI%20%C2%B7%20SQLite%20%C2%B7%20scikit--learn-0f172a)
 
@@ -55,11 +55,16 @@ se habla y vuelve a consultar en vez de repetir cifras de memoria.</sub></p>
 | **181.114** partidos en la base (2012-2026) | **1,98 millones** de cuotas históricas y pre-partido |
 | **53** competiciones visibles, incluidas 8 de selecciones | **1.749** equipos enlazados entre fuentes de datos |
 | **8.608** partidos de examen fuera de muestra (temporada 2026) | **498** partidos auditados en vivo con pronóstico previo |
-| **14** herramientas del agente (10 de consulta, 4 de acción) | **553** pruebas automáticas; CI en Python 3.11 y 3.12 |
+| **14** herramientas del agente (10 de consulta, 4 de acción) | **566** pruebas automáticas; CI en Python 3.11 y 3.12 |
 
 ---
 
 ## El agente de IA
+
+El asistente se llama **Pizarra**: un analista de fútbol veterano, cercano y directo, que mira los partidos con
+los modelos y los precios de Pinnacle, no con la camiseta. La personalidad vive en un solo módulo
+(`footy_agents/persona.py`) y cambia solo el tono: las reglas de cifras, valor y riesgo mandan sobre el estilo. El
+saludo o «¿quién eres?» recibe una presentación fija, sin LLM.
 
 ### Qué lo hace un agente y no un chatbot
 
@@ -321,7 +326,7 @@ los datos no cambiaron. `scripts/automation.py` permite pausar y reanudar.
 - **Agente sin frameworks:** orquestador propio de ~450 líneas, cliente compatible con OpenAI por `requests` y
   Ollama local. Cambiar de proveedor es cambiar `base_url` y `model` en `config/settings.yaml`.
 - **Contratos estrictos:** respuestas y eventos con Pydantic v2 y `extra="forbid"`; el chat usa Server-Sent Events.
-- **Calidad:** 553 pruebas con pytest (el agente se prueba con un LLM simulado, sin red ni costo), pruebas del
+- **Calidad:** 566 pruebas con pytest (el agente se prueba con un LLM simulado, sin red ni costo), pruebas del
   frontend con `node:test`, Ruff y CI en GitHub Actions.
 - **Reproducibilidad:** fechas en UTC ISO-8601, cada pronóstico registra la versión del modelo, y las evaluaciones
   del agente guardan sus eventos completos en JSON.
@@ -413,6 +418,7 @@ src/footy/           motor cuantitativo (solo lectura para la capa agéntica)
   web/               FastAPI, contratos Pydantic, servicios y frontend estático
 src/footy_agents/    capa agéntica, desacoplada del motor
   orchestrator.py    bucle de decisión con herramientas, recuperación, reparación y respaldo
+  persona.py         nombre y personalidad de Pizarra; presentación fija sin LLM
   observations.py    clasificación tipada de cada resultado de herramienta
   routing.py         continuidad de la conversación e intención para recuperar
   tools.py           14 herramientas tipadas sobre el motor
@@ -425,7 +431,7 @@ src/footy_agents/    capa agéntica, desacoplada del motor
   llm.py             cliente compatible con OpenAI; ollama_runtime.py lo inicia bajo demanda
   web/router.py      /api/agent: chat y resumen por SSE, alertas, vigilancias, bitácora, salud
 scripts/             puntos de entrada: ciclo diario, cuotas pre-partido, vigía, análisis y evaluación
-tests/               553 pruebas; tests/footy_agents usa un LLM simulado
+tests/               566 pruebas; tests/footy_agents usa un LLM simulado
 docs/                análisis 01-11, arquitectura del agente, guion de demo y registro de decisiones
 ```
 

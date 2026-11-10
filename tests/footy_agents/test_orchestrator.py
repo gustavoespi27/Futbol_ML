@@ -40,7 +40,7 @@ def fake_tool(monkeypatch):
 
 
 def test_direct_answer_streams_tokens():
-    out = events(FakeLLM([TextDelta("Hola, "), TextDelta("¿en qué te ayudo?")]), "hola")
+    out = events(FakeLLM([TextDelta("Hola, "), TextDelta("¿en qué te ayudo?")]), "una consulta")
     assert [e.event for e in out] == ["token", "done"]
     assert out[0].data["delta"] == "Hola, ¿en qué te ayudo?"
     assert out[-1].data == {"iterations": 1, "success": True}
@@ -153,7 +153,7 @@ def test_chat_endpoint_streams_sse(monkeypatch):
         conn.row_factory = sqlite3.Row
         return conn
     monkeypatch.setattr(router, "connect", memory_db)
-    resp = router.chat(ChatRequest(message="hola"), client=FakeLLM([TextDelta("¡Hola!")]))
+    resp = router.chat(ChatRequest(message="una consulta"), client=FakeLLM([TextDelta("¡Hola!")]))
     assert resp.media_type == "text/event-stream"
 
     async def collect():

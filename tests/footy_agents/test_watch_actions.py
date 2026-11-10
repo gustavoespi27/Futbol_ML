@@ -192,7 +192,7 @@ def test_unsolicited_write_is_rejected_before_execution(database, monkeypatch):
         def stream_chat(self, messages, tools=None):
             yield from next(self.turns)
 
-    events = list(orchestrator.run_chat(FakeLLM(), "Hola", UserPreferences()))
+    events = list(orchestrator.run_chat(FakeLLM(), "Una consulta", UserPreferences()))
     assert any(e.event == "tool_result" and not e.data["success"] for e in events)
     with database() as conn:
         assert not watches.list_watches(conn, "default")

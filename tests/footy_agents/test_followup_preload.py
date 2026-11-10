@@ -71,7 +71,7 @@ def test_followup_preloads_before_first_inference(monkeypatch):
 @pytest.mark.parametrize(
     "question,entities",
     [
-        ("Hola", ENTITY),
+        ("Una consulta", ENTITY),
         ("¿Y la U?", ENTITY),
         ("¿Y quién es favorito?", {"team": "Chile"}),
         ("¿Y quién es favorito?", {}),
