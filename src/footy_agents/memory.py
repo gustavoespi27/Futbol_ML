@@ -13,6 +13,7 @@ from collections.abc import Iterable
 from datetime import datetime, timedelta, timezone
 
 from footy.db.repository import utc_now
+from footy_agents.migrate import add_column
 from footy_agents.schemas import AgentRun, ChatEvent, ToolCallRecord
 
 MEMORY_TURNS = 3               # pares pregunta/respuesta que vuelven al modelo
@@ -44,8 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_agent_runs_user ON agent_runs (user_id, started_a
 
 def init_tables(conn: sqlite3.Connection) -> None:
     conn.executescript(DDL)
-    if "entities" not in {row[1] for row in conn.execute("PRAGMA table_info(agent_chat_memory)")}:
-        conn.execute("ALTER TABLE agent_chat_memory ADD COLUMN entities TEXT NOT NULL DEFAULT '{}'")
+    add_column(conn, "agent_chat_memory", "entities", "TEXT NOT NULL DEFAULT '{}'")
 
 
 def history(conn: sqlite3.Connection, user_id: str, now: datetime | None = None) -> list[dict]:

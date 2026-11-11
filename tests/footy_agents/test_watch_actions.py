@@ -287,3 +287,25 @@ def test_a_write_the_model_only_claims_is_never_confirmed(database, monkeypatch)
     assert events[-1].data["success"] is False
     with database() as conn:
         assert not watches.list_watches(conn, "u")
+
+
+def test_column_migration_tolerates_a_concurrent_process(tmp_path):
+    from footy_agents.migrate import add_column
+
+    class Stale:
+        """Conexión de otro proceso que leyó el esquema antes de que se agregara la columna."""
+        def __init__(self, conn):
+            self.conn = conn
+
+        def execute(self, sql, *args):
+            if sql.startswith("PRAGMA"):
+                return [(0, "id")]
+            return self.conn.execute(sql, *args)
+
+    with sqlite3.connect(tmp_path / "race.sqlite") as conn:
+        conn.execute("CREATE TABLE t (id INTEGER)")
+        add_column(conn, "t", "extra", "TEXT")
+        add_column(Stale(conn), "t", "extra", "TEXT")      # «duplicate column»: el estado final es el esperado
+        assert [r[1] for r in conn.execute("PRAGMA table_info(t)")] == ["id", "extra"]
+        with pytest.raises(sqlite3.OperationalError):     # otros errores sí se informan
+            add_column(conn, "no_existe", "x", "TEXT")
